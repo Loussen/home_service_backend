@@ -1,0 +1,108 @@
+<?php
+
+namespace App\Repositories;
+
+use App\Models\ProviderProfile;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
+
+class ProviderProfileRepository
+{
+    public function create(array $data): ProviderProfile
+    {
+        return ProviderProfile::create($data);
+    }
+
+    public function update(ProviderProfile $profile, array $data): ProviderProfile
+    {
+        $profile->update($data);
+
+        return $profile->fresh(['category', 'schedules']);
+    }
+
+    public function findForUser(int $userId, int $profileId): ?ProviderProfile
+    {
+        return ProviderProfile::with(['category', 'schedules'])
+            ->where('user_id', $userId)
+            ->where('id', $profileId)
+            ->first();
+    }
+
+    public function listForUser(int $userId): Collection
+    {
+        return ProviderProfile::with(['category', 'schedules'])
+            ->where('user_id', $userId)
+            ->latest()
+            ->get();
+    }
+
+    /**
+     * Nearby active providers. Distance via Haversine in PHP (SQLite + MySQL safe).
+     *
+     * @return Collection<int, ProviderProfile>
+     */
+    public function searchNearby(
+        float $lat,
+        float $lng,
+        ?int $categoryId = null,
+        float $radiusKm = 15,
+        int $limit = 50
+    ): Collection {
+        $query = ProviderProfile::query()
+            ->with(['user', 'category', 'schedules'])
+            ->where('is_active', true);
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        return $query->get()
+            ->map(function (ProviderProfile $profile) use ($lat, $lng) {
+                $profile->distance_km = $this->haversineKm(
+                    $lat,
+                    $lng,
+                    (float) $profile->latitude,
+                    (float) $profile->longitude
+                );
+
+                return $profile;
+            })
+            ->filter(fn (ProviderProfile $p) => $p->distance_km <= $radiusKm)
+            ->sortBy([
+                ['is_vip', 'desc'],
+                ['bumped_at', 'desc'],
+                ['distance_km', 'asc'],
+            ])
+            ->take($limit)
+            ->values();
+    }
+
+    public function syncSchedules(ProviderProfile $profile, array $slots): void
+    {
+        $profile->schedules()->delete();
+
+        $rows = collect($slots)->map(fn (array $slot) => [
+            'provider_profile_id' => $profile->id,
+            'day_of_week' => $slot['day_of_week'],
+            'time_slot' => $slot['time_slot'],
+            'is_available' => $slot['is_available'] ?? true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ])->all();
+
+        if ($rows !== []) {
+            DB::table('schedules')->insert($rows);
+        }
+    }
+
+    private function haversineKm(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $earth = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+
+        return $earth * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+}
