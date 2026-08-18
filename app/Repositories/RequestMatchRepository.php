@@ -19,7 +19,6 @@ class RequestMatchRepository
                     'match_score' => $match['match_score'],
                     'distance_km' => $match['distance_km'] ?? null,
                     'score_breakdown' => $match['score_breakdown'] ?? null,
-                    'notified' => $match['notified'] ?? false,
                 ]
             );
         }

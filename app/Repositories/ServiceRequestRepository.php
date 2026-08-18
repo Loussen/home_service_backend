@@ -47,6 +47,7 @@ class ServiceRequestRepository
             'matches' => fn ($q) => $q->orderByDesc('match_score'),
             'matches.providerProfile.user',
             'matches.providerProfile.category',
+            'matches.providerProfile.categories',
         ];
     }
 }

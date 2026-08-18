@@ -19,6 +19,8 @@ class UserResource extends JsonResource
             'balance' => (float) $this->balance,
             'status' => $this->status,
             'welcome_bonus_granted' => $this->welcome_bonus_granted,
+            'provider_profiles_count' => $this->provider_profiles_count
+                ?? $this->providerProfiles()->count(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

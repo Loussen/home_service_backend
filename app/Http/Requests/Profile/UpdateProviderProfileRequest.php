@@ -15,6 +15,8 @@ class UpdateProviderProfileRequest extends FormRequest
     {
         return [
             'category_id' => ['sometimes', 'exists:categories,id'],
+            'category_ids' => ['sometimes', 'array', 'min:1', 'max:3'],
+            'category_ids.*' => ['integer', 'distinct', 'exists:categories,id'],
             'title' => ['sometimes', 'nullable', 'string', 'max:150'],
             'bio' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'audio_intro_url' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -22,6 +24,8 @@ class UpdateProviderProfileRequest extends FormRequest
             'longitude' => ['sometimes', 'numeric', 'between:-180,180'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'district' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'city_id' => ['sometimes', 'nullable', 'exists:cities,id'],
+            'district_id' => ['sometimes', 'nullable', 'exists:districts,id'],
             'is_active' => ['sometimes', 'boolean'],
             'schedules' => ['sometimes', 'array'],
             'schedules.*.day_of_week' => ['required_with:schedules', 'integer', 'between:1,7'],

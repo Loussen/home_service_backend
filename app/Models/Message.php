@@ -10,8 +10,10 @@ class Message extends Model
     protected $fillable = [
         'conversation_id',
         'sender_id',
+        'type',
         'body',
         'attachment_url',
+        'offer_id',
         'read_at',
     ];
 
@@ -30,5 +32,10 @@ class Message extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    public function offer(): BelongsTo
+    {
+        return $this->belongsTo(Offer::class);
     }
 }

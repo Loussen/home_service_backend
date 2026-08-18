@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Category;
+use App\Models\City;
+use App\Models\District;
 use App\Models\ProviderProfile;
 use App\Models\User;
 use App\Repositories\ProviderProfileRepository;
@@ -21,23 +24,32 @@ class ProviderProfileService
 
     public function create(User $user, array $data): ProviderProfile
     {
+        abort_unless($user->isProvider(), 403, 'Bu əməliyyat yalnız xidmət göstərən üçündür');
+
+        $categoryIds = $this->normalizeCategoryIds($data);
+        $location = $this->normalizeLocation($data);
+
         $profile = $this->profiles->create([
             'user_id' => $user->id,
-            'category_id' => $data['category_id'],
+            'category_id' => $categoryIds[0],
             'title' => $data['title'] ?? null,
             'bio' => $data['bio'] ?? null,
             'audio_intro_url' => $data['audio_intro_url'] ?? null,
             'latitude' => $data['latitude'],
             'longitude' => $data['longitude'],
-            'city' => $data['city'] ?? null,
-            'district' => $data['district'] ?? null,
+            'city_id' => $location['city_id'],
+            'district_id' => $location['district_id'],
+            'city' => $location['city'],
+            'district' => $location['district'],
         ]);
+
+        $profile->syncCategoryIds($categoryIds);
 
         if (! empty($data['schedules'])) {
             $this->profiles->syncSchedules($profile, $data['schedules']);
         }
 
-        return $profile->fresh(['category', 'schedules']);
+        return $profile->fresh(['category', 'categories', 'schedules']);
     }
 
     public function update(User $user, int $profileId, array $data): ProviderProfile
@@ -46,8 +58,7 @@ class ProviderProfileService
 
         abort_if(! $profile, 404, 'Profile not found');
 
-        $profile = $this->profiles->update($profile, array_filter([
-            'category_id' => $data['category_id'] ?? null,
+        $payload = array_filter([
             'title' => $data['title'] ?? null,
             'bio' => $data['bio'] ?? null,
             'audio_intro_url' => $data['audio_intro_url'] ?? null,
@@ -56,13 +67,30 @@ class ProviderProfileService
             'city' => $data['city'] ?? null,
             'district' => $data['district'] ?? null,
             'is_active' => $data['is_active'] ?? null,
-        ], fn ($v) => $v !== null));
+        ], fn ($v) => $v !== null);
+
+        if (isset($data['city_id']) || isset($data['district_id'])) {
+            $location = $this->normalizeLocation($data);
+            $payload['city_id'] = $location['city_id'];
+            $payload['district_id'] = $location['district_id'];
+            $payload['city'] = $location['city'];
+            $payload['district'] = $location['district'];
+        }
+
+        if (isset($data['category_ids']) || isset($data['category_id'])) {
+            $ids = $this->normalizeCategoryIds($data);
+            $payload['category_id'] = $ids[0];
+            $profile = $this->profiles->update($profile, $payload);
+            $profile->syncCategoryIds($ids);
+        } elseif ($payload !== []) {
+            $profile = $this->profiles->update($profile, $payload);
+        }
 
         if (isset($data['schedules'])) {
             $this->profiles->syncSchedules($profile, $data['schedules']);
         }
 
-        return $profile->fresh(['category', 'schedules']);
+        return $profile->fresh(['category', 'categories', 'schedules']);
     }
 
     public function get(User $user, int $profileId): ProviderProfile
@@ -85,7 +113,7 @@ class ProviderProfileService
 
         return $this->profiles->update($profile, [
             'audio_intro_url' => $path,
-        ])->load(['category', 'schedules']);
+        ])->load(['category', 'categories', 'schedules']);
     }
 
     public function destroy(User $user, int $profileId): void
@@ -97,5 +125,45 @@ class ProviderProfileService
         }
 
         $profile->delete();
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function normalizeCategoryIds(array $data): array
+    {
+        $ids = $data['category_ids'] ?? [];
+        if ($ids === [] && ! empty($data['category_id'])) {
+            $ids = [$data['category_id']];
+        }
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        abort_if($ids === [], 422, 'Ən azı bir kateqoriya seçin');
+        abort_if(count($ids) > 3, 422, 'Maksimum 3 kateqoriya seçmək olar');
+        Category::assertAllLeaves($ids);
+
+        return $ids;
+    }
+
+    /**
+     * @return array{city_id: int|null, district_id: int|null, city: string|null, district: string|null}
+     */
+    private function normalizeLocation(array $data): array
+    {
+        $city = isset($data['city_id']) ? City::query()->find((int) $data['city_id']) : null;
+        $district = isset($data['district_id']) ? District::query()->find((int) $data['district_id']) : null;
+
+        if ($district && $city && (int) $district->city_id !== (int) $city->id) {
+            abort(422, 'Rayon seçilmiş şəhərə aid deyil');
+        }
+        if ($district && ! $city) {
+            $city = $district->city;
+        }
+
+        return [
+            'city_id' => $city?->id,
+            'district_id' => $district?->id,
+            'city' => $city?->name ?? ($data['city'] ?? null),
+            'district' => $district?->name ?? ($data['district'] ?? null),
+        ];
     }
 }

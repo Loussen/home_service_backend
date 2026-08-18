@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ServiceRequest\StoreAudioRequest;
 use App\Http\Requests\ServiceRequest\StoreTextRequest;
 use App\Http\Resources\ServiceRequestResource;
+use App\Services\PushNotificationService;
 use App\Services\ServiceRequestService;
 use App\Services\WalletService;
 use App\Traits\ApiResponse;
@@ -19,6 +20,7 @@ class ServiceRequestController extends Controller
     public function __construct(
         private readonly ServiceRequestService $serviceRequests,
         private readonly WalletService $wallet,
+        private readonly PushNotificationService $push,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -37,6 +39,11 @@ class ServiceRequestController extends Controller
             (float) $request->validated('longitude'),
             $request->validated('address'),
             (bool) $request->boolean('is_urgent'),
+            $request->validated('category_id') !== null
+                ? (int) $request->validated('category_id')
+                : null,
+            $request->validated('scheduled_at'),
+            $request->validated('time_slot'),
         );
 
         return $this->success(
@@ -56,6 +63,8 @@ class ServiceRequestController extends Controller
             $request->validated('category_id'),
             $request->validated('address'),
             (bool) $request->boolean('is_urgent'),
+            $request->validated('scheduled_at'),
+            $request->validated('time_slot'),
         );
 
         return $this->success(new ServiceRequestResource($serviceRequest), 'Request created', 201);
@@ -83,6 +92,8 @@ class ServiceRequestController extends Controller
     {
         $serviceRequest = $this->serviceRequests->get($request->user(), $id);
         $user = $this->wallet->chargeUrgent($request->user(), $serviceRequest);
+        $serviceRequest = $serviceRequest->fresh() ?? $serviceRequest;
+        $this->push->notifyNewMatches($serviceRequest, force: true);
 
         return $this->success([
             'request' => new ServiceRequestResource($serviceRequest->fresh()),

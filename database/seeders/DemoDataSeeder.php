@@ -92,7 +92,7 @@ class DemoDataSeeder extends Seeder
                 'balance' => 42.50,
                 'profiles' => [
                     [
-                        'slug' => 'nanny',
+                        'slug' => 'infant-nanny',
                         'title' => 'Təcrübəli dayə — 8 il',
                         'bio' => 'Pedaqoji təhsilli dayə. Uşaqlarla məşğul olmaq, ev tapşırığına nəzarət.',
                         'lat' => 40.4093,
@@ -104,6 +104,21 @@ class DemoDataSeeder extends Seeder
                         'rating_count' => 28,
                         'bumped' => true,
                         'days' => [1, 2, 3, 4, 5],
+                        'time_slots' => ['morning', 'afternoon', 'evening'],
+                    ],
+                    [
+                        'slug' => 'pet-walking',
+                        'title' => 'İt gəzdirmə — Nərimanov',
+                        'bio' => 'Gündəlik və saatlıq it gəzintisi. Nərimanov / Gənclik.',
+                        'lat' => 40.4093,
+                        'lng' => 49.8671,
+                        'district' => 'Nərimanov',
+                        'verified' => true,
+                        'vip' => false,
+                        'rating' => 4.8,
+                        'rating_count' => 12,
+                        'bumped' => false,
+                        'days' => [1, 2, 3, 4, 5, 6],
                         'time_slots' => ['morning', 'afternoon', 'evening'],
                     ],
                 ],
@@ -166,7 +181,7 @@ class DemoDataSeeder extends Seeder
                         'time_slots' => ['morning', 'afternoon', 'evening', 'night'],
                     ],
                     [
-                        'slug' => 'nanny',
+                        'slug' => 'infant-nanny',
                         'title' => 'Körpə dayəsi (0–3 yaş)',
                         'bio' => 'Yeni doğulmuş və körpə uşaqlara baxış təcrübəsi.',
                         'lat' => 40.3980,
@@ -233,7 +248,7 @@ class DemoDataSeeder extends Seeder
                 'balance' => 15.00,
                 'profiles' => [
                     [
-                        'slug' => 'nanny',
+                        'slug' => 'infant-nanny',
                         'title' => 'Dayə — Nərimanov / Gənclik',
                         'bio' => 'Məktəbə qədər və məktəbli uşaqlar.',
                         'lat' => 40.4050,
@@ -340,6 +355,8 @@ class DemoDataSeeder extends Seeder
                     ]
                 );
 
+                $profile->syncCategoryIds([$category->id]);
+
                 Schedule::query()->where('provider_profile_id', $profile->id)->delete();
                 $rows = [];
                 foreach ($profileData['days'] as $day) {
@@ -390,9 +407,10 @@ class DemoDataSeeder extends Seeder
 
         $nanny = $categories['nanny'];
         $cleaner = $categories['cleaner'];
+        $nannyFamily = Category::idsWithDescendants((int) $nanny->id);
 
         $nannyProfiles = collect($profiles)->filter(
-            fn (ProviderProfile $p) => (int) $p->category_id === (int) $nanny->id
+            fn (ProviderProfile $p) => in_array((int) $p->category_id, $nannyFamily, true)
         )->values();
 
         $cleanerProfiles = collect($profiles)->filter(
@@ -510,6 +528,8 @@ class DemoDataSeeder extends Seeder
                     'client_id' => $client2->id,
                 ],
                 [
+                    'reviewer_id' => $client2->id,
+                    'reviewee_id' => $profile->user_id,
                     'rating' => 5,
                     'comment' => 'Əla dayə idi, uşaq razı qaldı. Seed review.',
                 ]

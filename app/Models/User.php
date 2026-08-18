@@ -41,6 +41,16 @@ class User extends Authenticatable
         return $this->status === 'blocked';
     }
 
+    public function isProvider(): bool
+    {
+        return $this->active_role === 'provider';
+    }
+
+    public function isClient(): bool
+    {
+        return $this->active_role === 'client';
+    }
+
     public function providerProfiles(): HasMany
     {
         return $this->hasMany(ProviderProfile::class);
@@ -64,5 +74,15 @@ class User extends Authenticatable
     public function verificationDocuments(): HasMany
     {
         return $this->hasMany(VerificationDocument::class);
+    }
+
+    public function clientConversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'client_id');
+    }
+
+    public function providerConversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'provider_id');
     }
 }

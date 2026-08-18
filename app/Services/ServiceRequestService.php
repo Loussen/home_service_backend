@@ -6,6 +6,7 @@ use App\Jobs\ProcessAudioRequestJob;
 use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Repositories\ServiceRequestRepository;
+use App\Support\RequestFilters;
 use Illuminate\Http\UploadedFile;
 
 class ServiceRequestService
@@ -35,13 +36,21 @@ class ServiceRequestService
         float $latitude,
         float $longitude,
         ?string $address = null,
-        bool $isUrgent = false
+        bool $isUrgent = false,
+        ?int $categoryId = null,
+        ?string $scheduledAt = null,
+        ?string $timeSlot = null,
     ): ServiceRequest {
+        abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
+
         $path = $audio->store('audio/requests', 'public');
+        $filters = RequestFilters::initialCriteria($categoryId, $scheduledAt, $timeSlot);
 
         $request = $this->requests->create([
             'user_id' => $user->id,
             'raw_audio_url' => $path,
+            'category_id' => $filters['category_id'],
+            'parsed_criteria' => $filters['parsed_criteria'],
             'latitude' => $latitude,
             'longitude' => $longitude,
             'address' => $address,
@@ -71,13 +80,19 @@ class ServiceRequestService
         float $longitude,
         ?int $categoryId = null,
         ?string $address = null,
-        bool $isUrgent = false
+        bool $isUrgent = false,
+        ?string $scheduledAt = null,
+        ?string $timeSlot = null,
     ): ServiceRequest {
+        abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
+
+        $filters = RequestFilters::initialCriteria($categoryId, $scheduledAt, $timeSlot, $text);
+
         $request = $this->requests->create([
             'user_id' => $user->id,
-            'category_id' => $categoryId,
             'transcribed_text' => $text,
-            'parsed_criteria' => ['raw_text' => $text],
+            'parsed_criteria' => $filters['parsed_criteria'],
+            'category_id' => $filters['category_id'],
             'latitude' => $latitude,
             'longitude' => $longitude,
             'address' => $address,

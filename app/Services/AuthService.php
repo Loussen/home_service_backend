@@ -18,11 +18,31 @@ class AuthService
 
     public function sendOtp(string $phone): array
     {
-        $code = app()->environment('production')
-            ? (string) random_int(100000, 999999)
-            : '123456';
+        $window = (int) config('homeservice.otp_send_window_minutes', 15);
+        $maxSends = (int) config('homeservice.otp_send_max', 3);
+        $resendAfter = (int) config('homeservice.otp_resend_seconds', 30);
 
-        $otp = $this->otpRepository->create(
+        if ($this->otpRepository->recentSendCount($phone, $window) >= $maxSends) {
+            throw ValidationException::withMessages([
+                'phone' => ["Çox cəhd. {$window} dəqiqə sonra yenidən yoxlayın."],
+            ]);
+        }
+
+        $since = $this->otpRepository->secondsSinceLastSend($phone);
+        if ($since !== null && $since < $resendAfter) {
+            $wait = $resendAfter - $since;
+            throw ValidationException::withMessages([
+                'phone' => ["Yeni kod üçün {$wait} saniyə gözləyin."],
+            ]);
+        }
+
+        $debugOk = ! app()->environment('production')
+            && (bool) config('homeservice.otp_allow_debug_code', true);
+        $code = $debugOk
+            ? '123456'
+            : (string) random_int(100000, 999999);
+
+        $this->otpRepository->create(
             $phone,
             $code,
             (int) config('homeservice.otp_ttl_minutes', 5)
@@ -32,12 +52,10 @@ class AuthService
             Log::info('OTP sent', ['phone' => $phone, 'code' => $code]);
         }
 
-        // TODO: integrate SMS provider (Twilio / local gateway)
-
         return [
             'phone' => $phone,
             'expires_in' => (int) config('homeservice.otp_ttl_minutes', 5) * 60,
-            'debug_code' => app()->environment('production') ? null : $code,
+            'debug_code' => $debugOk ? $code : null,
         ];
     }
 

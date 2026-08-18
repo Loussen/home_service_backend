@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\Category;
 use App\Models\ProviderProfile;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,12 +18,12 @@ class ProviderProfileRepository
     {
         $profile->update($data);
 
-        return $profile->fresh(['category', 'schedules']);
+        return $profile->fresh(['category', 'categories', 'schedules']);
     }
 
     public function findForUser(int $userId, int $profileId): ?ProviderProfile
     {
-        return ProviderProfile::with(['category', 'schedules'])
+        return ProviderProfile::with(['category', 'categories', 'schedules'])
             ->where('user_id', $userId)
             ->where('id', $profileId)
             ->first();
@@ -30,7 +31,7 @@ class ProviderProfileRepository
 
     public function listForUser(int $userId): Collection
     {
-        return ProviderProfile::with(['category', 'schedules'])
+        return ProviderProfile::with(['category', 'categories', 'schedules'])
             ->where('user_id', $userId)
             ->latest()
             ->get();
@@ -46,14 +47,38 @@ class ProviderProfileRepository
         float $lng,
         ?int $categoryId = null,
         float $radiusKm = 15,
-        int $limit = 50
+        int $limit = 50,
+        ?int $cityId = null,
+        ?int $districtId = null,
+        bool $applyRadius = true,
+        ?string $timeSlot = null,
     ): Collection {
         $query = ProviderProfile::query()
-            ->with(['user', 'category', 'schedules'])
+            ->with(['user', 'category', 'categories', 'schedules'])
             ->where('is_active', true);
 
         if ($categoryId) {
-            $query->where('category_id', $categoryId);
+            $ids = Category::idsWithDescendants($categoryId);
+            $query->where(function ($q) use ($ids) {
+                $q->whereIn('category_id', $ids)
+                    ->orWhereHas('categories', fn ($c) => $c->whereIn('categories.id', $ids));
+            });
+        }
+
+        if ($districtId) {
+            $query->where('district_id', $districtId);
+        } elseif ($cityId) {
+            $query->where('city_id', $cityId);
+        }
+
+        if ($timeSlot) {
+            $query->where(function ($q) use ($timeSlot) {
+                $q->whereDoesntHave('schedules')
+                    ->orWhereHas(
+                        'schedules',
+                        fn ($s) => $s->where('time_slot', $timeSlot)->where('is_available', true)
+                    );
+            });
         }
 
         return $query->get()
@@ -67,7 +92,7 @@ class ProviderProfileRepository
 
                 return $profile;
             })
-            ->filter(fn (ProviderProfile $p) => $p->distance_km <= $radiusKm)
+            ->filter(fn (ProviderProfile $p) => ! $applyRadius || $p->distance_km <= $radiusKm)
             ->sortBy([
                 ['is_vip', 'desc'],
                 ['bumped_at', 'desc'],

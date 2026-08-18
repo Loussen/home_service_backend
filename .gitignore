@@ -16,6 +16,8 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 /auth.json
+*-firebase-adminsdk*.json
+/storage/app/firebase*.json
 /.fleet
 /.idea
 /.nova

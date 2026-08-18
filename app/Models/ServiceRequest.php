@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class ServiceRequest extends Model
 {
@@ -48,5 +49,18 @@ class ServiceRequest extends Model
     public function matches(): HasMany
     {
         return $this->hasMany(RequestMatch::class);
+    }
+
+    public function getAudioPublicUrlAttribute(): ?string
+    {
+        $path = $this->raw_audio_url;
+        if (! filled($path)) {
+            return null;
+        }
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return url(Storage::disk('public')->url($path));
     }
 }

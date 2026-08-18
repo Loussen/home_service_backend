@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\ProviderProfile;
 use App\Models\ServiceRequest;
-use App\Repositories\CategoryRepository;
 use App\Repositories\ProviderProfileRepository;
 use App\Repositories\RequestMatchRepository;
 use Illuminate\Support\Collection;
@@ -13,22 +12,75 @@ class SearchService
 {
     public function __construct(
         private readonly ProviderProfileRepository $profiles,
-        private readonly CategoryRepository $categories,
         private readonly RequestMatchRepository $matches,
     ) {}
 
     public function matchRequest(ServiceRequest $request): Collection
     {
-        $radius = (float) config('homeservice.search_radius_km', 15);
-        $providers = $this->profiles->searchNearby(
-            $request->latitude,
-            $request->longitude,
-            $request->category_id,
-            $radius
-        );
+        $baseRadius = (float) config('homeservice.search_radius_km', 50);
 
         $criteria = $request->parsed_criteria ?? [];
         $desiredSlot = $criteria['time_slot'] ?? null;
+        $districtId = ! empty($criteria['district_id']) ? (int) $criteria['district_id'] : null;
+        $cityId = ! empty($criteria['city_id']) ? (int) $criteria['city_id'] : null;
+
+        $providers = collect();
+        $usedRadius = $baseRadius;
+        $usedCategory = (bool) $request->category_id;
+        $usedArea = $districtId !== null || $cityId !== null;
+        $usedSchedule = filled($desiredSlot);
+        $found = false;
+
+        $attempts = [
+            ['category' => true, 'district' => $districtId, 'city' => null, 'radius' => false, 'schedule' => true],
+            ['category' => true, 'district' => null, 'city' => $cityId, 'radius' => false, 'schedule' => true],
+            ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => true],
+            ['category' => false, 'district' => $districtId, 'city' => null, 'radius' => false, 'schedule' => true],
+            ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
+            ['category' => false, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
+        ];
+
+        foreach ($attempts as $attempt) {
+            $categoryId = $attempt['category'] ? $request->category_id : null;
+            $slot = ($attempt['schedule'] ?? false) && filled($desiredSlot) ? $desiredSlot : null;
+            $radii = $attempt['radius']
+                ? array_values(array_unique([$baseRadius, 40.0, 80.0, 200.0]))
+                : [9999.0];
+            sort($radii);
+            foreach ($radii as $radius) {
+                $providers = $this->profiles->searchNearby(
+                    $request->latitude,
+                    $request->longitude,
+                    $categoryId,
+                    $radius,
+                    50,
+                    $attempt['city'],
+                    $attempt['district'],
+                    $attempt['radius'],
+                    $slot,
+                );
+                if ($providers->isNotEmpty()) {
+                    $found = true;
+                    $usedRadius = $attempt['radius'] ? $radius : $baseRadius;
+                    $usedCategory = (bool) $attempt['category'] && filled($request->category_id);
+                    $usedArea = $attempt['district'] !== null || $attempt['city'] !== null;
+                    $usedSchedule = filled($slot);
+                    break 2;
+                }
+            }
+        }
+
+        $criteria = $request->parsed_criteria ?? [];
+        $criteria['search_meta'] = [
+            'empty' => ! $found,
+            'radius_km' => $usedRadius,
+            'base_radius_km' => $baseRadius,
+            'expanded' => $found && $usedRadius > $baseRadius + 0.01,
+            'dropped_category' => $found && filled($request->category_id) && ! $usedCategory,
+            'dropped_area' => $found && ($districtId || $cityId) && ! $usedArea,
+            'dropped_schedule' => $found && filled($desiredSlot) && ! $usedSchedule,
+        ];
+        $request->forceFill(['parsed_criteria' => $criteria])->save();
 
         $results = $providers->map(function (ProviderProfile $provider) use ($desiredSlot) {
             $distance = (float) ($provider->distance_km ?? 0);

@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\ProviderProfileResource;
+use App\Support\MatchReasons;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -30,6 +32,7 @@ class ServiceRequestResource extends JsonResource
                     'match_score' => $m->match_score,
                     'distance_km' => $m->distance_km,
                     'score_breakdown' => $m->score_breakdown,
+                    'reasons' => MatchReasons::for($m, $this->resource),
                     'provider' => $m->providerProfile
                         ? new ProviderProfileResource($m->providerProfile)
                         : null,

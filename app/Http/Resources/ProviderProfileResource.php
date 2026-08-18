@@ -16,6 +16,12 @@ class ProviderProfileResource extends JsonResource
             'user_id' => $this->user_id,
             'category_id' => $this->category_id,
             'category' => new CategoryResource($this->whenLoaded('category')),
+            'category_ids' => $this->whenLoaded(
+                'categories',
+                fn () => $this->categories->pluck('id')->values(),
+                default: array_values(array_filter([$this->category_id]))
+            ),
+            'categories' => CategoryResource::collection($this->whenLoaded('categories')),
             'title' => $this->title,
             'bio' => $this->bio,
             'user_name' => $this->whenLoaded('user', fn () => $this->user?->name),
@@ -27,6 +33,8 @@ class ProviderProfileResource extends JsonResource
             'is_vip' => $this->is_vip,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
+            'city_id' => $this->city_id,
+            'district_id' => $this->district_id,
             'city' => $this->city,
             'district' => $this->district,
             'rating_avg' => $this->rating_avg,

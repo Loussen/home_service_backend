@@ -9,15 +9,33 @@ class OtpRepository
 {
     public function create(string $phone, string $code, int $ttlMinutes = 5): PhoneOtp
     {
-        PhoneOtp::where('phone', $phone)
-            ->whereNull('verified_at')
-            ->delete();
-
         return PhoneOtp::create([
             'phone' => $phone,
             'code' => $code,
             'expires_at' => Carbon::now()->addMinutes($ttlMinutes),
         ]);
+    }
+
+    public function recentSendCount(string $phone, int $withinMinutes): int
+    {
+        return PhoneOtp::query()
+            ->where('phone', $phone)
+            ->where('created_at', '>=', Carbon::now()->subMinutes($withinMinutes))
+            ->count();
+    }
+
+    public function secondsSinceLastSend(string $phone): ?int
+    {
+        $last = PhoneOtp::query()
+            ->where('phone', $phone)
+            ->latest('id')
+            ->first();
+
+        if (! $last?->created_at) {
+            return null;
+        }
+
+        return max(0, now()->getTimestamp() - $last->created_at->getTimestamp());
     }
 
     public function latestPending(string $phone): ?PhoneOtp

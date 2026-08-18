@@ -40,6 +40,9 @@ class StoreAudioRequest extends FormRequest
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'address' => ['nullable', 'string', 'max:255'],
             'is_urgent' => ['sometimes', 'boolean'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'scheduled_at' => ['nullable', 'date', 'after:now'],
+            'time_slot' => ['nullable', 'string', 'in:morning,afternoon,evening,night'],
         ];
     }
 }

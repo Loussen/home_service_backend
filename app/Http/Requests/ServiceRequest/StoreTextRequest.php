@@ -20,6 +20,8 @@ class StoreTextRequest extends FormRequest
             'category_id' => ['nullable', 'exists:categories,id'],
             'address' => ['nullable', 'string', 'max:255'],
             'is_urgent' => ['sometimes', 'boolean'],
+            'scheduled_at' => ['nullable', 'date', 'after:now'],
+            'time_slot' => ['nullable', 'string', 'in:morning,afternoon,evening,night'],
         ];
     }
 }
