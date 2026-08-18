@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Booking;
 use App\Models\ProviderProfile;
 use App\Models\ServiceRequest;
 use App\Repositories\ProviderProfileRepository;
@@ -23,6 +24,15 @@ class SearchService
         $desiredSlot = $criteria['time_slot'] ?? null;
         $districtId = ! empty($criteria['district_id']) ? (int) $criteria['district_id'] : null;
         $cityId = ! empty($criteria['city_id']) ? (int) $criteria['city_id'] : null;
+        $repeatProviderIds = Booking::query()
+            ->where('client_id', $request->user_id)
+            ->whereIn('status', [Booking::SCHEDULED, Booking::COMPLETED])
+            ->whereNotNull('provider_profile_id')
+            ->pluck('provider_profile_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
 
         $providers = collect();
         $usedRadius = $baseRadius;
@@ -82,7 +92,7 @@ class SearchService
         ];
         $request->forceFill(['parsed_criteria' => $criteria])->save();
 
-        $results = $providers->map(function (ProviderProfile $provider) use ($desiredSlot) {
+        $results = $providers->map(function (ProviderProfile $provider) use ($desiredSlot, $repeatProviderIds) {
             $distance = (float) ($provider->distance_km ?? 0);
             $distanceScore = max(0, 100 - ($distance * 4));
 
@@ -98,13 +108,15 @@ class SearchService
             $verifiedBonus = $provider->is_verified ? 10 : 0;
             $vipBonus = $provider->is_vip ? 8 : 0;
             $ratingBonus = min(10, ((float) $provider->rating_avg) * 2);
+            $repeatBonus = in_array((int) $provider->id, $repeatProviderIds, true) ? 12 : 0;
 
             $score = min(100, round(
                 ($distanceScore * 0.45) +
                 ($scheduleScore * 0.30) +
                 $verifiedBonus +
                 $vipBonus +
-                $ratingBonus,
+                $ratingBonus +
+                $repeatBonus,
                 2
             ));
 
@@ -118,6 +130,7 @@ class SearchService
                     'verified' => $verifiedBonus,
                     'vip' => $vipBonus,
                     'rating' => $ratingBonus,
+                    'repeat_client' => $repeatBonus > 0 ? 1 : 0,
                 ],
                 'provider' => $provider,
             ];

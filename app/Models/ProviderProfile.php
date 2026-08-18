@@ -28,6 +28,9 @@ class ProviderProfile extends Model
         'bumped_at',
         'vip_expires_at',
         'is_active',
+        'full_until',
+        'quiet_hours_start',
+        'quiet_hours_end',
     ];
 
     protected $attributes = [
@@ -49,6 +52,7 @@ class ProviderProfile extends Model
             'rating_avg' => 'float',
             'bumped_at' => 'datetime',
             'vip_expires_at' => 'datetime',
+            'full_until' => 'datetime',
         ];
     }
 
@@ -115,5 +119,51 @@ class ProviderProfile extends Model
     public function matches(): HasMany
     {
         return $this->hasMany(RequestMatch::class);
+    }
+
+    public function isFull(): bool
+    {
+        return $this->full_until !== null && $this->full_until->isFuture();
+    }
+
+    public function isInQuietHours(): bool
+    {
+        $start = $this->quietHoursHm($this->quiet_hours_start);
+        $end = $this->quietHoursHm($this->quiet_hours_end);
+        if ($start === null || $end === null) {
+            return false;
+        }
+
+        $now = now()->format('H:i');
+        if ($start === $end) {
+            return true;
+        }
+        if ($start < $end) {
+            return $now >= $start && $now < $end;
+        }
+
+        return $now >= $start || $now < $end;
+    }
+
+    public function quietHoursStartHm(): ?string
+    {
+        return $this->quietHoursHm($this->quiet_hours_start);
+    }
+
+    public function quietHoursEndHm(): ?string
+    {
+        return $this->quietHoursHm($this->quiet_hours_end);
+    }
+
+    private function quietHoursHm(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('H:i');
+        }
+
+        return substr((string) $value, 0, 5);
     }
 }

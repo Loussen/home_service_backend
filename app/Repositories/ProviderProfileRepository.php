@@ -55,7 +55,11 @@ class ProviderProfileRepository
     ): Collection {
         $query = ProviderProfile::query()
             ->with(['user', 'category', 'categories', 'schedules'])
-            ->where('is_active', true);
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('full_until')
+                    ->orWhere('full_until', '<=', now());
+            });
 
         if ($categoryId) {
             $ids = Category::idsWithDescendants($categoryId);

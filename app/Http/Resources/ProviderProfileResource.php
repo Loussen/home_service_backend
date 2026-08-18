@@ -42,6 +42,10 @@ class ProviderProfileResource extends JsonResource
             'bumped_at' => $this->bumped_at?->toIso8601String(),
             'vip_expires_at' => $this->vip_expires_at?->toIso8601String(),
             'is_active' => $this->is_active,
+            'is_full' => $this->isFull(),
+            'full_until' => $this->full_until?->toIso8601String(),
+            'quiet_hours_start' => $this->quietHoursStartHm(),
+            'quiet_hours_end' => $this->quietHoursEndHm(),
             'schedules' => ScheduleResource::collection($this->whenLoaded('schedules')),
             'distance_km' => $this->when(isset($this->distance_km), $this->distance_km),
         ];

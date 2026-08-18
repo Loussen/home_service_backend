@@ -40,11 +40,21 @@ class ServiceRequestService
         ?int $categoryId = null,
         ?string $scheduledAt = null,
         ?string $timeSlot = null,
+        ?int $childAge = null,
+        ?bool $hasPet = null,
+        ?float $budgetMax = null,
     ): ServiceRequest {
         abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
 
         $path = $audio->store('audio/requests', 'public');
-        $filters = RequestFilters::initialCriteria($categoryId, $scheduledAt, $timeSlot);
+        $filters = RequestFilters::initialCriteria(
+            $categoryId,
+            $scheduledAt,
+            $timeSlot,
+            $childAge,
+            $hasPet,
+            $budgetMax,
+        );
 
         $request = $this->requests->create([
             'user_id' => $user->id,
@@ -83,10 +93,21 @@ class ServiceRequestService
         bool $isUrgent = false,
         ?string $scheduledAt = null,
         ?string $timeSlot = null,
+        ?int $childAge = null,
+        ?bool $hasPet = null,
+        ?float $budgetMax = null,
     ): ServiceRequest {
         abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
 
-        $filters = RequestFilters::initialCriteria($categoryId, $scheduledAt, $timeSlot, $text);
+        $filters = RequestFilters::initialCriteria(
+            $categoryId,
+            $scheduledAt,
+            $timeSlot,
+            $childAge,
+            $hasPet,
+            $budgetMax,
+            $text,
+        );
 
         $request = $this->requests->create([
             'user_id' => $user->id,

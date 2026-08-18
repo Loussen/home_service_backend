@@ -88,6 +88,12 @@ class ProviderProfileForm
                     ->label('VIP bitmə'),
                 Toggle::make('is_active')
                     ->label('Aktiv'),
+                DateTimePicker::make('full_until')
+                    ->label('Dolu bu tarixə qədər'),
+                TextInput::make('quiet_hours_start')
+                    ->label('Səssiz başlanğıc (HH:MM)'),
+                TextInput::make('quiet_hours_end')
+                    ->label('Səssiz bitmə (HH:MM)'),
             ]);
     }
 }

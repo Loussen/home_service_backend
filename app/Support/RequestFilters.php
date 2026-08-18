@@ -13,13 +13,22 @@ class RequestFilters
         ?int $categoryId = null,
         ?string $scheduledAt = null,
         ?string $timeSlot = null,
+        ?int $childAge = null,
+        ?bool $hasPet = null,
+        ?float $budgetMax = null,
         ?string $rawText = null,
     ): array {
         $criteria = array_filter([
             'raw_text' => $rawText,
             'user_time_slot' => $timeSlot,
             'user_scheduled_at' => $scheduledAt,
+            'user_child_age' => $childAge,
+            'user_budget_max' => $budgetMax,
         ], fn ($v) => $v !== null && $v !== '');
+
+        if ($hasPet !== null) {
+            $criteria['user_has_pet'] = $hasPet;
+        }
 
         return [
             'category_id' => $categoryId,
@@ -49,6 +58,15 @@ class RequestFilters
 
         if ($categoryId) {
             $parsed['user_category_id'] = $categoryId;
+        }
+        if (array_key_exists('user_child_age', $existingCriteria)) {
+            $parsed['child_age'] = $existingCriteria['user_child_age'];
+        }
+        if (array_key_exists('user_has_pet', $existingCriteria)) {
+            $parsed['has_pet'] = $existingCriteria['user_has_pet'];
+        }
+        if (array_key_exists('user_budget_max', $existingCriteria)) {
+            $parsed['budget_max'] = $existingCriteria['user_budget_max'];
         }
 
         return $parsed;

@@ -29,6 +29,15 @@ class StoreAudioRequest extends FormRequest
         if ($this->has('longitude')) {
             $this->merge(['longitude' => (float) $this->input('longitude')]);
         }
+        if ($this->has('has_pet')) {
+            $this->merge([
+                'has_pet' => filter_var(
+                    $this->input('has_pet'),
+                    FILTER_VALIDATE_BOOLEAN,
+                    FILTER_NULL_ON_FAILURE
+                ),
+            ]);
+        }
     }
 
     public function rules(): array
@@ -41,6 +50,9 @@ class StoreAudioRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:255'],
             'is_urgent' => ['sometimes', 'boolean'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'child_age' => ['nullable', 'integer', 'between:0,17'],
+            'has_pet' => ['nullable', 'boolean'],
+            'budget_max' => ['nullable', 'numeric', 'min:0'],
             'scheduled_at' => ['nullable', 'date', 'after:now'],
             'time_slot' => ['nullable', 'string', 'in:morning,afternoon,evening,night'],
         ];

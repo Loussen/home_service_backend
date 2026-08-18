@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\ProfileCompleteness;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,6 +22,7 @@ class UserResource extends JsonResource
             'welcome_bonus_granted' => $this->welcome_bonus_granted,
             'provider_profiles_count' => $this->provider_profiles_count
                 ?? $this->providerProfiles()->count(),
+            'profile_completeness' => ProfileCompleteness::forUser($this->resource),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

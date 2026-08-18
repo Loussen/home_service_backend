@@ -36,6 +36,12 @@ final class MatchReasons
                 'params' => ['name' => (string) $categoryName],
             ];
         }
+        if ((int) ($breakdown['repeat_client'] ?? 0) === 1) {
+            $reasons[] = [
+                'key' => 'match.reason.repeat_client',
+                'params' => [],
+            ];
+        }
 
         return $reasons;
     }

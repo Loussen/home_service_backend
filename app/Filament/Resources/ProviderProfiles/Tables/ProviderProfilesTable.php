@@ -46,6 +46,11 @@ class ProviderProfilesTable
                 IconColumn::make('is_active')
                     ->label('Aktiv')
                     ->boolean(),
+                TextColumn::make('full_until')
+                    ->label('Dolu')
+                    ->dateTime()
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->label('Yaradılıb')
                     ->dateTime()

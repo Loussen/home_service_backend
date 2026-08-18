@@ -44,6 +44,11 @@ class ServiceRequestController extends Controller
                 : null,
             $request->validated('scheduled_at'),
             $request->validated('time_slot'),
+            $request->validated('child_age'),
+            $request->validated('has_pet'),
+            $request->validated('budget_max') !== null
+                ? (float) $request->validated('budget_max')
+                : null,
         );
 
         return $this->success(
@@ -65,6 +70,11 @@ class ServiceRequestController extends Controller
             (bool) $request->boolean('is_urgent'),
             $request->validated('scheduled_at'),
             $request->validated('time_slot'),
+            $request->validated('child_age'),
+            $request->validated('has_pet'),
+            $request->validated('budget_max') !== null
+                ? (float) $request->validated('budget_max')
+                : null,
         );
 
         return $this->success(new ServiceRequestResource($serviceRequest), 'Request created', 201);

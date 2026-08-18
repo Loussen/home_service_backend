@@ -77,6 +77,16 @@ class PushNotificationService
                 continue;
             }
 
+            $profile = $first->providerProfile;
+            if ($profile?->isFull()) {
+                $this->markNotified($userMatches);
+
+                continue;
+            }
+            if (! $urgent && ! $force && $profile?->isInQuietHours()) {
+                continue;
+            }
+
             $ok = $this->sendToUser($user, $title, $body, [
                 'type' => $urgent ? 'urgent_job' : 'new_job',
                 'request_id' => (string) $request->id,

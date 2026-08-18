@@ -41,6 +41,10 @@ class ProviderProfileService
             'district_id' => $location['district_id'],
             'city' => $location['city'],
             'district' => $location['district'],
+            'is_active' => $data['is_active'] ?? true,
+            'full_until' => ! empty($data['full_this_week']) ? now()->endOfWeek() : null,
+            'quiet_hours_start' => $this->normalizeQuietTime($data['quiet_hours_start'] ?? null),
+            'quiet_hours_end' => $this->normalizeQuietTime($data['quiet_hours_end'] ?? null),
         ]);
 
         $profile->syncCategoryIds($categoryIds);
@@ -84,6 +88,11 @@ class ProviderProfileService
             $profile->syncCategoryIds($ids);
         } elseif ($payload !== []) {
             $profile = $this->profiles->update($profile, $payload);
+        }
+
+        $availability = $this->availabilityPayload($data);
+        if ($availability !== []) {
+            $profile = $this->profiles->update($profile, $availability);
         }
 
         if (isset($data['schedules'])) {
@@ -165,5 +174,40 @@ class ProviderProfileService
             'city' => $city?->name ?? ($data['city'] ?? null),
             'district' => $district?->name ?? ($data['district'] ?? null),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function availabilityPayload(array $data): array
+    {
+        $payload = [];
+        if (array_key_exists('full_this_week', $data)) {
+            $payload['full_until'] = filter_var($data['full_this_week'], FILTER_VALIDATE_BOOLEAN)
+                ? now()->endOfWeek()
+                : null;
+        }
+        if (array_key_exists('quiet_hours_start', $data)) {
+            $payload['quiet_hours_start'] = $this->normalizeQuietTime($data['quiet_hours_start']);
+        }
+        if (array_key_exists('quiet_hours_end', $data)) {
+            $payload['quiet_hours_end'] = $this->normalizeQuietTime($data['quiet_hours_end']);
+        }
+
+        return $payload;
+    }
+
+    private function normalizeQuietTime(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === false) {
+            return null;
+        }
+        $raw = substr((string) $value, 0, 5);
+        if (! preg_match('/^\d{2}:\d{2}$/', $raw)) {
+            return null;
+        }
+
+        return $raw;
     }
 }
