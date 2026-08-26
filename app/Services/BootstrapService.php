@@ -32,8 +32,19 @@ class BootstrapService
                     'urgent' => $hs['urgent_fee'],
                     'vip' => $hs['vip_fee'],
                     'verified' => $hs['verified_fee'],
+                    'connect' => $hs['connect_fee'],
                 ],
+                'wallet_packages' => array_values($hs['wallet_packages'] ?? [10, 30, 50]),
+                'connect_free_quota' => $hs['connect_free_quota'],
+                'connect_free_days' => $hs['connect_free_days'],
+                'connect_daily_limit' => $hs['connect_daily_limit'],
+                'bump_hours' => $hs['bump_hours'],
+                'bump_daily_limit' => $hs['bump_daily_limit'],
+                'bump_boost_km' => $hs['bump_boost_km'],
                 'search_radius_km' => $hs['search_radius_km'],
+                'urgent_hours' => $hs['urgent_hours'],
+                'urgent_daily_limit' => $hs['urgent_daily_limit'],
+                'urgent_radius_km' => $hs['urgent_radius_km'],
                 'places_configured' => filled($hs['google_maps_api_key']),
                 'onboarding_steps' => [
                     ['id' => 'name', 'title' => $stringMap['onboarding.step.name'] ?? ''],
@@ -44,9 +55,9 @@ class BootstrapService
                 ],
             ],
             'flags' => [
-                'voice_search' => filter_var(env('FEATURE_VOICE_SEARCH', true), FILTER_VALIDATE_BOOL),
-                'maps_enabled' => filter_var(env('FEATURE_MAPS', true), FILTER_VALIDATE_BOOL),
-                'push_configured' => $this->fcm->isConfigured(),
+                'voice_search' => (bool) ($hs['feature_voice_search'] ?? true),
+                'maps_enabled' => (bool) ($hs['feature_maps'] ?? true),
+                'push_configured' => $this->fcm->isConfigured() && ($hs['feature_push'] ?? true),
             ],
         ];
     }

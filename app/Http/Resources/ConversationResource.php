@@ -31,8 +31,14 @@ class ConversationResource extends JsonResource
                 'avatar_url' => $other->avatar_url,
             ] : null,
             'provider_profile' => new ProviderProfileResource($this->whenLoaded('providerProfile')),
-            'last_message' => new MessageResource($this->whenLoaded('lastMessage')),
-            'messages' => MessageResource::collection($this->whenLoaded('messages')),
+            'last_message' => $this->when(
+                $this->relationLoaded('lastMessage') && $this->lastMessage,
+                fn () => (new MessageResource($this->lastMessage))->resolve(),
+            ),
+            'messages' => $this->when(
+                $this->relationLoaded('messages'),
+                fn () => MessageResource::collection($this->messages)->resolve(),
+            ),
         ];
     }
 }

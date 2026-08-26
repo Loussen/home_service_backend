@@ -2,16 +2,16 @@
 
 namespace App\Filament\Resources\ProviderProfiles\Pages;
 
+use App\Filament\Resources\ProviderProfiles\Concerns\SyncsProfileCategories;
 use App\Filament\Resources\ProviderProfiles\ProviderProfileResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditProviderProfile extends EditRecord
 {
-    protected static string $resource = ProviderProfileResource::class;
+    use SyncsProfileCategories;
 
-    /** @var list<int> */
-    private array $pendingCategoryIds = [];
+    protected static string $resource = ProviderProfileResource::class;
 
     protected function getHeaderActions(): array
     {
@@ -41,15 +41,11 @@ class EditProviderProfile extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $this->pendingCategoryIds = array_values($data['category_ids'] ?? []);
-        $data['category_id'] = $this->pendingCategoryIds[0] ?? $data['category_id'] ?? null;
-        unset($data['category_ids']);
-
-        return $data;
+        return $this->extractCategoryIds($data);
     }
 
     protected function afterSave(): void
     {
-        $this->record?->syncCategoryIds($this->pendingCategoryIds);
+        $this->persistCategoryIds();
     }
 }

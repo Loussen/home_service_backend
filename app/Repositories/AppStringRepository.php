@@ -50,7 +50,10 @@ class AppStringRepository
 
     public function localeLabels(): array
     {
-        return config('app_locales.labels', []);
+        $all = config('app_locales.labels', []);
+        $supported = $this->supportedLocales();
+
+        return array_intersect_key($all, array_flip($supported));
     }
 
     public function version(): int

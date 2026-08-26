@@ -1,0 +1,1558 @@
+(function () {
+    var API = '/api/v1';
+    var tokenKey = 'mysancho_web_token';
+    var requestKey = 'mysancho_web_request_id';
+    var selectedCategoriesKey = 'mysancho_selected_categories';
+    var page = document.body ? document.body.getAttribute('data-page') : '';
+    var meCache = null;
+    var mapsPromise = null;
+    var mapsAuthFailed = false;
+    var pickerMaps = {};
+    var matchMarkers = [];
+    var matchMarkerById = {};
+    var matchInfoById = {};
+    var selectedMatchId = null;
+
+    function el(id) {
+        return document.getElementById(id);
+    }
+
+    function esc(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+        });
+    }
+
+    function log(msg, data) {
+        var box = el('log');
+        if (!box) return;
+        var line = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+        if (data) {
+            line += '\n' + JSON.stringify(data, null, 2);
+        }
+        box.textContent = (line + '\n\n' + box.textContent).slice(0, 12000);
+    }
+
+    function toast(type, msg) {
+        var stack = el('toast-stack');
+        if (!stack) return;
+        var item = document.createElement('div');
+        item.className = 'toast ' + (type || 'info');
+        item.textContent = msg;
+        stack.appendChild(item);
+        setTimeout(function () {
+            item.remove();
+        }, 2600);
+    }
+
+    function getToken() {
+        return localStorage.getItem(tokenKey);
+    }
+
+    function setToken(token) {
+        localStorage.setItem(tokenKey, token);
+    }
+
+    function clearToken() {
+        localStorage.removeItem(tokenKey);
+    }
+
+    function getRequestId() {
+        return localStorage.getItem(requestKey);
+    }
+
+    function setRequestId(id) {
+        localStorage.setItem(requestKey, String(id));
+    }
+
+    function getSelectedCategories() {
+        try {
+            return JSON.parse(localStorage.getItem(selectedCategoriesKey) || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function setSelectedCategories(ids) {
+        localStorage.setItem(selectedCategoriesKey, JSON.stringify(ids || []));
+    }
+
+    function headers() {
+        var h = {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+        };
+        var token = getToken();
+        if (token) {
+            h.Authorization = 'Bearer ' + token;
+        }
+        return h;
+    }
+
+    function api(path, options) {
+        options = options || {};
+        return fetch(API + path, {
+            method: options.method || 'GET',
+            headers: Object.assign(headers(), options.headers || {}),
+            body: options.body,
+        }).then(function (res) {
+            return res.json().catch(function () {
+                return {};
+            }).then(function (json) {
+                if (!res.ok || json.success === false) {
+                    throw new Error(json.message || 'HTTP ' + res.status);
+                }
+                return json.data !== undefined ? json.data : json;
+            });
+        });
+    }
+
+    function go(path) {
+        window.location.href = path;
+    }
+
+    function unwrapMe(me) {
+        if (!me) return null;
+        if (me.id != null) return me;
+        if (me.data && me.data.id != null) return me.data;
+        return me;
+    }
+
+    function asId(value) {
+        if (value == null || value === '') return null;
+        var n = Number(value);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function messageList(conversation) {
+        var raw = conversation && conversation.messages;
+        if (Array.isArray(raw)) return raw;
+        if (raw && Array.isArray(raw.data)) return raw.data;
+        return [];
+    }
+
+    function unwrapMsg(m) {
+        if (!m) return m;
+        if (m.sender_id == null && m.body == null && m.data) return m.data;
+        return m;
+    }
+
+    function isMineMessage(message, conversation, myId) {
+        var m = unwrapMsg(message);
+        if (m.is_mine === true || m.is_mine === 1 || m.is_mine === '1') return true;
+        if (m.is_mine === false || m.is_mine === 0 || m.is_mine === '0') return false;
+        var sender = asId(m.sender_id != null ? m.sender_id : m.senderId);
+        var otherId = asId(conversation.other_user && conversation.other_user.id);
+        if (sender == null) return false;
+        if (otherId != null) return sender !== otherId;
+        if (myId == null) return false;
+        return sender === myId;
+    }
+
+    function setAuthStatus() {
+        var status = el('auth-status');
+        if (!status) return Promise.resolve();
+        if (!getToken()) {
+            meCache = null;
+            status.textContent = 'Qonaq';
+            return Promise.resolve();
+        }
+        return api('/auth/me').then(function (me) {
+            meCache = unwrapMe(me);
+            status.textContent = (meCache.name || meCache.phone) + ' · ' + meCache.active_role;
+        }).catch(function () {
+            clearToken();
+            meCache = null;
+            status.textContent = 'Qonaq';
+            log('Token etibarsız oldu, silindi');
+            toast('warning', 'Sessiya bitdi, yenidən login et.');
+        });
+    }
+
+    function ensureRole(role) {
+        if (!meCache) {
+            return api('/auth/me').then(function (me) {
+                meCache = me;
+                return ensureRole(role);
+            });
+        }
+        if (meCache.active_role === role) {
+            return Promise.resolve();
+        }
+        return api('/auth/role', {
+            method: 'POST',
+            body: JSON.stringify({ role: role }),
+        }).then(function () {
+            meCache.active_role = role;
+            toast('info', 'Rol avtomatik "' + role + '" edildi.');
+            log('Rol avtomatik dəyişdi', { role: role });
+            return setAuthStatus();
+        });
+    }
+
+    function embedSrc(lat, lng) {
+        return 'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lng) +
+            '&z=14&hl=az&output=embed';
+    }
+
+    function mountGoogleEmbed(mapEl, lat, lng) {
+        mapEl.innerHTML = '';
+        var frame = document.createElement('iframe');
+        frame.className = 'map-frame';
+        frame.title = 'Google Map';
+        frame.loading = 'lazy';
+        frame.referrerPolicy = 'no-referrer-when-downgrade';
+        frame.allowFullscreen = true;
+        frame.src = embedSrc(lat, lng);
+        mapEl.appendChild(frame);
+        return frame;
+    }
+
+    function loadGoogleMaps() {
+        var useJs = document.body.getAttribute('data-maps-js') === '1';
+        var key = document.body.getAttribute('data-maps-key') || '';
+        if (!useJs || !key) {
+            return Promise.reject(new Error('browser-key-missing'));
+        }
+        if (mapsAuthFailed) {
+            return Promise.reject(new Error('maps-auth-failed'));
+        }
+        if (window.google && window.google.maps && window.google.maps.Map) {
+            return Promise.resolve();
+        }
+        if (mapsPromise) return mapsPromise;
+        mapsPromise = new Promise(function (resolve, reject) {
+            var settled = false;
+            function fail(err) {
+                if (settled) return;
+                settled = true;
+                mapsAuthFailed = true;
+                mapsPromise = null;
+                reject(err instanceof Error ? err : new Error(String(err)));
+            }
+            function ok() {
+                if (settled || mapsAuthFailed) {
+                    fail(new Error('maps-auth-failed'));
+                    return;
+                }
+                settled = true;
+                resolve();
+            }
+            window.gm_authFailure = function () {
+                fail(new Error('maps-auth-failed'));
+            };
+            window.__mysanchoMapsReady = function () {
+                // Auth failure sometimes fires after callback — short grace check.
+                setTimeout(function () {
+                    if (mapsAuthFailed) {
+                        fail(new Error('maps-auth-failed'));
+                    } else {
+                        ok();
+                    }
+                }, 50);
+            };
+            var script = document.createElement('script');
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=' +
+                encodeURIComponent(key) + '&v=weekly&callback=__mysanchoMapsReady';
+            script.async = true;
+            script.defer = true;
+            script.onerror = function () {
+                fail(new Error('Google Maps yüklənmədi'));
+            };
+            document.head.appendChild(script);
+        });
+        return mapsPromise;
+    }
+
+    function readLatLng(latId, lngId, fallbackLat, fallbackLng) {
+        var lat = Number(el(latId) && el(latId).value ? el(latId).value : fallbackLat);
+        var lng = Number(el(lngId) && el(lngId).value ? el(lngId).value : fallbackLng);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) {
+            return { lat: fallbackLat, lng: fallbackLng };
+        }
+        return { lat: lat, lng: lng };
+    }
+
+    function fillAddressFromCoords(opts, lat, lng, applyFn) {
+        return api('/places/reverse?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&language=az')
+            .then(function (place) {
+                var address = place.formatted_address || '';
+                if (typeof applyFn === 'function') {
+                    applyFn(lat, lng, address || undefined);
+                }
+                if (opts.searchId && el(opts.searchId) && address) {
+                    el(opts.searchId).value = address;
+                }
+                if (opts.suggestionsId && el(opts.suggestionsId)) {
+                    el(opts.suggestionsId).classList.remove('open');
+                    el(opts.suggestionsId).innerHTML = '';
+                }
+                if (opts.cityId && el(opts.cityId) && place.hints && place.hints.length) {
+                    el(opts.cityId).value = place.hints[place.hints.length - 1] || el(opts.cityId).value;
+                }
+                return place;
+            })
+            .catch(function () {});
+    }
+
+    function setLatLng(latId, lngId, lat, lng) {
+        if (el(latId)) el(latId).value = Number(lat).toFixed(6);
+        if (el(lngId)) el(lngId).value = Number(lng).toFixed(6);
+    }
+
+    function addLocateButton(mapEl, apply, opts) {
+        if (!mapEl || mapEl.querySelector('.map-locate')) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-dark map-locate';
+        btn.textContent = 'Mənim yerim';
+        btn.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                toast('warning', 'Brauzer geolocation dəstəkləmir');
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                var lat = pos.coords.latitude;
+                var lng = pos.coords.longitude;
+                apply(lat, lng, 'Cari yer');
+                if (opts) {
+                    fillAddressFromCoords(opts, lat, lng, apply);
+                }
+            }, function () {
+                toast('warning', 'Yer tapılmadı');
+            });
+        });
+        mapEl.appendChild(btn);
+    }
+
+    function initEmbedPicker(opts, start) {
+        var mapEl = el(opts.mapId);
+        var frame = mountGoogleEmbed(mapEl, start.lat, start.lng);
+        function apply(lat, lng, label) {
+            setLatLng(opts.latId, opts.lngId, lat, lng);
+            if (frame) {
+                frame.src = embedSrc(lat, lng);
+            }
+            if (opts.labelId && el(opts.labelId) && label) {
+                el(opts.labelId).textContent = label;
+            }
+        }
+        addLocateButton(mapEl, apply, opts);
+        pickerMaps[opts.mapId] = { map: null, marker: null, apply: apply, mode: 'embed' };
+        bindPlaceSearch(opts);
+        return pickerMaps[opts.mapId];
+    }
+
+    function initPickerMap(opts) {
+        var mapEl = el(opts.mapId);
+        if (!mapEl) return Promise.resolve(null);
+        var start = readLatLng(opts.latId, opts.lngId, 40.4093, 49.8671);
+
+        return loadGoogleMaps().then(function () {
+            if (mapsAuthFailed) {
+                throw new Error('maps-auth-failed');
+            }
+            mapEl.innerHTML = '';
+            var map = new window.google.maps.Map(mapEl, {
+                center: start,
+                zoom: 12,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: false,
+            });
+            var marker = new window.google.maps.Marker({
+                map: map,
+                position: start,
+                draggable: true,
+            });
+            function apply(lat, lng, label) {
+                setLatLng(opts.latId, opts.lngId, lat, lng);
+                marker.setPosition({ lat: lat, lng: lng });
+                map.panTo({ lat: lat, lng: lng });
+                if (opts.labelId && el(opts.labelId) && label) {
+                    el(opts.labelId).textContent = label;
+                }
+            }
+            map.addListener('click', function (event) {
+                var lat = event.latLng.lat();
+                var lng = event.latLng.lng();
+                apply(lat, lng);
+                fillAddressFromCoords(opts, lat, lng, apply);
+            });
+            marker.addListener('dragend', function () {
+                var pos = marker.getPosition();
+                var lat = pos.lat();
+                var lng = pos.lng();
+                apply(lat, lng);
+                fillAddressFromCoords(opts, lat, lng, apply);
+            });
+            addLocateButton(mapEl, apply, opts);
+            bindPlaceSearch(opts);
+            pickerMaps[opts.mapId] = { map: map, marker: marker, apply: apply, mode: 'js' };
+            window.google.maps.event.trigger(map, 'resize');
+            map.setCenter(start);
+
+            // Late auth failure after Map() — swap to iframe.
+            var prevAuth = window.gm_authFailure;
+            window.gm_authFailure = function () {
+                mapsAuthFailed = true;
+                if (typeof prevAuth === 'function') prevAuth();
+                log('Maps auth late fail → iframe');
+                initEmbedPicker(opts, start);
+            };
+
+            return pickerMaps[opts.mapId];
+        }).catch(function (e) {
+            var authFail = e && (e.message === 'browser-key-missing' || e.message === 'maps-auth-failed');
+            if (authFail) {
+                toast(
+                    'warning',
+                    'Maps JS bu hostda rədd edildi (' + window.location.host + ') — iframe. Cloud Console referrer: ' +
+                    window.location.origin + '/*'
+                );
+                log('Google Map iframe fallback', {
+                    reason: e.message,
+                    origin: window.location.origin,
+                    host: window.location.host,
+                });
+            } else {
+                toast('warning', 'Xəritə JS açılmadı, Google Map iframe göstərilir');
+                log('Xəritə JS: ' + (e && e.message ? e.message : e));
+            }
+            return initEmbedPicker(opts, start);
+        });
+    }
+
+    function bindPlaceSearch(opts) {
+        var input = el(opts.searchId);
+        var box = el(opts.suggestionsId);
+        if (!input || !box) return;
+        var timer = null;
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            var q = input.value.trim();
+            if (q.length < 2) {
+                box.classList.remove('open');
+                box.innerHTML = '';
+                return;
+            }
+            timer = setTimeout(function () {
+                api('/places/autocomplete?q=' + encodeURIComponent(q) + '&language=az').then(function (items) {
+                    box.innerHTML = '';
+                    (items || []).forEach(function (item) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'suggestion';
+                        btn.textContent = item.description;
+                        btn.addEventListener('click', function () {
+                            api('/places/' + encodeURIComponent(item.place_id) + '?language=az').then(function (details) {
+                                var handle = pickerMaps[opts.mapId];
+                                if (handle) {
+                                    handle.apply(
+                                        details.latitude,
+                                        details.longitude,
+                                        details.formatted_address || item.description
+                                    );
+                                } else {
+                                    setLatLng(opts.latId, opts.lngId, details.latitude, details.longitude);
+                                }
+                                if (opts.cityId && el(opts.cityId) && details.hints && details.hints.length) {
+                                    el(opts.cityId).value = details.hints[details.hints.length - 1];
+                                }
+                                input.value = details.formatted_address || item.description;
+                                box.classList.remove('open');
+                                box.innerHTML = '';
+                            }).catch(function (e) {
+                                toast('error', 'Ünvan tapılmadı');
+                                log('Place details xətası: ' + e.message);
+                            });
+                        });
+                        box.appendChild(btn);
+                    });
+                    box.classList.toggle('open', (items || []).length > 0);
+                }).catch(function (e) {
+                    log('Places autocomplete: ' + e.message);
+                });
+            }, 280);
+        });
+    }
+
+    function flattenCategories(items, out) {
+        (items || []).forEach(function (item) {
+            if (item.children && item.children.length) {
+                flattenCategories(item.children, out);
+                return;
+            }
+            out.push(item);
+        });
+    }
+
+    function renderCategoryChips(targetId, countId, selected, items) {
+        var target = el(targetId);
+        if (!target) return;
+        target.innerHTML = '';
+        var leaves = [];
+        flattenCategories(items, leaves);
+        leaves.forEach(function (c) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'chip' + (selected.indexOf(c.id) !== -1 ? ' selected' : '');
+            btn.textContent = c.name_az || c.name_en || c.slug;
+            btn.addEventListener('click', function () {
+                var idx = selected.indexOf(c.id);
+                if (idx !== -1) {
+                    selected.splice(idx, 1);
+                } else {
+                    if (selected.length >= 3) {
+                        toast('warning', 'Maksimum 3 kateqoriya seçilə bilər');
+                        return;
+                    }
+                    selected.push(c.id);
+                }
+                renderCategoryChips(targetId, countId, selected, items);
+            });
+            target.appendChild(btn);
+        });
+        if (el(countId)) el(countId).textContent = selected.length;
+    }
+
+    function providerMarkerIcon(active, isVip) {
+        return {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: active ? 11 : 9,
+            fillColor: active ? '#C24E2D' : (isVip ? '#D4A84B' : '#3D4F7C'),
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: active ? 3 : 2,
+        };
+    }
+
+    function focusMatchOnMap(providerId) {
+        var handle = pickerMaps.map;
+        var marker = matchMarkerById[providerId];
+        if (!handle || !handle.map || !marker || !window.google) return;
+        selectedMatchId = providerId;
+        Object.keys(matchMarkerById).forEach(function (id) {
+            var m = matchMarkerById[id];
+            var info = matchInfoById[id];
+            var vip = !!(info && info.isVip);
+            m.setIcon(providerMarkerIcon(Number(id) === Number(providerId), vip));
+            if (Number(id) !== Number(providerId) && info && info.window) {
+                info.window.close();
+            }
+        });
+        handle.map.panTo(marker.getPosition());
+        handle.map.setZoom(Math.max(handle.map.getZoom() || 12, 14));
+        if (matchInfoById[providerId] && matchInfoById[providerId].window) {
+            matchInfoById[providerId].window.open(handle.map, marker);
+        }
+        document.querySelectorAll('.match-card').forEach(function (card) {
+            card.classList.toggle('is-active', Number(card.getAttribute('data-provider-id')) === Number(providerId));
+        });
+    }
+
+    function fitMatchBounds(requestLat, requestLng, points) {
+        var handle = pickerMaps.map;
+        if (!handle || !handle.map || !window.google) return;
+        if (!points.length) {
+            handle.map.panTo({ lat: requestLat, lng: requestLng });
+            return;
+        }
+        var bounds = new window.google.maps.LatLngBounds();
+        bounds.extend({ lat: requestLat, lng: requestLng });
+        points.forEach(function (p) {
+            bounds.extend(p);
+        });
+        handle.map.fitBounds(bounds, 56);
+    }
+
+    function updateMapLegend(matchCount) {
+        var label = el('place-label');
+        if (!label) return;
+        if (matchCount > 0) {
+            label.innerHTML =
+                '<span class="map-legend">' +
+                '<span class="map-legend-item"><i class="dot me"></i> Sənin yerin</span>' +
+                '<span class="map-legend-item"><i class="dot provider"></i> Xidmətçi</span>' +
+                '<span class="map-legend-item"><i class="dot vip"></i> VIP</span>' +
+                '<span class="map-legend-note">Kart və ya markerə bas — xəritədə fokus</span>' +
+                '</span>';
+        } else {
+            label.textContent = 'Google Map. Ünvan axtar və ya “Mənim yerim”.';
+        }
+    }
+
+    function renderMatches(request) {
+        var box = el('matches');
+        var badge = el('match-count');
+        if (!box || !badge) return;
+        var matches = (request && request.matches) ? request.matches : [];
+        badge.textContent = matches.length + ' nəticə';
+        box.innerHTML = '';
+        selectedMatchId = null;
+
+        var handle = pickerMaps.map;
+        matchMarkers.forEach(function (m) { m.setMap(null); });
+        matchMarkers = [];
+        matchMarkerById = {};
+        matchInfoById = {};
+
+        var requestLat = Number(
+            (request && request.latitude != null) ? request.latitude : (el('lat') && el('lat').value) || 40.4093
+        );
+        var requestLng = Number(
+            (request && request.longitude != null) ? request.longitude : (el('lng') && el('lng').value) || 49.8671
+        );
+        var providerPoints = [];
+
+        if (handle && handle.map && window.google) {
+            if (handle.marker) {
+                if (matches.length) {
+                    handle.marker.setIcon({
+                        path: window.google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: '#5B7FB5',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 3,
+                    });
+                    handle.marker.setTitle('Sənin yerin');
+                } else {
+                    handle.marker.setIcon(null);
+                    handle.marker.setTitle('');
+                }
+            }
+
+            matches.forEach(function (m) {
+                var provider = m.provider || {};
+                if (provider.latitude == null || provider.longitude == null) return;
+                var id = Number(provider.id);
+                if (!id) return;
+                var name = provider.user_name || provider.title || 'İcraçı';
+                var isVip = !!provider.is_vip;
+                var score = Math.round(m.match_score || 0);
+                var pos = {
+                    lat: Number(provider.latitude),
+                    lng: Number(provider.longitude),
+                };
+                providerPoints.push(pos);
+
+                var info = new window.google.maps.InfoWindow({
+                    content:
+                        '<div class="map-info">' +
+                        '<strong>' + esc(name) + (isVip ? ' · VIP' : '') + '</strong>' +
+                        '<div>' + score + '% · ' + esc(m.distance_km != null ? m.distance_km : '-') + ' km</div>' +
+                        '</div>',
+                });
+                var marker = new window.google.maps.Marker({
+                    map: handle.map,
+                    position: pos,
+                    title: name,
+                    icon: providerMarkerIcon(false, isVip),
+                });
+                marker.addListener('click', function () {
+                    focusMatchOnMap(id);
+                    var card = box.querySelector('.match-card[data-provider-id="' + id + '"]');
+                    if (card) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+                matchMarkers.push(marker);
+                matchMarkerById[id] = marker;
+                matchInfoById[id] = { window: info, isVip: isVip };
+            });
+
+            fitMatchBounds(requestLat, requestLng, providerPoints);
+        }
+
+        updateMapLegend(matches.length);
+
+        matches.forEach(function (m) {
+            var provider = m.provider || {};
+            var id = Number(provider.id || 0);
+            var hasCoords = provider.latitude != null && provider.longitude != null;
+            var card = document.createElement('article');
+            card.className = 'match-card';
+            if (id) card.setAttribute('data-provider-id', String(id));
+            var reasons = (m.reasons || []).map(function (r) {
+                return r.label || r.key;
+            }).join(' · ');
+            card.innerHTML =
+                '<h3>' + esc(provider.user_name || provider.title || 'İcraçı') +
+                (provider.is_vip ? ' <span class="pill pill-gold">VIP</span>' : '') + '</h3>' +
+                '<p class="reasons">' + esc(reasons) + '</p>' +
+                '<p class="meta">Skor: <b>' + Math.round(m.match_score || 0) + '%</b> · ' +
+                esc(m.distance_km != null ? m.distance_km : '-') + ' km</p>' +
+                '<div class="match-actions">' +
+                (hasCoords
+                    ? '<button type="button" class="btn btn-outline show-on-map" data-id="' + esc(id) + '">Xəritədə</button>'
+                    : '') +
+                '<button type="button" class="btn btn-primary connect" data-id="' + esc(id) + '">CONNECT</button>' +
+                '</div>';
+
+            if (hasCoords) {
+                card.addEventListener('click', function (evt) {
+                    if (evt.target.closest('button')) return;
+                    focusMatchOnMap(id);
+                });
+                var mapBtn = card.querySelector('.show-on-map');
+                if (mapBtn) {
+                    mapBtn.addEventListener('click', function () {
+                        focusMatchOnMap(id);
+                        var mapEl = el('map');
+                        if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                }
+            }
+
+            card.querySelector('.connect').addEventListener('click', function (evt) {
+                var profileId = Number(evt.currentTarget.getAttribute('data-id'));
+                if (!profileId || !request) return;
+                ensureRole('client').then(function () {
+                    return api('/conversations', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            provider_profile_id: profileId,
+                            service_request_id: request.id,
+                        }),
+                    });
+                }).then(function (conversation) {
+                    toast('success', 'CONNECT uğurlu');
+                    log('CONNECT uğurlu', { conversation_id: conversation.id });
+                    go('/web/chat/' + conversation.id);
+                }).catch(function (e) {
+                    toast('error', 'CONNECT xətası: ' + e.message);
+                    log('CONNECT xətası: ' + e.message);
+                });
+            });
+
+            box.appendChild(card);
+        });
+    }
+
+    function refreshRequest() {
+        var id = getRequestId();
+        if (!id) return Promise.resolve();
+        return api('/service-requests/' + id).then(function (req) {
+            if (el('request-info')) {
+                el('request-info').textContent = 'Sorğu #' + req.id + ' · ' + req.status;
+            }
+            renderMatches(req);
+            log('Sorğu yeniləndi', { id: req.id, status: req.status });
+        }).catch(function (e) {
+            toast('warning', 'Sorğu yenilənmədi');
+            log('Sorğu yenilənmədi: ' + e.message);
+        });
+    }
+
+    function bindLoginPage() {
+        el('send-otp').addEventListener('click', function () {
+            api('/auth/otp/send', {
+                method: 'POST',
+                body: JSON.stringify({ phone: el('phone').value.trim() }),
+            }).then(function () {
+                toast('success', 'OTP göndərildi');
+                log('OTP göndərildi');
+            }).catch(function (e) {
+                toast('error', 'OTP göndərilmədi');
+                log('OTP göndərilmədi: ' + e.message);
+            });
+        });
+
+        el('verify-otp').addEventListener('click', function () {
+            api('/auth/otp/verify', {
+                method: 'POST',
+                body: JSON.stringify({
+                    phone: el('phone').value.trim(),
+                    code: el('otp').value.trim(),
+                }),
+            }).then(function (data) {
+                var token = data.token || data.access_token;
+                if (!token) throw new Error('Token qayıtmadı');
+                setToken(token);
+                toast('success', 'Daxil oldunuz');
+                log('Login uğurlu');
+                setTimeout(function () {
+                    if (data.is_new_user) {
+                        go('/web/onboarding');
+                        return;
+                    }
+                    go('/web/request');
+                }, 180);
+            }).catch(function (e) {
+                toast('error', 'Login alınmadı');
+                log('Login alınmadı: ' + e.message);
+            });
+        });
+    }
+
+    function bindOnboardingPage() {
+        var step = 0;
+        var selected = getSelectedCategories();
+        var categoryTree = [];
+        var mapReady = false;
+
+        function role() {
+            return el('onb-role').value;
+        }
+
+        function maxStep() {
+            return role() === 'provider' ? 2 : 2;
+        }
+
+        function showStep() {
+            document.querySelectorAll('[data-step-panel]').forEach(function (panel) {
+                panel.classList.toggle('hidden', Number(panel.getAttribute('data-step-panel')) !== step);
+            });
+            document.querySelectorAll('#onb-stepper li').forEach(function (item) {
+                item.classList.toggle('active', Number(item.getAttribute('data-step')) === step);
+            });
+            el('onb-next').textContent = step === maxStep() ? 'Bitir' : 'Davam et';
+            if (step === 2 && !mapReady) {
+                mapReady = true;
+                initPickerMap({
+                    mapId: 'onb-map',
+                    latId: 'onb-lat',
+                    lngId: 'onb-lng',
+                    searchId: 'onb-place-search',
+                    suggestionsId: 'onb-place-suggestions',
+                    labelId: 'onb-place-label',
+                });
+            }
+        }
+
+        api('/categories').then(function (items) {
+            categoryTree = items || [];
+            renderCategoryChips('onb-category-list', 'onb-selected-count', selected, categoryTree);
+        }).catch(function (e) {
+            log('Kateqoriyalar yüklənmədi: ' + e.message);
+        });
+
+        el('onb-back').addEventListener('click', function () {
+            if (step === 0) {
+                go('/web/login');
+                return;
+            }
+            if (role() === 'client' && step === 2) {
+                step = 0;
+            } else {
+                step -= 1;
+            }
+            showStep();
+        });
+
+        el('onb-next').addEventListener('click', function () {
+            if (step === 0) {
+                if (el('onb-name').value.trim().length < 2) {
+                    toast('warning', 'Ad daxil edin');
+                    return;
+                }
+                if (role() === 'client') {
+                    step = 2;
+                } else {
+                    step = 1;
+                }
+                showStep();
+                return;
+            }
+            if (step === 1) {
+                if (!selected.length) {
+                    toast('warning', 'Ən azı 1 kateqoriya seç');
+                    return;
+                }
+                setSelectedCategories(selected);
+                step = 2;
+                showStep();
+                return;
+            }
+            finishOnboarding();
+        });
+
+        function finishOnboarding() {
+            var chosenRole = role();
+            api('/auth/profile', {
+                method: 'PATCH',
+                body: JSON.stringify({ name: el('onb-name').value.trim() }),
+            }).then(function () {
+                return api('/auth/role', {
+                    method: 'POST',
+                    body: JSON.stringify({ role: chosenRole }),
+                });
+            }).then(function () {
+                if (chosenRole !== 'provider') {
+                    return null;
+                }
+                setSelectedCategories(selected);
+                return api('/provider-profiles', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        category_ids: selected,
+                        title: el('onb-name').value.trim(),
+                        latitude: Number(el('onb-lat').value || 40.4093),
+                        longitude: Number(el('onb-lng').value || 49.8671),
+                    }),
+                }).catch(function () {
+                    return api('/provider-profiles').then(function (items) {
+                        if (!items || !items[0]) throw new Error('Profil yaradılmadı');
+                        return api('/provider-profiles/' + items[0].id, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                category_ids: selected,
+                                latitude: Number(el('onb-lat').value || 40.4093),
+                                longitude: Number(el('onb-lng').value || 49.8671),
+                            }),
+                        });
+                    });
+                });
+            }).then(function () {
+                toast('success', 'Onboarding tamamlandı');
+                log('Onboarding tamamlandı', { role: chosenRole });
+                go(chosenRole === 'provider' ? '/web/jobs' : '/web/request');
+            }).catch(function (e) {
+                toast('error', 'Onboarding xətası');
+                log('Onboarding xətası: ' + e.message);
+            });
+        }
+
+        showStep();
+    }
+
+    function bindCategoriesPage() {
+        var selected = getSelectedCategories();
+        api('/categories').then(function (items) {
+            renderCategoryChips('category-list', 'selected-count', selected, items || []);
+            log('Kateqoriyalar yükləndi', { count: (items || []).length });
+        }).catch(function (e) {
+            toast('error', 'Kateqoriyalar yüklənmədi');
+            log('Kateqoriya xətası: ' + e.message);
+        });
+
+        el('save-categories').addEventListener('click', function () {
+            setSelectedCategories(selected);
+            toast('success', 'Kateqoriya seçimi yadda saxlanıldı');
+            log('Kateqoriya seçimi saxlanıldı', { selected: selected });
+        });
+    }
+
+    function bindProfilePage() {
+        var providerProfiles = [];
+
+        api('/auth/me').then(function (me) {
+            meCache = me;
+            el('profile-name').value = me.name || '';
+            el('profile-avatar').value = me.avatar_url || '';
+        }).catch(function (e) {
+            log('Profil məlumatı alınmadı: ' + e.message);
+        });
+
+        initPickerMap({
+            mapId: 'provider-map',
+            latId: 'provider-lat',
+            lngId: 'provider-lng',
+            searchId: 'provider-place-search',
+            suggestionsId: 'provider-place-suggestions',
+            cityId: 'provider-city',
+        });
+
+        function renderProviderList() {
+            var list = el('provider-list');
+            if (!providerProfiles.length) {
+                list.textContent = 'Hələ profil yoxdur';
+                return;
+            }
+            list.innerHTML = '';
+            providerProfiles.forEach(function (p) {
+                var div = document.createElement('div');
+                div.className = 'match-card';
+                div.innerHTML =
+                    '<b>' + esc(p.title || 'Başlıq yoxdur') + '</b><br>' +
+                    '<span class="muted">' + esc(p.city || '-') + ' / ' + esc(p.district || '-') + '</span>';
+                list.appendChild(div);
+            });
+        }
+
+        function loadProviderProfiles() {
+            return ensureRole('provider').then(function () {
+                return api('/provider-profiles');
+            }).then(function (items) {
+                providerProfiles = items || [];
+                renderProviderList();
+                if (providerProfiles[0]) {
+                    el('provider-title').value = providerProfiles[0].title || '';
+                    el('provider-bio').value = providerProfiles[0].bio || '';
+                    el('provider-city').value = providerProfiles[0].city || '';
+                    el('provider-district').value = providerProfiles[0].district || '';
+                    el('provider-lat').value = providerProfiles[0].latitude || '40.4093';
+                    el('provider-lng').value = providerProfiles[0].longitude || '49.8671';
+                    var handle = pickerMaps['provider-map'];
+                    if (handle) {
+                        handle.apply(
+                            Number(el('provider-lat').value),
+                            Number(el('provider-lng').value)
+                        );
+                    }
+                }
+            }).catch(function (e) {
+                log('Provider profil siyahısı alınmadı: ' + e.message);
+            });
+        }
+
+        el('save-profile').addEventListener('click', function () {
+            api('/auth/profile', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    name: el('profile-name').value.trim(),
+                    avatar_url: el('profile-avatar').value.trim() || null,
+                }),
+            }).then(function () {
+                toast('success', 'İstifadəçi profili yeniləndi');
+                log('İstifadəçi profili yeniləndi');
+                return setAuthStatus();
+            }).catch(function (e) {
+                toast('error', 'Profil yenilənmədi');
+                log('Profil yenilənmədi: ' + e.message);
+            });
+        });
+
+        el('save-provider-profile').addEventListener('click', function () {
+            var selected = getSelectedCategories();
+            if (!selected.length) {
+                toast('warning', 'Əvvəl kateqoriyalar səhifəsində seçim et');
+                return;
+            }
+            ensureRole('provider').then(function () {
+                var payload = {
+                    category_ids: selected,
+                    title: el('provider-title').value.trim() || null,
+                    bio: el('provider-bio').value.trim() || null,
+                    city: el('provider-city').value.trim() || null,
+                    district: el('provider-district').value.trim() || null,
+                    latitude: Number(el('provider-lat').value || 40.4093),
+                    longitude: Number(el('provider-lng').value || 49.8671),
+                };
+                if (providerProfiles[0]) {
+                    return api('/provider-profiles/' + providerProfiles[0].id, {
+                        method: 'PUT',
+                        body: JSON.stringify(payload),
+                    });
+                }
+                return api('/provider-profiles', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+            }).then(function () {
+                toast('success', 'Provider profili saxlanıldı');
+                log('Provider profili saxlanıldı');
+                return loadProviderProfiles();
+            }).catch(function (e) {
+                toast('error', 'Provider profili saxlanmadı');
+                log('Provider profili xətası: ' + e.message);
+            });
+        });
+
+        loadProviderProfiles();
+    }
+
+    function bindRequestPage() {
+        initPickerMap({
+            mapId: 'map',
+            latId: 'lat',
+            lngId: 'lng',
+            searchId: 'place-search',
+            suggestionsId: 'place-suggestions',
+            labelId: 'place-label',
+        });
+
+        el('set-role').addEventListener('click', function () {
+            api('/auth/role', {
+                method: 'POST',
+                body: JSON.stringify({ role: el('role').value }),
+            }).then(function () {
+                toast('success', 'Rol dəyişdi');
+                log('Rol dəyişdi: ' + el('role').value);
+                return setAuthStatus();
+            }).catch(function (e) {
+                toast('error', 'Rol dəyişmədi');
+                log('Rol dəyişmədi: ' + e.message);
+            });
+        });
+
+        el('logout').addEventListener('click', function () {
+            api('/auth/logout', { method: 'POST' }).catch(function () {});
+            clearToken();
+            localStorage.removeItem(requestKey);
+            toast('info', 'Çıxış edildi');
+            setTimeout(function () {
+                go('/web/login');
+            }, 150);
+        });
+
+        el('create-request').addEventListener('click', function () {
+            ensureRole('client').then(function () {
+                return api('/service-requests/text', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        text: el('text').value.trim(),
+                        latitude: Number(el('lat').value || 0),
+                        longitude: Number(el('lng').value || 0),
+                        is_urgent: false,
+                    }),
+                });
+            }).then(function (data) {
+                setRequestId(data.id);
+                el('request-info').textContent = 'Sorğu #' + data.id + ' yaradıldı · ' + data.status;
+                toast('success', 'Sorğu yaradıldı');
+                log('Sorğu yaradıldı', { id: data.id, status: data.status });
+                setTimeout(refreshRequest, 1000);
+            }).catch(function (e) {
+                toast('error', 'Sorğu yaradılmadı');
+                log('Sorğu yaradılmadı: ' + e.message);
+            });
+        });
+
+        el('refresh-request').addEventListener('click', function () {
+            refreshRequest().then(function () {
+                toast('info', 'Sorğu yeniləndi');
+            });
+        });
+    }
+
+    function bindChatPage() {
+        function loadChats() {
+            return api('/conversations').then(function (items) {
+                var list = el('chat-list');
+                var rows = Array.isArray(items) ? items : ((items && items.data) || []);
+                if (!rows.length) {
+                    list.textContent = 'Söhbət yoxdur';
+                    return;
+                }
+                list.innerHTML = '';
+                rows.forEach(function (c) {
+                    var other = (c.other_user && c.other_user.name) || 'İstifadəçi';
+                    var preview = (c.last_message && c.last_message.body) || 'Yeni söhbət';
+                    var a = document.createElement('a');
+                    a.className = 'chat-item';
+                    a.href = '/web/chat/' + c.id;
+                    a.innerHTML =
+                        '<b>' + esc(other) + '</b>' +
+                        (c.unread_count ? ' <span class="pill">' + esc(c.unread_count) + '</span>' : '') +
+                        '<div class="muted">' + esc(preview) + '</div>';
+                    list.appendChild(a);
+                });
+                log('Söhbətlər yükləndi', { count: rows.length });
+            }).catch(function (e) {
+                toast('error', 'Söhbətlər yüklənmədi');
+                log('Chat xətası: ' + e.message);
+            });
+        }
+        el('refresh-chats').addEventListener('click', loadChats);
+        loadChats();
+    }
+
+    function bindChatThreadPage() {
+        var conversationId = Number(document.body.getAttribute('data-conversation-id') || 0);
+        if (!conversationId) return;
+
+        var offerModal = el('offer-modal');
+        var reviewModal = el('review-modal');
+        var openOfferBtn = el('open-offer');
+
+        function statusLabel(status) {
+            return ({
+                pending: 'Gözləyir',
+                accepted: 'Təsdiq',
+                declined: 'İmtina',
+                completed: 'Bitdi',
+                cancelled: 'Ləğv',
+            })[status] || status;
+        }
+
+        function formatWhen(iso) {
+            if (!iso) return '—';
+            var d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return String(iso).replace('T', ' ').slice(0, 16);
+            return d.toLocaleString('az-AZ', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        }
+
+        function myReview(offer, myId) {
+            var list = (offer && offer.reviews) || [];
+            for (var i = 0; i < list.length; i++) {
+                if (asId(list[i].reviewer_id) === myId) return list[i];
+            }
+            return null;
+        }
+
+        function otherReview(offer, myId) {
+            var list = (offer && offer.reviews) || [];
+            for (var i = 0; i < list.length; i++) {
+                if (asId(list[i].reviewer_id) !== myId) return list[i];
+            }
+            return null;
+        }
+
+        function offerAction(path, okMsg) {
+            return api(path, { method: 'POST', body: JSON.stringify({}) })
+                .then(function () {
+                    toast('success', okMsg);
+                    return loadThread();
+                })
+                .catch(function (e) {
+                    toast('error', e.message || 'Əməliyyat alınmadı');
+                    log('Offer action xətası: ' + e.message);
+                });
+        }
+
+        function openReview(offerId) {
+            el('review-offer-id').value = String(offerId);
+            el('review-rating').value = '5';
+            el('review-comment').value = '';
+            reviewModal.hidden = false;
+        }
+
+        function buildOfferCard(offer, me) {
+            var myId = asId(me && me.id);
+            var isProvider = me && me.active_role === 'provider';
+            var isClient = me && me.active_role === 'client';
+            var card = document.createElement('div');
+            card.className = 'offer-card';
+
+            var hours = offer.duration_hours != null
+                ? '<div><span>Müddət:</span> ' + esc(offer.duration_hours) + ' saat</div>'
+                : '';
+            var note = offer.note
+                ? '<div class="offer-note">' + esc(offer.note) + '</div>'
+                : '';
+
+            card.innerHTML =
+                '<div class="offer-head">' +
+                    '<strong>Təklif</strong>' +
+                    '<span class="pill">' + esc(statusLabel(offer.status)) + '</span>' +
+                '</div>' +
+                '<div class="offer-meta">' +
+                    '<div><span>Vaxt:</span> ' + esc(formatWhen(offer.scheduled_at)) + '</div>' +
+                    hours +
+                    '<div><span>Qiymət:</span> ' + esc(offer.price_azn) + ' AZN</div>' +
+                '</div>' +
+                note +
+                '<div class="offer-actions"></div>' +
+                '<div class="offer-reviews"></div>';
+
+            var actions = card.querySelector('.offer-actions');
+            var reviewsBox = card.querySelector('.offer-reviews');
+
+            if (offer.status === 'pending' && isClient) {
+                var decline = document.createElement('button');
+                decline.type = 'button';
+                decline.className = 'btn';
+                decline.textContent = 'İmtina';
+                decline.addEventListener('click', function () {
+                    offerAction('/offers/' + offer.id + '/decline', 'Təklif rədd edildi');
+                });
+                var accept = document.createElement('button');
+                accept.type = 'button';
+                accept.className = 'btn btn-primary';
+                accept.textContent = 'Qəbul et';
+                accept.addEventListener('click', function () {
+                    offerAction('/offers/' + offer.id + '/accept', 'Təklif qəbul edildi');
+                });
+                actions.appendChild(decline);
+                actions.appendChild(accept);
+            }
+
+            if (offer.status === 'pending' && isProvider) {
+                var cancel = document.createElement('button');
+                cancel.type = 'button';
+                cancel.className = 'btn';
+                cancel.textContent = 'Ləğv et';
+                cancel.addEventListener('click', function () {
+                    offerAction('/offers/' + offer.id + '/cancel', 'Təklif ləğv edildi');
+                });
+                actions.appendChild(cancel);
+            }
+
+            if (offer.status === 'accepted') {
+                var complete = document.createElement('button');
+                complete.type = 'button';
+                complete.className = 'btn btn-primary';
+                complete.textContent = 'İş tamamlandı';
+                complete.addEventListener('click', function () {
+                    offerAction('/offers/' + offer.id + '/complete', 'İş tamamlandı');
+                });
+                actions.appendChild(complete);
+            }
+
+            if (offer.status === 'completed') {
+                var mine = myReview(offer, myId);
+                var theirs = otherReview(offer, myId);
+                if (mine) {
+                    var y = document.createElement('div');
+                    y.textContent = 'Sizin rəyiniz: ★ ' + mine.rating;
+                    reviewsBox.appendChild(y);
+                }
+                if (theirs) {
+                    var t = document.createElement('div');
+                    t.textContent = 'Onların rəyi: ★ ' + theirs.rating;
+                    reviewsBox.appendChild(t);
+                }
+                if (!mine) {
+                    var reviewBtn = document.createElement('button');
+                    reviewBtn.type = 'button';
+                    reviewBtn.className = 'btn btn-primary';
+                    reviewBtn.textContent = 'Rəy yaz';
+                    reviewBtn.addEventListener('click', function () {
+                        openReview(offer.id);
+                    });
+                    actions.appendChild(reviewBtn);
+                }
+            }
+
+            if (!actions.children.length) {
+                actions.remove();
+            }
+            if (!reviewsBox.children.length) {
+                reviewsBox.remove();
+            }
+
+            return card;
+        }
+
+        function renderThread(conversation) {
+            var me = unwrapMe(meCache);
+            var other = (conversation.other_user && conversation.other_user.name) || 'Söhbət';
+            if (el('thread-title')) {
+                el('thread-title').textContent = other;
+            }
+            if (openOfferBtn) {
+                openOfferBtn.hidden = !(me && me.active_role === 'provider');
+            }
+
+            var box = el('thread-messages');
+            box.innerHTML = '';
+            var myId = asId(me && me.id);
+            messageList(conversation).forEach(function (raw) {
+                var m = unwrapMsg(raw);
+                var mine = isMineMessage(m, conversation, myId);
+                var row = document.createElement('div');
+                row.className = 'msg-row' + (mine ? ' mine' : ' theirs');
+                row.style.justifyContent = mine ? 'flex-end' : 'flex-start';
+
+                if (m.offer && m.offer.id) {
+                    row.appendChild(buildOfferCard(m.offer, me));
+                } else {
+                    var div = document.createElement('div');
+                    div.className = 'msg' + (mine ? ' mine' : '');
+                    div.innerHTML =
+                        '<div>' + esc(m.body || '') + '</div>' +
+                        '<span class="time">' + esc((m.created_at || '').replace('T', ' ').slice(0, 16)) + '</span>';
+                    row.appendChild(div);
+                }
+                box.appendChild(row);
+            });
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function loadThread() {
+            var ready = unwrapMe(meCache)
+                ? Promise.resolve(unwrapMe(meCache))
+                : api('/auth/me').then(function (me) {
+                    meCache = unwrapMe(me);
+                    return meCache;
+                });
+            return ready.then(function () {
+                return api('/conversations/' + conversationId);
+            }).then(function (conversation) {
+                renderThread(conversation);
+            }).catch(function (e) {
+                toast('error', 'Söhbət açılmadı');
+                log('Thread xətası: ' + e.message);
+            });
+        }
+
+        el('send-message').addEventListener('click', function () {
+            var body = el('chat-body').value.trim();
+            if (!body) {
+                toast('warning', 'Mesaj yaz');
+                return;
+            }
+            api('/conversations/' + conversationId + '/messages', {
+                method: 'POST',
+                body: JSON.stringify({ body: body }),
+            }).then(function () {
+                el('chat-body').value = '';
+                toast('success', 'Göndərildi');
+                return loadThread();
+            }).catch(function (e) {
+                toast('error', 'Mesaj getmədi');
+                log('Mesaj xətası: ' + e.message);
+            });
+        });
+
+        el('chat-body').addEventListener('keydown', function (evt) {
+            if (evt.key === 'Enter') {
+                el('send-message').click();
+            }
+        });
+
+        if (openOfferBtn) {
+            openOfferBtn.addEventListener('click', function () {
+                var def = new Date(Date.now() + 2 * 60 * 60 * 1000);
+                var pad = function (n) { return String(n).padStart(2, '0'); };
+                el('offer-when').value =
+                    def.getFullYear() + '-' + pad(def.getMonth() + 1) + '-' + pad(def.getDate()) +
+                    'T' + pad(def.getHours()) + ':' + pad(def.getMinutes());
+                el('offer-price').value = '';
+                el('offer-hours').value = '';
+                el('offer-note').value = '';
+                offerModal.hidden = false;
+            });
+        }
+
+        el('offer-cancel').addEventListener('click', function () {
+            offerModal.hidden = true;
+        });
+
+        el('offer-submit').addEventListener('click', function () {
+            var when = el('offer-when').value;
+            var price = Number(el('offer-price').value);
+            var hoursRaw = el('offer-hours').value.trim();
+            var hours = hoursRaw === '' ? null : Number(hoursRaw);
+            if (!when) {
+                toast('warning', 'Tarix seç');
+                return;
+            }
+            if (!price || price < 1) {
+                toast('warning', 'Qiymət yaz');
+                return;
+            }
+            var payload = {
+                scheduled_at: new Date(when).toISOString(),
+                price_azn: price,
+                note: el('offer-note').value.trim() || null,
+            };
+            if (hours != null && !Number.isNaN(hours)) {
+                payload.duration_hours = hours;
+            }
+            api('/conversations/' + conversationId + '/offers', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            }).then(function () {
+                offerModal.hidden = true;
+                toast('success', 'Təklif göndərildi');
+                return loadThread();
+            }).catch(function (e) {
+                toast('error', e.message || 'Təklif getmədi');
+                log('Offer create xətası: ' + e.message);
+            });
+        });
+
+        el('review-cancel').addEventListener('click', function () {
+            reviewModal.hidden = true;
+        });
+
+        el('review-submit').addEventListener('click', function () {
+            var offerId = el('review-offer-id').value;
+            var rating = Number(el('review-rating').value);
+            api('/offers/' + offerId + '/reviews', {
+                method: 'POST',
+                body: JSON.stringify({
+                    rating: rating,
+                    comment: el('review-comment').value.trim() || null,
+                }),
+            }).then(function () {
+                reviewModal.hidden = true;
+                toast('success', 'Rəy göndərildi');
+                return loadThread();
+            }).catch(function (e) {
+                toast('error', e.message || 'Rəy getmədi');
+                log('Review xətası: ' + e.message);
+            });
+        });
+
+        loadThread();
+        setInterval(loadThread, 8000);
+    }
+
+    function bindJobsPage() {
+        function loadJobs() {
+            return ensureRole('provider').then(function () {
+                return api('/jobs');
+            }).then(function (items) {
+                var box = el('jobs-list');
+                var rows = Array.isArray(items) ? items : ((items && items.data) || []);
+                if (!rows.length) {
+                    box.textContent = 'Hazırda gələn iş yoxdur';
+                    return;
+                }
+                box.innerHTML = '';
+                rows.forEach(function (job) {
+                    var req = job.request || {};
+                    var card = document.createElement('article');
+                    card.className = 'match-card';
+                    card.innerHTML =
+                        (job.is_urgent ? '<span class="pill">URGENT</span>' : '') +
+                        '<h3>' + esc((job.client && job.client.name) || 'Müştəri') + '</h3>' +
+                        '<p class="reasons">' + esc(req.transcribed_text || req.address || '') + '</p>' +
+                        '<p class="meta">Skor: <b>' + Math.round(job.match_score || 0) + '%</b> · ' +
+                        esc(job.distance_km != null ? job.distance_km : '-') + ' km</p>' +
+                        '<button type="button" class="btn btn-primary reply">Cavab ver</button>';
+                    card.querySelector('.reply').addEventListener('click', function () {
+                        api('/conversations/reply', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                service_request_id: req.id,
+                                provider_profile_id: job.provider_profile_id,
+                                message: 'Salam, işə baxıram.',
+                            }),
+                        }).then(function (conversation) {
+                            toast('success', 'Cavab göndərildi');
+                            go('/web/chat/' + conversation.id);
+                        }).catch(function (e) {
+                            toast('error', 'Cavab getmədi');
+                            log('Job reply xətası: ' + e.message);
+                        });
+                    });
+                    box.appendChild(card);
+                });
+                log('İşlər yükləndi', { count: rows.length });
+            }).catch(function (e) {
+                toast('error', 'İşlər yüklənmədi');
+                log('Jobs xətası: ' + e.message);
+            });
+        }
+        el('refresh-jobs').addEventListener('click', loadJobs);
+        loadJobs();
+    }
+
+    function bindPage() {
+        if (page === 'login') bindLoginPage();
+        if (page === 'onboarding') bindOnboardingPage();
+        if (page === 'categories') bindCategoriesPage();
+        if (page === 'profile') bindProfilePage();
+        if (page === 'request') bindRequestPage();
+        if (page === 'chat') bindChatPage();
+        if (page === 'chat-thread') bindChatThreadPage();
+        if (page === 'jobs') bindJobsPage();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        bindPage();
+        setAuthStatus().then(function () {
+            if (page !== 'login' && !getToken()) {
+                go('/web/login');
+                return;
+            }
+            if (page === 'login' && getToken()) {
+                go('/web/request');
+                return;
+            }
+            if (page === 'request' && getRequestId()) {
+                refreshRequest();
+            }
+        });
+    });
+})();

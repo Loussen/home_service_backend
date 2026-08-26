@@ -2,15 +2,15 @@
 
 namespace App\Filament\Resources\ProviderProfiles\Pages;
 
+use App\Filament\Resources\ProviderProfiles\Concerns\SyncsProfileCategories;
 use App\Filament\Resources\ProviderProfiles\ProviderProfileResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateProviderProfile extends CreateRecord
 {
-    protected static string $resource = ProviderProfileResource::class;
+    use SyncsProfileCategories;
 
-    /** @var list<int> */
-    private array $pendingCategoryIds = [];
+    protected static string $resource = ProviderProfileResource::class;
 
     /**
      * @param  array<string, mixed>  $data
@@ -18,15 +18,11 @@ class CreateProviderProfile extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $this->pendingCategoryIds = array_values($data['category_ids'] ?? []);
-        $data['category_id'] = $this->pendingCategoryIds[0] ?? null;
-        unset($data['category_ids']);
-
-        return $data;
+        return $this->extractCategoryIds($data);
     }
 
     protected function afterCreate(): void
     {
-        $this->record?->syncCategoryIds($this->pendingCategoryIds);
+        $this->persistCategoryIds();
     }
 }

@@ -7,6 +7,8 @@ use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Repositories\TransactionRepository;
 use App\Repositories\UserRepository;
+use App\Support\BumpQuota;
+use App\Support\UrgentQuota;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -48,7 +50,7 @@ class WalletService
     ): User {
         if ((float) $user->balance < $amount) {
             throw ValidationException::withMessages([
-                'balance' => ['Insufficient balance.'],
+                'balance' => ['Balansınız kifayət etmir.'],
             ]);
         }
 
@@ -86,6 +88,20 @@ class WalletService
 
     public function chargeBumpUp(User $user, ProviderProfile|ServiceRequest $target): User
     {
+        if (BumpQuota::isActive($target->bumped_at)) {
+            $left = BumpQuota::remainingHours($target->bumped_at);
+            throw ValidationException::withMessages([
+                'bump' => ["Bump hələ aktivdir. {$left} saat sonra yeniləyə bilərsiniz."],
+            ]);
+        }
+
+        $quota = BumpQuota::snapshot($user);
+        if (! $quota['can_bump']) {
+            throw ValidationException::withMessages([
+                'bump' => ['Bu gün bump limitiniz bitib.'],
+            ]);
+        }
+
         $fee = (float) config('homeservice.bump_up_fee', 1);
         $user = $this->debit($user, $fee, 'bump_up_fee', 'wallet', [
             'target_type' => $target::class,
@@ -98,16 +114,23 @@ class WalletService
 
     public function chargeUrgent(User $user, ServiceRequest $request): User
     {
-        $fee = (float) config('homeservice.urgent_fee', 2);
-        $user = $this->debit($user, $fee, 'urgent_fee', 'wallet', [
-            'service_request_id' => $request->id,
-        ]);
-        $request->update([
-            'is_urgent' => true,
-            'urgent_until' => now()->addHours(2),
-        ]);
+        return DB::transaction(function () use ($user, $request) {
+            $user = User::query()->lockForUpdate()->find($user->id) ?? $user;
+            $request = ServiceRequest::query()->lockForUpdate()->find($request->id) ?? $request;
+            UrgentQuota::assertCanCharge($user, $request);
 
-        return $user;
+            $fee = (float) config('homeservice.urgent_fee', 2);
+            $hours = (int) config('homeservice.urgent_hours', 2);
+            $user = $this->debit($user, $fee, 'urgent_fee', 'wallet', [
+                'service_request_id' => $request->id,
+            ]);
+            $request->update([
+                'is_urgent' => true,
+                'urgent_until' => now()->addHours($hours),
+            ]);
+
+            return $user;
+        });
     }
 
     public function chargeVip(User $user, ProviderProfile $profile): User

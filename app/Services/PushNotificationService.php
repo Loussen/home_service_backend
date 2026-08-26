@@ -33,6 +33,10 @@ class PushNotificationService
             return 0;
         }
 
+        if (! config('homeservice.feature_push', true)) {
+            return 0;
+        }
+
         $query = RequestMatch::query()
             ->with(['providerProfile.user.deviceTokens'])
             ->where('service_request_id', $request->id);
@@ -42,11 +46,18 @@ class PushNotificationService
         }
 
         $matches = $query->get();
+        $urgent = (bool) $request->is_urgent;
+        if ($urgent) {
+            $radiusKm = (float) config('homeservice.urgent_radius_km', 5);
+            $matches = $matches
+                ->filter(fn (RequestMatch $m) => $m->distance_km !== null
+                    && (float) $m->distance_km <= $radiusKm + 0.01)
+                ->values();
+        }
         if ($matches->isEmpty()) {
             return 0;
         }
 
-        $urgent = (bool) $request->is_urgent;
         $title = $urgent
             ? 'Təcili sorğu'
             : 'Sizə uyğun sorğu';

@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Category;
 use App\Models\ProviderProfile;
+use App\Support\BumpQuota;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -85,22 +86,27 @@ class ProviderProfileRepository
             });
         }
 
+        $bumpHours = BumpQuota::hours();
+        $bumpCutoff = now()->subHours($bumpHours);
+        $bumpBoostKm = BumpQuota::boostKm();
+
         return $query->get()
-            ->map(function (ProviderProfile $profile) use ($lat, $lng) {
+            ->map(function (ProviderProfile $profile) use ($lat, $lng, $bumpCutoff, $bumpBoostKm) {
                 $profile->distance_km = $this->haversineKm(
                     $lat,
                     $lng,
                     (float) $profile->latitude,
                     (float) $profile->longitude
                 );
+                $bumped = $profile->bumped_at && $profile->bumped_at->gt($bumpCutoff);
+                $profile->sort_km = (float) $profile->distance_km - ($bumped ? $bumpBoostKm : 0);
 
                 return $profile;
             })
             ->filter(fn (ProviderProfile $p) => ! $applyRadius || $p->distance_km <= $radiusKm)
             ->sortBy([
                 ['is_vip', 'desc'],
-                ['bumped_at', 'desc'],
-                ['distance_km', 'asc'],
+                ['sort_km', 'asc'],
             ])
             ->take($limit)
             ->values();

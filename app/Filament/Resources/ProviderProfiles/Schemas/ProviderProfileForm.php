@@ -10,6 +10,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 
@@ -23,12 +24,12 @@ class ProviderProfileForm
                 Select::make('category_ids')
                     ->label('Kateqoriyalar (maks. 3)')
                     ->multiple()
+                    ->minItems(1)
                     ->maxItems(3)
                     ->searchable()
                     ->preload()
                     ->options(fn () => Category::treeLabelMap(leavesOnly: true))
-                    ->required()
-                    ->dehydrated(false),
+                    ->required(),
                 TextInput::make('title')
                     ->label('Başlıq'),
                 Textarea::make('bio')
@@ -44,11 +45,13 @@ class ProviderProfileForm
                 TextInput::make('latitude')
                     ->label('Enlik')
                     ->required()
-                    ->numeric(),
+                    ->numeric()
+                    ->dehydrateStateUsing(fn ($state) => self::numericState($state)),
                 TextInput::make('longitude')
                     ->label('Uzunluq')
                     ->required()
-                    ->numeric(),
+                    ->numeric()
+                    ->dehydrateStateUsing(fn ($state) => self::numericState($state)),
                 Select::make('city_id')
                     ->label('Şəhər')
                     ->options(fn () => City::query()->orderBy('sort_order')->orderBy('name')->pluck('name', 'id'))
@@ -76,7 +79,8 @@ class ProviderProfileForm
                     ->label('Reytinq')
                     ->required()
                     ->numeric()
-                    ->default(0.0),
+                    ->default(0.0)
+                    ->dehydrateStateUsing(fn ($state) => self::numericState($state)),
                 TextInput::make('rating_count')
                     ->label('Rəy sayı')
                     ->required()
@@ -90,10 +94,25 @@ class ProviderProfileForm
                     ->label('Aktiv'),
                 DateTimePicker::make('full_until')
                     ->label('Dolu bu tarixə qədər'),
-                TextInput::make('quiet_hours_start')
-                    ->label('Səssiz başlanğıc (HH:MM)'),
-                TextInput::make('quiet_hours_end')
-                    ->label('Səssiz bitmə (HH:MM)'),
+                TimePicker::make('quiet_hours_start')
+                    ->label('Səssiz başlanğıc')
+                    ->seconds(false)
+                    ->nullable(),
+                TimePicker::make('quiet_hours_end')
+                    ->label('Səssiz bitmə')
+                    ->seconds(false)
+                    ->nullable(),
             ]);
+    }
+
+    private static function numericState(mixed $state): ?float
+    {
+        if ($state === null || $state === '') {
+            return null;
+        }
+
+        $normalized = str_replace([' ', ','], ['', '.'], (string) $state);
+
+        return is_numeric($normalized) ? (float) $normalized : null;
     }
 }

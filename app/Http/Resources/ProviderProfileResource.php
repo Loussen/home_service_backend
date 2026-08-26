@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\BumpQuota;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -40,6 +41,13 @@ class ProviderProfileResource extends JsonResource
             'rating_avg' => $this->rating_avg,
             'rating_count' => $this->rating_count,
             'bumped_at' => $this->bumped_at?->toIso8601String(),
+            'bump_active' => BumpQuota::isActive($this->bumped_at),
+            'bump_expires_at' => BumpQuota::isActive($this->bumped_at)
+                ? BumpQuota::expiresAt($this->bumped_at)?->toIso8601String()
+                : null,
+            'bump_remaining_hours' => BumpQuota::isActive($this->bumped_at)
+                ? BumpQuota::remainingHours($this->bumped_at)
+                : 0,
             'vip_expires_at' => $this->vip_expires_at?->toIso8601String(),
             'is_active' => $this->is_active,
             'is_full' => $this->isFull(),

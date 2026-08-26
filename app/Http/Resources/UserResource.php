@@ -2,7 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Support\BumpQuota;
+use App\Support\ConnectQuota;
 use App\Support\ProfileCompleteness;
+use App\Support\UrgentQuota;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -23,6 +26,9 @@ class UserResource extends JsonResource
             'provider_profiles_count' => $this->provider_profiles_count
                 ?? $this->providerProfiles()->count(),
             'profile_completeness' => ProfileCompleteness::forUser($this->resource),
+            'connect_quota' => ConnectQuota::snapshot($this->resource),
+            'urgent_quota' => UrgentQuota::snapshot($this->resource),
+            'bump_quota' => BumpQuota::snapshot($this->resource),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

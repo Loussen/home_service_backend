@@ -7,6 +7,7 @@ use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Repositories\ServiceRequestRepository;
 use App\Support\RequestFilters;
+use App\Support\UrgentQuota;
 use Illuminate\Http\UploadedFile;
 
 class ServiceRequestService
@@ -45,6 +46,9 @@ class ServiceRequestService
         ?float $budgetMax = null,
     ): ServiceRequest {
         abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
+        if ($isUrgent) {
+            UrgentQuota::assertCanCharge($user);
+        }
 
         $path = $audio->store('audio/requests', 'public');
         $filters = RequestFilters::initialCriteria(
@@ -98,6 +102,9 @@ class ServiceRequestService
         ?float $budgetMax = null,
     ): ServiceRequest {
         abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
+        if ($isUrgent) {
+            UrgentQuota::assertCanCharge($user);
+        }
 
         $filters = RequestFilters::initialCriteria(
             $categoryId,

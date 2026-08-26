@@ -7,6 +7,7 @@ use App\Models\ProviderProfile;
 use App\Models\ServiceRequest;
 use App\Repositories\ProviderProfileRepository;
 use App\Repositories\RequestMatchRepository;
+use App\Support\BumpQuota;
 use Illuminate\Support\Collection;
 
 class SearchService
@@ -18,7 +19,10 @@ class SearchService
 
     public function matchRequest(ServiceRequest $request): Collection
     {
-        $baseRadius = (float) config('homeservice.search_radius_km', 50);
+        $isUrgent = (bool) $request->is_urgent;
+        $urgentRadius = (float) config('homeservice.urgent_radius_km', 5);
+        $searchRadius = (float) config('homeservice.search_radius_km', 50);
+        $baseRadius = $isUrgent ? $urgentRadius : $searchRadius;
 
         $criteria = $request->parsed_criteria ?? [];
         $desiredSlot = $criteria['time_slot'] ?? null;
@@ -41,20 +45,30 @@ class SearchService
         $usedSchedule = filled($desiredSlot);
         $found = false;
 
-        $attempts = [
-            ['category' => true, 'district' => $districtId, 'city' => null, 'radius' => false, 'schedule' => true],
-            ['category' => true, 'district' => null, 'city' => $cityId, 'radius' => false, 'schedule' => true],
-            ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => true],
-            ['category' => false, 'district' => $districtId, 'city' => null, 'radius' => false, 'schedule' => true],
-            ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
-            ['category' => false, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
-        ];
+        $attempts = $isUrgent
+            ? [
+                ['category' => true, 'district' => $districtId, 'city' => null, 'radius' => true, 'schedule' => true],
+                ['category' => true, 'district' => null, 'city' => $cityId, 'radius' => true, 'schedule' => true],
+                ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => true],
+                ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
+                ['category' => false, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
+            ]
+            : [
+                ['category' => true, 'district' => $districtId, 'city' => null, 'radius' => false, 'schedule' => true],
+                ['category' => true, 'district' => null, 'city' => $cityId, 'radius' => false, 'schedule' => true],
+                ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => true],
+                ['category' => false, 'district' => $districtId, 'city' => null, 'radius' => false, 'schedule' => true],
+                ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
+                ['category' => false, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
+            ];
 
         foreach ($attempts as $attempt) {
             $categoryId = $attempt['category'] ? $request->category_id : null;
             $slot = ($attempt['schedule'] ?? false) && filled($desiredSlot) ? $desiredSlot : null;
             $radii = $attempt['radius']
-                ? array_values(array_unique([$baseRadius, 40.0, 80.0, 200.0]))
+                ? ($isUrgent
+                    ? [$baseRadius]
+                    : array_values(array_unique([$baseRadius, 40.0, 80.0, 200.0])))
                 : [9999.0];
             sort($radii);
             foreach ($radii as $radius) {
@@ -83,9 +97,10 @@ class SearchService
         $criteria = $request->parsed_criteria ?? [];
         $criteria['search_meta'] = [
             'empty' => ! $found,
+            'urgent' => $isUrgent,
             'radius_km' => $usedRadius,
             'base_radius_km' => $baseRadius,
-            'expanded' => $found && $usedRadius > $baseRadius + 0.01,
+            'expanded' => ! $isUrgent && $found && $usedRadius > $baseRadius + 0.01,
             'dropped_category' => $found && filled($request->category_id) && ! $usedCategory,
             'dropped_area' => $found && ($districtId || $cityId) && ! $usedArea,
             'dropped_schedule' => $found && filled($desiredSlot) && ! $usedSchedule,
@@ -109,6 +124,8 @@ class SearchService
             $vipBonus = $provider->is_vip ? 8 : 0;
             $ratingBonus = min(10, ((float) $provider->rating_avg) * 2);
             $repeatBonus = in_array((int) $provider->id, $repeatProviderIds, true) ? 12 : 0;
+            $bumpActive = BumpQuota::isActive($provider->bumped_at);
+            $bumpBonus = $bumpActive ? 6 : 0;
 
             $score = min(100, round(
                 ($distanceScore * 0.45) +
@@ -116,7 +133,8 @@ class SearchService
                 $verifiedBonus +
                 $vipBonus +
                 $ratingBonus +
-                $repeatBonus,
+                $repeatBonus +
+                $bumpBonus,
                 2
             ));
 
@@ -131,6 +149,7 @@ class SearchService
                     'vip' => $vipBonus,
                     'rating' => $ratingBonus,
                     'repeat_client' => $repeatBonus > 0 ? 1 : 0,
+                    'bump' => $bumpActive ? 1 : 0,
                 ],
                 'provider' => $provider,
             ];

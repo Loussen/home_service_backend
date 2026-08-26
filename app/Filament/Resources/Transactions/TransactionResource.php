@@ -51,6 +51,7 @@ class TransactionResource extends Resource
                         'urgent_fee' => 'Təcili haqqı',
                         'vip_fee' => 'VIP haqqı',
                         'verified_fee' => 'Təsdiq haqqı',
+                        'connect_fee' => 'CONNECT haqqı',
                     ])
                     ->required(),
                 Select::make('payment_method')
@@ -100,6 +101,7 @@ class TransactionResource extends Resource
                         'urgent_fee' => 'Təcili haqqı',
                         'vip_fee' => 'VIP haqqı',
                         'verified_fee' => 'Təsdiq haqqı',
+                        'connect_fee' => 'CONNECT haqqı',
                         default => $state,
                     }),
                 TextColumn::make('payment_method')

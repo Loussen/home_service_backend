@@ -9,6 +9,7 @@ use App\Models\ProviderProfile;
 use App\Models\RequestMatch;
 use App\Models\ServiceRequest;
 use App\Models\User;
+use App\Support\ConnectQuota;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +18,7 @@ class ConversationService
     public function __construct(
         private readonly ModerationService $moderation,
         private readonly BookingService $bookings,
+        private readonly WalletService $wallet,
     ) {}
 
     public function listFor(User $user): LengthAwarePaginator
@@ -118,22 +120,37 @@ class ConversationService
         }
 
         return DB::transaction(function () use ($client, $profile, $serviceRequest, $message) {
-            $conversation = Conversation::query()->firstOrCreate(
-                [
+            $client = User::query()->lockForUpdate()->find($client->id) ?? $client;
+
+            $conversation = Conversation::query()
+                ->where('client_id', $client->id)
+                ->where('provider_id', $profile->user_id)
+                ->where('provider_profile_id', $profile->id)
+                ->first();
+
+            $isNew = false;
+            if (! $conversation) {
+                $quota = ConnectQuota::snapshot($client);
+                ConnectQuota::assertCanOpen($quota);
+                if ((float) $quota['fee'] > 0) {
+                    $this->wallet->debit($client, (float) $quota['fee'], 'connect_fee', 'wallet', [
+                        'provider_profile_id' => $profile->id,
+                    ]);
+                    $client = $client->fresh() ?? $client;
+                }
+                $conversation = Conversation::query()->create([
                     'client_id' => $client->id,
                     'provider_id' => $profile->user_id,
                     'provider_profile_id' => $profile->id,
-                ],
-                [
                     'service_request_id' => $serviceRequest?->id,
-                ]
-            );
+                ]);
+                $isNew = true;
+            }
 
             if ($serviceRequest && ! $conversation->service_request_id) {
                 $conversation->update(['service_request_id' => $serviceRequest->id]);
             }
 
-            $isNew = $conversation->wasRecentlyCreated;
             $body = trim((string) $message);
             if ($body === '' && $isNew) {
                 $snippet = $serviceRequest?->transcribed_text;

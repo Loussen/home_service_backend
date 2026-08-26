@@ -14,6 +14,8 @@ class MessageResource extends JsonResource
             'id' => $this->id,
             'conversation_id' => $this->conversation_id,
             'sender_id' => $this->sender_id,
+            'is_mine' => $request->user() !== null
+                && (int) $this->sender_id === (int) $request->user()->id,
             'type' => $this->type ?? 'text',
             'body' => $this->body,
             'attachment_url' => $this->attachment_url,

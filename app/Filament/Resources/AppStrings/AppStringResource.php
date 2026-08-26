@@ -16,6 +16,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class AppStringResource extends Resource
 {
@@ -26,6 +27,8 @@ class AppStringResource extends Resource
     protected static ?string $modelLabel = 'mətn';
 
     protected static ?string $pluralModelLabel = 'App mətnləri';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Sistem';
 
     protected static ?int $navigationSort = 1;
 

@@ -48,11 +48,24 @@ final class GroupedMatches
                     fn (RequestMatch $m) => (bool) $m->providerProfile?->is_vip
                 );
 
+                $latestBump = $group
+                    ->map(fn (RequestMatch $m) => $m->providerProfile?->bumped_at)
+                    ->filter()
+                    ->sortDesc()
+                    ->first();
+                if ($latestBump) {
+                    $profile->bumped_at = $latestBump;
+                }
+
                 $breakdown = $best->score_breakdown ?? [];
                 if ($group->contains(fn (RequestMatch $m) => (int) (($m->score_breakdown ?? [])['repeat_client'] ?? 0) === 1)) {
                     $breakdown['repeat_client'] = 1;
-                    $best->score_breakdown = $breakdown;
                 }
+                if ($group->contains(fn (RequestMatch $m) => (int) (($m->score_breakdown ?? [])['bump'] ?? 0) === 1)
+                    || BumpQuota::isActive($profile->bumped_at)) {
+                    $breakdown['bump'] = 1;
+                }
+                $best->score_breakdown = $breakdown;
 
                 return [
                     'id' => $best->id,

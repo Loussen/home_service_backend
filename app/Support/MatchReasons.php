@@ -42,6 +42,13 @@ final class MatchReasons
                 'params' => [],
             ];
         }
+        if ((int) ($breakdown['bump'] ?? 0) === 1) {
+            $hours = BumpQuota::remainingHours($match->providerProfile?->bumped_at);
+            $reasons[] = [
+                'key' => 'match.reason.bump',
+                'params' => ['hours' => (string) max(1, $hours)],
+            ];
+        }
 
         return $reasons;
     }
