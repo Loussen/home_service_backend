@@ -26,13 +26,15 @@ class ProcessServiceRequestService
             $text = $request->transcribed_text;
             $transcriptionFailed = false;
 
+            $locationHints = $this->locationHintList();
+
             if ($text === null || $text === '') {
                 $path = $audioOverridePath ?? $request->raw_audio_url;
                 if (! $path) {
                     throw new \RuntimeException('No audio or text to process');
                 }
                 try {
-                    $text = $this->ai->transcribe($path);
+                    $text = $this->ai->transcribe($path, $locationHints);
                 } catch (\Throwable $e) {
                     Log::warning('Whisper failed — same parse pipeline needs text', [
                         'id' => $request->id,
@@ -55,8 +57,11 @@ class ProcessServiceRequestService
             }
 
             $catalog = $this->categories->leafCatalog();
-            $locationHints = $this->locationHintList();
             $parsed = $this->ai->parseRequestText($text, $catalog, $locationHints);
+
+            // Show the human-readable corrected line when ASR was cleaned up.
+            $displayText = $parsed['normalized_text'] ?? $text;
+            $parsed['asr_raw_text'] = $text;
 
             $parsed = RequestFilters::mergeUserFilters(
                 $parsed,
@@ -86,7 +91,7 @@ class ProcessServiceRequestService
             }
 
             $request = $this->requests->update($request, [
-                'transcribed_text' => $text,
+                'transcribed_text' => $displayText,
                 'parsed_criteria' => $parsed,
                 'category_id' => $categoryId,
                 'address' => $address,

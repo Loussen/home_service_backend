@@ -15,8 +15,10 @@ class AIService
 
     /**
      * Transcribe audio via OpenAI Whisper. Falls back to stub in non-configured env.
+     *
+     * @param  list<string>  $locationHints  City/district names to bias Whisper vocabulary
      */
-    public function transcribe(string $audioPathOrUrl): string
+    public function transcribe(string $audioPathOrUrl, array $locationHints = []): string
     {
         $apiKey = config('services.openai.key');
 
@@ -32,12 +34,16 @@ class AIService
 
         $localPath = $this->resolveLocalPath($audioPathOrUrl);
 
+        $payload = [
+            'model' => 'whisper-1',
+            'language' => 'az',
+            // Biases decoding toward real AZ place names + service phrases (cuts Dərmolov/küsadlıq-type errors).
+            'prompt' => $this->whisperBiasPrompt($locationHints),
+        ];
+
         $response = Http::withToken($apiKey)
             ->attach('file', file_get_contents($localPath), basename($localPath))
-            ->post('https://api.openai.com/v1/audio/transcriptions', [
-                'model' => 'whisper-1',
-                'language' => 'az',
-            ]);
+            ->post('https://api.openai.com/v1/audio/transcriptions', $payload);
 
         if (! $response->successful()) {
             Log::error('Whisper failed', ['body' => $response->body()]);
@@ -45,7 +51,7 @@ class AIService
             throw new \RuntimeException('Audio transcription failed');
         }
 
-        return (string) $response->json('text');
+        return trim((string) $response->json('text'));
     }
 
     /**
@@ -53,6 +59,7 @@ class AIService
      * LLM when OpenAI is configured; otherwise keyword fallback.
      *
      * @param  list<array{slug: string, name_az: string, name_en: ?string}>  $leafCatalog
+     * @param  list<string>  $locationHints
      * @return array<string, mixed>
      */
     public function parseRequestText(string $text, array $leafCatalog = [], array $locationHints = []): array
@@ -62,7 +69,12 @@ class AIService
         $parsed = $this->extractWithLlm($text, $leafCatalog, $locationHints)
             ?? $this->extractWithKeywords($text);
 
+        $normalized = $this->nullIfEmpty($parsed['normalized_text'] ?? null);
         $parsed['raw_text'] = $text;
+        if ($normalized) {
+            $parsed['normalized_text'] = $normalized;
+            $parsed['asr_corrected'] = $normalized !== trim($text);
+        }
         $parsed['time_slot'] = $parsed['time_slot']
             ?? $this->slotFromClock($parsed['time_hhmm'] ?? null);
 
@@ -71,6 +83,7 @@ class AIService
 
     /**
      * @param  list<array{slug: string, name_az: string, name_en: ?string}>  $leafCatalog
+     * @param  list<string>  $locationHints
      * @return array<string, mixed>|null
      */
     private function extractWithLlm(string $text, array $leafCatalog, array $locationHints): ?array
@@ -85,31 +98,49 @@ class AIService
         $locationsJson = json_encode($locationHints, JSON_UNESCAPED_UNICODE);
 
         $prompt = <<<PROMPT
-Azərbaycan dilində ev xidməti sorğusunu JSON-a çevir.
-Yalnız bu kateqoriya slug-larından birini seç (yarpaq): {$catalogJson}
-Məkan adları (şəhər/rayon) bu siyahıya uyğun olsun, yoxdursa null: {$locationsJson}
+Sən Azərbaycan dilində ev xidməti marketplace-inin (MySancho) sorğu analitikisən.
+
+Giriş mətni çox vaxt Whisper ASR-dən gəlir: səhv yazı, dil sürüşməsi, səhv intonasiya, fonetik təhrif ola bilər.
+Məqsəd: insan kimi niyyəti başa düşmək, səs səhvlərini düzəltmək, sonra JSON çıxarmaq.
+
+1) ƏVVƏL mətnı düzəlt (normalized_text):
+   - Rayon/şəhər adlarını yalnız bu siyahıdan seç (fonetik oxşarlığı nəzərə al): {$locationsJson}
+     Nümunə ASR səhvləri: "Dərmolov/Dermolov/Nərimolov" → "Nərimanov"; "Yasamal/Yasamalda" → "Yasamal".
+   - Müddət: "küsadlıq/kusadliq/ikişaatlıq/iki saatlıg" və oxşar → "2 saatlıq" (duration_hours=2).
+   - "sabah / bu gün / axşamüstü" saxla; kateqoriya sözlərini düzgün AZ yaz (dayə, it gəzdirmə, təmizlik…).
+   - Məntiqi tamamla, amma uydurma fakt əlavə etmə.
+   - Əgər rayon adı səhv səslənirsə (məs. Dərmolov), siyahıdakı ən yaxın real rayonu seç (Nərimanov).
+
+2) SONRA JSON sahələri (siyahıya uyğun):
+Yalnız bu kateqoriya slug-larından biri (yarpaq): {$catalogJson}
 
 Qaydalar:
 - category_slug: siyahıdakı slug və ya null
-- city, district: qısa ad (məs. Bakı, Nərimanov) və ya null
+- city, district: siyahıdakı qısa ad (məs. Bakı, Nərimanov) və ya null.
+  "Gənclik", "28 May", "İçərişəhər" kimi məhəllə/metro → ən yaxın rəsmi rayon (adətən Nərimanov / Nəsimi / Səbail).
 - time_hhmm: 24 saat "HH:MM" (saat 3 günorta = 15:00). Yoxdursa null
 - duration_hours: rəqəm və ya null
 - time_slot: morning|afternoon|evening|night və ya null
   (05–11 morning, 12–16 afternoon, 17–21 evening, 22–04 night)
+- normalized_text: düzəldilmiş tam cümlə (istifadəçiyə göstərilə bilər)
 
-Yalnız JSON: {"category_slug":"","city":"","district":"","time_hhmm":"","duration_hours":null,"time_slot":""}
+Yalnız JSON:
+{"normalized_text":"","category_slug":"","city":"","district":"","time_hhmm":"","duration_hours":null,"time_slot":""}
 PROMPT;
 
         try {
             $response = Http::withToken($apiKey)
-                ->timeout(25)
+                ->timeout(35)
                 ->post('https://api.openai.com/v1/chat/completions', [
                     'model' => 'gpt-4o-mini',
-                    'temperature' => 0,
+                    'temperature' => 0.2,
                     'response_format' => ['type' => 'json_object'],
                     'messages' => [
                         ['role' => 'system', 'content' => $prompt],
-                        ['role' => 'user', 'content' => $text],
+                        [
+                            'role' => 'user',
+                            'content' => "ASR transcript (səhv ola bilər):\n".$text,
+                        ],
                     ],
                 ]);
         } catch (\Throwable $e) {
@@ -138,6 +169,7 @@ PROMPT;
         $hours = $data['duration_hours'] ?? null;
 
         return [
+            'normalized_text' => $this->nullIfEmpty($data['normalized_text'] ?? null),
             'category_slug' => $slug ?: null,
             'city' => $this->nullIfEmpty($data['city'] ?? null),
             'district' => $this->nullIfEmpty($data['district'] ?? null),
@@ -157,10 +189,10 @@ PROMPT;
         $matchedSlug = null;
 
         $keywords = [
-            'pet-walking' => ['it gəzdir', 'it gezdir', 'dog walk', 'it gəz', 'it gez'],
+            'pet-walking' => ['it gəzdir', 'it gezdir', 'dog walk', 'it gəz', 'it gez', 'it gəzdirmə', 'kusad'],
             'infant-nanny' => ['körpə', 'korpe', 'infant', 'yenidoğulmuş'],
             'school-nanny' => ['məktəbli', 'mektebli', 'school nanny'],
-            'nanny' => ['dayə', 'daye', 'nanny', 'uşaq', 'usaq'],
+            'nanny' => ['dayə', 'daye', 'nanny', 'uşaq', 'usaq', 'uşaq dayası'],
             'cleaner' => ['təmizlik', 'temizlik', 'cleaner', 'ev xadimə'],
             'caregiver' => ['baxıcı', 'baxici', 'caregiver', 'qoca'],
             'cook' => ['aşpaz', 'aspaz', 'cook', 'yemək'],
@@ -199,14 +231,23 @@ PROMPT;
         $duration = null;
         if (preg_match('/(\d+(?:[.,]\d+)?)\s*saat/u', $lower, $dm)) {
             $duration = (float) str_replace(',', '.', $dm[1]);
+        } elseif (preg_match('/k[uü]sad|iki\s*saat|2\s*saat/u', $lower)) {
+            $duration = 2.0;
         }
 
         $district = null;
-        if (preg_match('/nərimanov|nerimanov/u', $lower)) {
+        if (preg_match('/n[əe]rim[ao]nov|dərmolov|dermolov|nərimolov|nerimolov|dərmalov|dermalov/u', $lower)) {
             $district = 'Nərimanov';
+        } elseif (preg_match('/g[əe]nclik|genclik|gənclikdə|genclikde/u', $lower)) {
+            $district = 'Nərimanov';
+        } elseif (preg_match('/yasamal/u', $lower)) {
+            $district = 'Yasamal';
+        } elseif (preg_match('/n[əe]simi|nesimi/u', $lower)) {
+            $district = 'Nəsimi';
         }
 
         return [
+            'normalized_text' => null,
             'category_slug' => $matchedSlug,
             'city' => str_contains($lower, 'bak') ? 'Bakı' : null,
             'district' => $district,
@@ -215,6 +256,31 @@ PROMPT;
             'time_slot' => $timeSlot,
             'parser' => 'keywords',
         ];
+    }
+
+    /**
+     * @param  list<string>  $locationHints
+     */
+    private function whisperBiasPrompt(array $locationHints): string
+    {
+        $places = array_values(array_unique(array_filter(array_map(
+            static function (string $hint): string {
+                // "Bakı / Nərimanov" → keep readable tokens
+                return trim(str_replace('/', ' ', $hint));
+            },
+            $locationHints
+        ))));
+
+        // Whisper prompt works best as sample transcript prose, not a word list.
+        $placeLine = $places !== []
+            ? implode(', ', array_slice($places, 0, 40))
+            : 'Bakı, Nərimanov, Nəsimi, Yasamal, Xətai, Səbail, Binəqədi, Gənclik';
+
+        return 'Azərbaycan dili. Bakı rayonları: '.$placeLine.'. '
+            .'Nümunə sorğular: Nərimanovda sabah üçün uşaq dayası lazımdır. '
+            .'Gənclikdə 2 saatlıq it gəzdirmək üçün insan axtarılır. '
+            .'Yasamalda axşam təmizlikçi lazımdır. '
+            .'Saat 15:00-da 2 saatlıq dayə axtarıram.';
     }
 
     public function slotFromClock(?string $hhmm): ?string
