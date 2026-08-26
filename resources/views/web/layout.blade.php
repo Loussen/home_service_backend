@@ -8,10 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
-    @vite(['resources/css/web.css'])
+    @if (file_exists(public_path('hot')) || file_exists(public_path('build/manifest.json')))
+        @vite(['resources/css/web.css'])
+    @else
+        <link rel="stylesheet" href="{{ asset('css/web.css') }}?v={{ @filemtime(public_path('css/web.css')) }}">
+    @endif
 </head>
 @php
-    $path = request()->path();
+    $path = trim(request()->path(), '/');
 @endphp
 <body
     data-page="@yield('page', 'generic')"
@@ -35,13 +39,13 @@
     </header>
 
     <nav class="top-nav" aria-label="Əsas naviqasiya">
-        <a href="{{ route('web.login') }}" class="{{ $path === 'web/login' ? 'active' : '' }}">Login</a>
-        <a href="{{ route('web.onboarding') }}" class="{{ $path === 'web/onboarding' ? 'active' : '' }}">Onboarding</a>
-        <a href="{{ route('web.categories') }}" class="{{ $path === 'web/categories' ? 'active' : '' }}">Kateqoriyalar</a>
-        <a href="{{ route('web.profile') }}" class="{{ $path === 'web/profile' ? 'active' : '' }}">Profil</a>
-        <a href="{{ route('web.request') }}" class="{{ $path === 'web/request' ? 'active' : '' }}">Sorğu</a>
-        <a href="{{ route('web.chat') }}" class="{{ str_starts_with($path, 'web/chat') ? 'active' : '' }}">Chat</a>
-        <a href="{{ route('web.jobs') }}" class="{{ $path === 'web/jobs' ? 'active' : '' }}">İşlər</a>
+        <a href="{{ route('web.login') }}" class="{{ $path === 'login' ? 'active' : '' }}">Login</a>
+        <a href="{{ route('web.onboarding') }}" class="{{ $path === 'onboarding' ? 'active' : '' }}">Onboarding</a>
+        <a href="{{ route('web.categories') }}" class="{{ $path === 'categories' ? 'active' : '' }}">Kateqoriyalar</a>
+        <a href="{{ route('web.profile') }}" class="{{ $path === 'profile' ? 'active' : '' }}">Profil</a>
+        <a href="{{ route('web.request') }}" class="{{ $path === 'request' ? 'active' : '' }}">Sorğu</a>
+        <a href="{{ route('web.chat') }}" class="{{ str_starts_with($path, 'chat') ? 'active' : '' }}">Chat</a>
+        <a href="{{ route('web.jobs') }}" class="{{ $path === 'jobs' ? 'active' : '' }}">İşlər</a>
     </nav>
 
     <main>

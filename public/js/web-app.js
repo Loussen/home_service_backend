@@ -719,7 +719,7 @@
                 }).then(function (conversation) {
                     toast('success', 'CONNECT uğurlu');
                     log('CONNECT uğurlu', { conversation_id: conversation.id });
-                    go('/web/chat/' + conversation.id);
+                    go('/chat/' + conversation.id);
                 }).catch(function (e) {
                     toast('error', 'CONNECT xətası: ' + e.message);
                     log('CONNECT xətası: ' + e.message);
@@ -774,10 +774,10 @@
                 log('Login uğurlu');
                 setTimeout(function () {
                     if (data.is_new_user) {
-                        go('/web/onboarding');
+                        go('/onboarding');
                         return;
                     }
-                    go('/web/request');
+                    go('/request');
                 }, 180);
             }).catch(function (e) {
                 toast('error', 'Login alınmadı');
@@ -830,7 +830,7 @@
 
         el('onb-back').addEventListener('click', function () {
             if (step === 0) {
-                go('/web/login');
+                go('/login');
                 return;
             }
             if (role() === 'client' && step === 2) {
@@ -907,7 +907,7 @@
             }).then(function () {
                 toast('success', 'Onboarding tamamlandı');
                 log('Onboarding tamamlandı', { role: chosenRole });
-                go(chosenRole === 'provider' ? '/web/jobs' : '/web/request');
+                go(chosenRole === 'provider' ? '/jobs' : '/request');
             }).catch(function (e) {
                 toast('error', 'Onboarding xətası');
                 log('Onboarding xətası: ' + e.message);
@@ -1083,7 +1083,7 @@
             localStorage.removeItem(requestKey);
             toast('info', 'Çıxış edildi');
             setTimeout(function () {
-                go('/web/login');
+                go('/login');
             }, 150);
         });
 
@@ -1132,7 +1132,7 @@
                     var preview = (c.last_message && c.last_message.body) || 'Yeni söhbət';
                     var a = document.createElement('a');
                     a.className = 'chat-item';
-                    a.href = '/web/chat/' + c.id;
+                    a.href = '/chat/' + c.id;
                     a.innerHTML =
                         '<b>' + esc(other) + '</b>' +
                         (c.unread_count ? ' <span class="pill">' + esc(c.unread_count) + '</span>' : '') +
@@ -1510,7 +1510,7 @@
                             }),
                         }).then(function (conversation) {
                             toast('success', 'Cavab göndərildi');
-                            go('/web/chat/' + conversation.id);
+                            go('/chat/' + conversation.id);
                         }).catch(function (e) {
                             toast('error', 'Cavab getmədi');
                             log('Job reply xətası: ' + e.message);
@@ -1543,11 +1543,11 @@
         bindPage();
         setAuthStatus().then(function () {
             if (page !== 'login' && !getToken()) {
-                go('/web/login');
+                go('/login');
                 return;
             }
             if (page === 'login' && getToken()) {
-                go('/web/request');
+                go('/request');
                 return;
             }
             if (page === 'request' && getRequestId()) {
