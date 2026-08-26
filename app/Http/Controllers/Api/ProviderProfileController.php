@@ -43,6 +43,14 @@ class ProviderProfileController extends Controller
         return $this->success(new ProviderProfileResource($profile));
     }
 
+    /** Public view for clients (match results → provider profile). */
+    public function publicShow(int $id): JsonResponse
+    {
+        $profile = $this->profiles->getPublic($id);
+
+        return $this->success(new ProviderProfileResource($profile));
+    }
+
     public function update(UpdateProviderProfileRequest $request, int $id): JsonResponse
     {
         $profile = $this->profiles->update($request->user(), $id, $request->validated());

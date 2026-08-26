@@ -30,6 +30,15 @@ class ProviderProfileRepository
             ->first();
     }
 
+    /** Active profile for any authenticated viewer (client match results, etc.). */
+    public function findPublic(int $profileId): ?ProviderProfile
+    {
+        return ProviderProfile::with(['user', 'category', 'categories', 'schedules'])
+            ->where('id', $profileId)
+            ->where('is_active', true)
+            ->first();
+    }
+
     public function listForUser(int $userId): Collection
     {
         return ProviderProfile::with(['category', 'categories', 'schedules'])

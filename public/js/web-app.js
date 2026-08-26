@@ -687,6 +687,7 @@
                 (hasCoords
                     ? '<button type="button" class="btn btn-outline show-on-map" data-id="' + esc(id) + '">Xəritədə</button>'
                     : '') +
+                '<button type="button" class="btn btn-outline view-profile" data-id="' + esc(id) + '">Profilə bax</button>' +
                 '<button type="button" class="btn btn-primary connect" data-id="' + esc(id) + '">CONNECT</button>' +
                 '</div>';
 
@@ -703,6 +704,15 @@
                         if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     });
                 }
+            }
+
+            var profileBtn = card.querySelector('.view-profile');
+            if (profileBtn) {
+                profileBtn.addEventListener('click', function (evt) {
+                    var profileId = Number(evt.currentTarget.getAttribute('data-id'));
+                    if (!profileId) return;
+                    openProviderProfile(profileId, request);
+                });
             }
 
             card.querySelector('.connect').addEventListener('click', function (evt) {
@@ -727,6 +737,102 @@
             });
 
             box.appendChild(card);
+        });
+    }
+
+    function ensureProviderModal() {
+        var modal = document.getElementById('provider-modal');
+        if (modal) return modal;
+        modal = document.createElement('div');
+        modal.id = 'provider-modal';
+        modal.className = 'modal';
+        modal.hidden = true;
+        modal.innerHTML =
+            '<div class="modal-card">' +
+            '<h3 id="provider-modal-title">Xidmətçi</h3>' +
+            '<div id="provider-modal-body" class="provider-modal-body"></div>' +
+            '<div class="modal-actions">' +
+            '<button type="button" class="btn btn-outline" id="provider-modal-close">Bağla</button>' +
+            '<button type="button" class="btn btn-primary" id="provider-modal-connect">CONNECT</button>' +
+            '</div></div>';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function (evt) {
+            if (evt.target === modal) modal.hidden = true;
+        });
+        document.getElementById('provider-modal-close').addEventListener('click', function () {
+            modal.hidden = true;
+        });
+        return modal;
+    }
+
+    function openProviderProfile(profileId, request) {
+        var modal = ensureProviderModal();
+        var titleEl = document.getElementById('provider-modal-title');
+        var bodyEl = document.getElementById('provider-modal-body');
+        var connectBtn = document.getElementById('provider-modal-connect');
+        titleEl.textContent = 'Xidmətçi';
+        bodyEl.innerHTML = '<p class="meta">Yüklənir…</p>';
+        connectBtn.disabled = true;
+        connectBtn.onclick = null;
+        modal.hidden = false;
+
+        api('/providers/' + profileId).then(function (provider) {
+            var name = provider.user_name || provider.title || 'İcraçı';
+            titleEl.textContent = name;
+            var cats = (provider.categories || []).map(function (c) {
+                return c.name_az || c.name || '';
+            }).filter(Boolean).join(' · ');
+            var place = [provider.district, provider.city].filter(Boolean).join(', ');
+            var scheduleBits = (provider.schedules || []).filter(function (s) {
+                return s.is_available !== false;
+            }).slice(0, 12).map(function (s) {
+                return (s.day_of_week || '') + '/' + (s.time_slot || '');
+            });
+            var html = '';
+            if (provider.title && provider.title !== name) {
+                html += '<p class="meta">' + esc(provider.title) + '</p>';
+            }
+            if (cats) html += '<p class="meta">' + esc(cats) + '</p>';
+            if (place) html += '<p class="meta">' + esc(place) + '</p>';
+            if (provider.is_verified) html += '<p class="meta">Verified</p>';
+            if (provider.is_vip) html += '<p class="meta">VIP</p>';
+            if (provider.rating_count > 0) {
+                html += '<p class="meta">★ ' + Number(provider.rating_avg || 0).toFixed(1) +
+                    ' (' + provider.rating_count + ')</p>';
+            }
+            if (provider.bio) {
+                html += '<p style="margin-top:12px;white-space:pre-wrap">' + esc(provider.bio) + '</p>';
+            }
+            if (provider.audio_intro_url) {
+                html += '<p style="margin-top:12px"><audio controls src="' +
+                    esc(provider.audio_intro_url) + '"></audio></p>';
+            }
+            if (scheduleBits.length) {
+                html += '<p class="meta" style="margin-top:12px">Cədvəl: ' +
+                    esc(scheduleBits.join(' · ')) + '</p>';
+            }
+            bodyEl.innerHTML = html || '<p class="meta">Əlavə məlumat yoxdur</p>';
+            connectBtn.disabled = false;
+            connectBtn.onclick = function () {
+                if (!request) return;
+                ensureRole('client').then(function () {
+                    return api('/conversations', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            provider_profile_id: profileId,
+                            service_request_id: request.id,
+                        }),
+                    });
+                }).then(function (conversation) {
+                    modal.hidden = true;
+                    toast('success', 'CONNECT uğurlu');
+                    go('/chat/' + conversation.id);
+                }).catch(function (e) {
+                    toast('error', 'CONNECT xətası: ' + e.message);
+                });
+            };
+        }).catch(function (e) {
+            bodyEl.innerHTML = '<p class="meta">Profil açılmadı: ' + esc(e.message) + '</p>';
         });
     }
 

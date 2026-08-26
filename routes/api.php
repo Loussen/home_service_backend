@@ -48,6 +48,9 @@ Route::prefix('v1')->group(function () {
         Route::get('places/reverse', [PlacesController::class, 'reverse']);
         Route::get('places/{placeId}', [PlacesController::class, 'details']);
 
+        Route::get('providers/{id}', [ProviderProfileController::class, 'publicShow'])
+            ->whereNumber('id');
+
         Route::middleware('role:provider')->group(function () {
             Route::apiResource('provider-profiles', ProviderProfileController::class)
                 ->only(['index', 'store', 'show', 'update', 'destroy']);

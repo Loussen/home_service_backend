@@ -110,6 +110,14 @@ class ProviderProfileService
         return $profile;
     }
 
+    public function getPublic(int $profileId): ProviderProfile
+    {
+        $profile = $this->profiles->findPublic($profileId);
+        abort_if(! $profile, 404, 'Profile not found');
+
+        return $profile;
+    }
+
     public function uploadAudioIntro(User $user, int $profileId, UploadedFile $audio): ProviderProfile
     {
         $profile = $this->get($user, $profileId);

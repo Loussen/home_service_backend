@@ -26,7 +26,10 @@ class ProviderProfileResource extends JsonResource
             'title' => $this->title,
             'bio' => $this->bio,
             'user_name' => $this->whenLoaded('user', fn () => $this->user?->name),
-            'user_phone' => $this->whenLoaded('user', fn () => $this->user?->phone),
+            'user_phone' => $this->when(
+                $this->relationLoaded('user') && $request->user()?->id === $this->user_id,
+                fn () => $this->user?->phone,
+            ),
             'audio_intro_url' => $this->audio_intro_url
                 ? Storage::disk('public')->url($this->audio_intro_url)
                 : null,
