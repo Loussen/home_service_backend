@@ -27,8 +27,8 @@ class LocationRepository
                 return '';
             }
             $s = mb_strtolower(trim($s));
-            $from = ['ə', 'ı', 'ö', 'ü', 'ç', 'ş', 'ğ', 'baku', 'ganja'];
-            $to = ['e', 'i', 'o', 'u', 'c', 's', 'g', 'baki', 'gence'];
+            $from = ['ə', 'ı', 'ö', 'ü', 'ç', 'ş', 'ğ', 'baku', 'ganja', 'баку', 'нариманов', 'ясамал', 'насими'];
+            $to = ['e', 'i', 'o', 'u', 'c', 's', 'g', 'baki', 'gence', 'baki', 'nerimanov', 'yasamal', 'nesimi'];
 
             return str_replace($from, $to, $s);
         };

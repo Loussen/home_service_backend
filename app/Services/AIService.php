@@ -34,10 +34,9 @@ class AIService
 
         $localPath = $this->resolveLocalPath($audioPathOrUrl);
 
+        // Do NOT force language=az — user may speak AZ / RU / EN (or mix). Whisper auto-detects.
         $payload = [
             'model' => 'whisper-1',
-            'language' => 'az',
-            // Biases decoding toward real AZ place names + service phrases (cuts Dərmolov/küsadlıq-type errors).
             'prompt' => $this->whisperBiasPrompt($locationHints),
         ];
 
@@ -98,34 +97,35 @@ class AIService
         $locationsJson = json_encode($locationHints, JSON_UNESCAPED_UNICODE);
 
         $prompt = <<<PROMPT
-Sən Azərbaycan dilində ev xidməti marketplace-inin (MySancho) sorğu analitikisən.
+You are the request parser for MySancho, a home-services marketplace in Azerbaijan.
 
-Giriş mətni çox vaxt Whisper ASR-dən gəlir: səhv yazı, dil sürüşməsi, səhv intonasiya, fonetik təhrif ola bilər.
-Məqsəd: insan kimi niyyəti başa düşmək, səs səhvlərini düzəltmək, sonra JSON çıxarmaq.
+Input is often a Whisper ASR transcript. It may be in Azerbaijani, Russian, English, or mixed — with typos, slurred speech, and phonetic errors.
+Goal: understand human intent like a local would, fix ASR mistakes, then output JSON for search matching.
 
-1) ƏVVƏL mətnı düzəlt (normalized_text):
-   - Rayon/şəhər adlarını yalnız bu siyahıdan seç (fonetik oxşarlığı nəzərə al): {$locationsJson}
-     Nümunə ASR səhvləri: "Dərmolov/Dermolov/Nərimolov" → "Nərimanov"; "Yasamal/Yasamalda" → "Yasamal".
-   - Müddət: "küsadlıq/kusadliq/ikişaatlıq/iki saatlıg" və oxşar → "2 saatlıq" (duration_hours=2).
-   - "sabah / bu gün / axşamüstü" saxla; kateqoriya sözlərini düzgün AZ yaz (dayə, it gəzdirmə, təmizlik…).
-   - Məntiqi tamamla, amma uydurma fakt əlavə etmə.
-   - Əgər rayon adı səhv səslənirsə (məs. Dərmolov), siyahıdakı ən yaxın real rayonu seç (Nərimanov).
+1) FIRST rewrite as normalized_text:
+   - Keep the user's language when possible (AZ/RU/EN), but fix ASR errors.
+   - Place names MUST map to this official list (phonetic / transliteration OK): {$locationsJson}
+     Examples: "Dərmolov/Dermolov/Нариманов/Narimanov" → district "Nərimanov"; "Ясамал/Yasamal" → "Yasamal".
+   - Duration: "küsadlıq/два часа/for two hours/2 hours" → duration_hours=2.
+   - Service words: dayə/няня/nanny; it gəzdirmə/выгул собаки/dog walking; təmizlik/уборка/cleaning.
+   - Do not invent facts that were not implied.
 
-2) SONRA JSON sahələri (siyahıya uyğun):
-Yalnız bu kateqoriya slug-larından biri (yarpaq): {$catalogJson}
+2) THEN fill structured fields for DB matching (canonical AZ place names from the list):
+Leaf category slugs only: {$catalogJson}
 
-Qaydalar:
-- category_slug: siyahıdakı slug və ya null
-- city, district: siyahıdakı qısa ad (məs. Bakı, Nərimanov) və ya null.
-  "Gənclik", "28 May", "İçərişəhər" kimi məhəllə/metro → ən yaxın rəsmi rayon (adətən Nərimanov / Nəsimi / Səbail).
-- time_hhmm: 24 saat "HH:MM" (saat 3 günorta = 15:00). Yoxdursa null
-- duration_hours: rəqəm və ya null
-- time_slot: morning|afternoon|evening|night və ya null
+Rules:
+- detected_language: "az" | "ru" | "en" | "mixed" | null
+- category_slug: slug from list or null
+- city, district: short official names from the list (e.g. Bakı, Nərimanov) or null.
+  Neighbourhoods/metro (Gənclik, 28 May, İçərişəhər, Гянджлик) → nearest official district.
+- time_hhmm: 24h "HH:MM" (3pm = 15:00) or null
+- duration_hours: number or null
+- time_slot: morning|afternoon|evening|night or null
   (05–11 morning, 12–16 afternoon, 17–21 evening, 22–04 night)
-- normalized_text: düzəldilmiş tam cümlə (istifadəçiyə göstərilə bilər)
+- normalized_text: corrected full sentence for the UI
 
-Yalnız JSON:
-{"normalized_text":"","category_slug":"","city":"","district":"","time_hhmm":"","duration_hours":null,"time_slot":""}
+JSON only:
+{"detected_language":"","normalized_text":"","category_slug":"","city":"","district":"","time_hhmm":"","duration_hours":null,"time_slot":""}
 PROMPT;
 
         try {
@@ -139,7 +139,7 @@ PROMPT;
                         ['role' => 'system', 'content' => $prompt],
                         [
                             'role' => 'user',
-                            'content' => "ASR transcript (səhv ola bilər):\n".$text,
+                            'content' => "ASR transcript (may be AZ/RU/EN, may have errors):\n".$text,
                         ],
                     ],
                 ]);
@@ -167,8 +167,10 @@ PROMPT;
         }
 
         $hours = $data['duration_hours'] ?? null;
+        $lang = $this->nullIfEmpty($data['detected_language'] ?? null);
 
         return [
+            'detected_language' => $lang,
             'normalized_text' => $this->nullIfEmpty($data['normalized_text'] ?? null),
             'category_slug' => $slug ?: null,
             'city' => $this->nullIfEmpty($data['city'] ?? null),
@@ -189,14 +191,23 @@ PROMPT;
         $matchedSlug = null;
 
         $keywords = [
-            'pet-walking' => ['it gəzdir', 'it gezdir', 'dog walk', 'it gəz', 'it gez', 'it gəzdirmə', 'kusad'],
-            'infant-nanny' => ['körpə', 'korpe', 'infant', 'yenidoğulmuş'],
-            'school-nanny' => ['məktəbli', 'mektebli', 'school nanny'],
-            'nanny' => ['dayə', 'daye', 'nanny', 'uşaq', 'usaq', 'uşaq dayası'],
-            'cleaner' => ['təmizlik', 'temizlik', 'cleaner', 'ev xadimə'],
-            'caregiver' => ['baxıcı', 'baxici', 'caregiver', 'qoca'],
-            'cook' => ['aşpaz', 'aspaz', 'cook', 'yemək'],
-            'tutor' => ['repetitor', 'tutor', 'müəllim', 'ders'],
+            'pet-walking' => [
+                'it gəzdir', 'it gezdir', 'dog walk', 'it gəz', 'it gez', 'it gəzdirmə', 'kusad',
+                'выгул', 'собак', 'гулять с соб',
+            ],
+            'infant-nanny' => ['körpə', 'korpe', 'infant', 'yenidoğulmuş', 'младен', 'груднич'],
+            'school-nanny' => ['məktəbli', 'mektebli', 'school nanny', 'школьник'],
+            'nanny' => [
+                'dayə', 'daye', 'nanny', 'uşaq', 'usaq', 'uşaq dayası',
+                'няня', 'няню', 'ребен', 'ребён', 'ухаживать за ребен',
+            ],
+            'cleaner' => [
+                'təmizlik', 'temizlik', 'cleaner', 'ev xadimə',
+                'уборк', 'клининг', 'домработ',
+            ],
+            'caregiver' => ['baxıcı', 'baxici', 'caregiver', 'qoca', 'сиделк', 'пожилом'],
+            'cook' => ['aşpaz', 'aspaz', 'cook', 'yemək', 'повар', 'готовить'],
+            'tutor' => ['repetitor', 'tutor', 'müəllim', 'ders', 'репетитор', 'уроки'],
         ];
 
         foreach ($keywords as $slug => $words) {
@@ -218,38 +229,43 @@ PROMPT;
             }
             $timeHhmm = sprintf('%02d:%02d', $hour, $min);
             $timeSlot = $this->slotFromClock($timeHhmm);
-        } elseif (preg_match('/səhər|seher|morning/u', $lower)) {
+        } elseif (preg_match('/səhər|seher|morning|утр[ао]/u', $lower)) {
             $timeSlot = 'morning';
-        } elseif (preg_match('/günorta|gunorta|afternoon/u', $lower)) {
+        } elseif (preg_match('/günorta|gunorta|afternoon|днём|днем|после полудн/u', $lower)) {
             $timeSlot = 'afternoon';
-        } elseif (preg_match('/axşam|axsam|evening/u', $lower)) {
+        } elseif (preg_match('/axşam|axsam|evening|вечер/u', $lower)) {
             $timeSlot = 'evening';
-        } elseif (preg_match('/gecə|gece|night/u', $lower)) {
+        } elseif (preg_match('/gecə|gece|night|ночь|ночн/u', $lower)) {
             $timeSlot = 'night';
         }
 
         $duration = null;
         if (preg_match('/(\d+(?:[.,]\d+)?)\s*saat/u', $lower, $dm)) {
             $duration = (float) str_replace(',', '.', $dm[1]);
-        } elseif (preg_match('/k[uü]sad|iki\s*saat|2\s*saat/u', $lower)) {
+        } elseif (preg_match('/(\d+(?:[.,]\d+)?)\s*(час|часа|часов|hour|hours)\b/u', $lower, $dm)) {
+            $duration = (float) str_replace(',', '.', $dm[1]);
+        } elseif (preg_match('/k[uü]sad|iki\s*saat|2\s*saat|два\s*час|two\s*hour/u', $lower)) {
             $duration = 2.0;
         }
 
         $district = null;
-        if (preg_match('/n[əe]rim[ao]nov|dərmolov|dermolov|nərimolov|nerimolov|dərmalov|dermalov/u', $lower)) {
+        if (preg_match('/n[əe]rim[ao]nov|dərmolov|dermolov|nərimolov|nerimolov|dərmalov|dermalov|нариманов|narimanov/u', $lower)) {
             $district = 'Nərimanov';
-        } elseif (preg_match('/g[əe]nclik|genclik|gənclikdə|genclikde/u', $lower)) {
+        } elseif (preg_match('/g[əe]nclik|genclik|gənclikdə|генджлик|gyandjlik/u', $lower)) {
             $district = 'Nərimanov';
-        } elseif (preg_match('/yasamal/u', $lower)) {
+        } elseif (preg_match('/yasamal|ясамал/u', $lower)) {
             $district = 'Yasamal';
-        } elseif (preg_match('/n[əe]simi|nesimi/u', $lower)) {
+        } elseif (preg_match('/n[əe]simi|nesimi|насими|nasimi/u', $lower)) {
             $district = 'Nəsimi';
         }
 
         return [
+            'detected_language' => null,
             'normalized_text' => null,
             'category_slug' => $matchedSlug,
-            'city' => str_contains($lower, 'bak') ? 'Bakı' : null,
+            'city' => (str_contains($lower, 'bak') || str_contains($lower, 'баку') || str_contains($lower, 'baku'))
+                ? 'Bakı'
+                : null,
             'district' => $district,
             'time_hhmm' => $timeHhmm,
             'duration_hours' => $duration,
@@ -265,22 +281,20 @@ PROMPT;
     {
         $places = array_values(array_unique(array_filter(array_map(
             static function (string $hint): string {
-                // "Bakı / Nərimanov" → keep readable tokens
                 return trim(str_replace('/', ' ', $hint));
             },
             $locationHints
         ))));
 
-        // Whisper prompt works best as sample transcript prose, not a word list.
         $placeLine = $places !== []
             ? implode(', ', array_slice($places, 0, 40))
             : 'Bakı, Nərimanov, Nəsimi, Yasamal, Xətai, Səbail, Binəqədi, Gənclik';
 
-        return 'Azərbaycan dili. Bakı rayonları: '.$placeLine.'. '
-            .'Nümunə sorğular: Nərimanovda sabah üçün uşaq dayası lazımdır. '
-            .'Gənclikdə 2 saatlıq it gəzdirmək üçün insan axtarılır. '
-            .'Yasamalda axşam təmizlikçi lazımdır. '
-            .'Saat 15:00-da 2 saatlıq dayə axtarıram.';
+        return 'Speech may be Azerbaijani, Russian, or English (or mixed). '
+            .'Baku districts: '.$placeLine.'. '
+            .'AZ: Nərimanovda sabah üçün uşaq dayası lazımdır. Gənclikdə 2 saatlıq it gəzdirmək üçün insan axtarılır. '
+            .'RU: Нужна няня завтра в Нариманове. Ищу человека выгулять собаку на два часа около Гянджлика. '
+            .'EN: Looking for a nanny tomorrow in Narimanov. Need someone for a two-hour dog walk near Ganjlik.';
     }
 
     public function slotFromClock(?string $hhmm): ?string
