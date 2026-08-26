@@ -16,7 +16,7 @@ class AIService
     /**
      * Transcribe audio via OpenAI Whisper. Falls back to stub in non-configured env.
      *
-     * @param  list<string>  $locationHints  City/district names to bias Whisper vocabulary
+     * @param  list<string>  $locationHints  Reserved for callers; place correction is done in LLM parse (Whisper prompt leaks).
      */
     public function transcribe(string $audioPathOrUrl, array $locationHints = []): string
     {
@@ -34,16 +34,16 @@ class AIService
 
         $localPath = $this->resolveLocalPath($audioPathOrUrl);
 
-        // No fixed language — AZ/RU/EN auto-detect.
-        // Prompt must stay SHORT (vocab only). Full sample sentences leak into the transcript.
-        $payload = [
-            'model' => 'whisper-1',
-            'prompt' => $this->whisperBiasPrompt($locationHints),
-        ];
+        // Never pass Whisper `prompt` — it frequently returns the prompt instead of the audio
+        // (seen with both long RU samples and short vocab lists). Language auto-detects AZ/RU/EN.
+        // Place-name / duration cleanup belongs in parseRequestText (LLM).
+        unset($locationHints);
 
         $response = Http::withToken($apiKey)
             ->attach('file', file_get_contents($localPath), basename($localPath))
-            ->post('https://api.openai.com/v1/audio/transcriptions', $payload);
+            ->post('https://api.openai.com/v1/audio/transcriptions', [
+                'model' => 'whisper-1',
+            ]);
 
         if (! $response->successful()) {
             Log::error('Whisper failed', ['body' => $response->body()]);
@@ -51,24 +51,7 @@ class AIService
             throw new \RuntimeException('Audio transcription failed');
         }
 
-        $text = trim((string) $response->json('text'));
-
-        // If Whisper echoed the bias prompt (known failure mode), retry without prompt.
-        if ($this->looksLikePromptLeak($text)) {
-            Log::warning('Whisper prompt leak detected — retrying without prompt', [
-                'leaked' => $text,
-            ]);
-            $retry = Http::withToken($apiKey)
-                ->attach('file', file_get_contents($localPath), basename($localPath))
-                ->post('https://api.openai.com/v1/audio/transcriptions', [
-                    'model' => 'whisper-1',
-                ]);
-            if ($retry->successful()) {
-                $text = trim((string) $retry->json('text'));
-            }
-        }
-
-        return $text;
+        return trim((string) $response->json('text'));
     }
 
     /**
@@ -123,8 +106,9 @@ Goal: understand human intent like a local would, fix ASR mistakes, then output 
 1) FIRST rewrite as normalized_text:
    - Keep the user's language when possible (AZ/RU/EN), but fix ASR errors.
    - Place names MUST map to this official list (phonetic / transliteration OK): {$locationsJson}
-     Examples: "Dərmolov/Dermolov/Нариманов/Narimanov" → district "Nərimanov"; "Ясамал/Yasamal" → "Yasamal".
-   - Duration: "küsadlıq/два часа/for two hours/2 hours" → duration_hours=2.
+     Examples: "darimanov/Dərmolov/Dermolov/Нариманов/Narimanov" → district "Nərimanov";
+     "Ясамал/Yasamal" → "Yasamal"; "Гянджлик/Gənclik" → nearest district "Nərimanov".
+   - Duration: "küsadlıq/iki saatlıq/два часа/for two hours/2 hours/2 saatlıq" → duration_hours=2.
    - Service words: dayə/няня/nanny; it gəzdirmə/выгул собаки/dog walking; təmizlik/уборка/cleaning.
    - Do not invent facts that were not implied.
 
@@ -290,61 +274,6 @@ PROMPT;
             'time_slot' => $timeSlot,
             'parser' => 'keywords',
         ];
-    }
-
-    /**
-     * Short vocab bias only — never full sample dialogues (Whisper copies them).
-     *
-     * @param  list<string>  $locationHints
-     */
-    private function whisperBiasPrompt(array $locationHints): string
-    {
-        $places = array_values(array_unique(array_filter(array_map(
-            static function (string $hint): string {
-                return trim(str_replace('/', ' ', $hint));
-            },
-            $locationHints
-        ))));
-
-        $placeLine = $places !== []
-            ? implode(', ', array_slice($places, 0, 24))
-            : 'Bakı, Nərimanov, Nəsimi, Yasamal, Xətai, Səbail, Binəqədi, Gənclik';
-
-        // Comma-separated terms + one short AZ clause. No RU/EN paragraphs.
-        return $placeLine
-            .'. dayə, it gəzdirmə, təmizlik, 2 saatlıq, sabah. '
-            .'няня, выгул собаки, уборка. nanny, dog walking, cleaning.';
-    }
-
-    /**
-     * Detect when Whisper regurgitated our old/long multilingual sample prompt.
-     */
-    private function looksLikePromptLeak(string $text): bool
-    {
-        $t = mb_strtolower($text);
-        $markers = [
-            'нужна няня завтра',
-            'ищу человека выгулять',
-            'looking for a nanny tomorrow',
-            'need someone for a two-hour dog walk',
-            'uşaq dayası lazımdır. gənclikdə 2 saatlıq',
-        ];
-        foreach ($markers as $m) {
-            if (str_contains($t, mb_strtolower($m))) {
-                return true;
-            }
-        }
-
-        // Mixed script + both nanny AND dog-walk in one short "transcript" is suspicious
-        // when user only asked for dog walking (common leak of multi-example prompt).
-        $hasRu = (bool) preg_match('/[а-яё]/iu', $text);
-        $hasNanny = str_contains($t, 'няня') || str_contains($t, 'nanny') || str_contains($t, 'dayə');
-        $hasDog = str_contains($t, 'собак') || str_contains($t, 'dog walk') || str_contains($t, 'it gəz');
-        if ($hasRu && $hasNanny && $hasDog) {
-            return true;
-        }
-
-        return false;
     }
 
     public function slotFromClock(?string $hhmm): ?string
