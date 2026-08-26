@@ -30,7 +30,9 @@ class ServiceRequestResource extends JsonResource
             'bumped_at' => $this->bumped_at?->toIso8601String(),
             'urgent_until' => $this->urgent_until?->toIso8601String(),
             'matches' => $this->when($grouped !== null, $grouped),
-            'matches_count' => $this->when($grouped !== null, fn () => count($grouped ?? [])),
+            'matches_count' => $grouped !== null
+                ? count($grouped)
+                : (int) ($this->matches_count ?? 0),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

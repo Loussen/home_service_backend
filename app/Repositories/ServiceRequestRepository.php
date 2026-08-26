@@ -30,6 +30,7 @@ class ServiceRequestRepository
     public function listForUser(int $userId): Collection
     {
         return ServiceRequest::with(['category'])
+            ->withCount('matches')
             ->where('user_id', $userId)
             ->latest()
             ->get();
