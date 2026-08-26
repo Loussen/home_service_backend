@@ -2,7 +2,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "vite build && cp public/build/assets/web-*.css public/css/web.css",
         "dev": "vite"
     },
     "devDependencies": {
