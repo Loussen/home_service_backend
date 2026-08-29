@@ -1600,12 +1600,13 @@
                 el('thread-title').textContent = other;
             }
             if (openOfferBtn) {
-                // Yalnız bu söhbətin icraçı tərəfi təklif göndərə bilər (active_role deyil)
+                // İcraçı aktiv rolda VƏ bu söhbətin provider tərəfi
                 var myIdForOffer = asId(me && me.id);
-                openOfferBtn.hidden = !(
+                var isProviderRole = me && me.active_role === 'provider';
+                var isProviderParty =
                     myIdForOffer != null &&
-                    myIdForOffer === asId(conversation.provider_id)
-                );
+                    myIdForOffer === asId(conversation.provider_id);
+                openOfferBtn.hidden = !(isProviderRole && isProviderParty);
             }
 
             var box = el('thread-messages');

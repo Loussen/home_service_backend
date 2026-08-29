@@ -190,8 +190,8 @@
         display: none !important;
     }
 
-    #role-gate-client[hidden],
-    #role-gate-provider[hidden] {
+    .btn[hidden],
+    #open-offer[hidden] {
         display: none !important;
     }
 
