@@ -9,7 +9,7 @@ class WebAppController extends Controller
 {
     public function index(): View
     {
-        return view('web.login');
+        return view('web.dashboard');
     }
 
     public function login(): View

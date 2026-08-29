@@ -107,8 +107,60 @@
         });
     }
 
+    function showPageLoader() {
+        var loader = el('page-loader');
+        document.body.classList.add('is-navigating');
+        if (!loader) return;
+        loader.hidden = false;
+        loader.setAttribute('aria-busy', 'true');
+    }
+
+    function hidePageLoader() {
+        var loader = el('page-loader');
+        document.body.classList.remove('is-navigating');
+        if (!loader) return;
+        loader.hidden = true;
+        loader.setAttribute('aria-busy', 'false');
+    }
+
     function go(path) {
+        showPageLoader();
         window.location.href = path;
+    }
+
+    function bindPageTransitions() {
+        document.addEventListener('click', function (evt) {
+            if (evt.defaultPrevented) return;
+            if (evt.metaKey || evt.ctrlKey || evt.shiftKey || evt.altKey) return;
+            if (evt.button !== 0) return;
+            var a = evt.target.closest && evt.target.closest('a[href]');
+            if (!a) return;
+            if (a.target && a.target !== '_self') return;
+            if (a.hasAttribute('download')) return;
+            var href = a.getAttribute('href');
+            if (!href || href.charAt(0) === '#') return;
+            if (/^(mailto:|tel:|javascript:)/i.test(href)) return;
+            var url;
+            try {
+                url = new URL(href, window.location.href);
+            } catch (e) {
+                return;
+            }
+            if (url.origin !== window.location.origin) return;
+            if (
+                url.pathname === window.location.pathname &&
+                url.search === window.location.search
+            ) {
+                return;
+            }
+            evt.preventDefault();
+            showPageLoader();
+            window.location.href = url.pathname + url.search + url.hash;
+        });
+
+        window.addEventListener('pageshow', function () {
+            hidePageLoader();
+        });
     }
 
     function unwrapMe(me) {
@@ -149,45 +201,158 @@
         return sender === myId;
     }
 
-    function setAuthStatus() {
+    function roleLabel(role) {
+        if (role === 'provider') return 'İcraçı';
+        if (role === 'client') return 'Ailə';
+        return role || '—';
+    }
+
+    function userInitial(me) {
+        var raw = (me && (me.name || me.phone) || '?').trim();
+        if (!raw) return '?';
+        return raw.charAt(0).toUpperCase();
+    }
+
+    function showGuestAuth() {
+        var guest = el('auth-guest');
+        var user = el('auth-user');
         var status = el('auth-status');
-        if (!status) return Promise.resolve();
+        document.documentElement.classList.remove('has-token');
+        try {
+            localStorage.removeItem('mysancho_web_auth_snap');
+        } catch (e) {}
+        if (guest) guest.hidden = false;
+        if (user) user.hidden = true;
+        if (status) status.textContent = 'Qonaq';
+    }
+
+    function showUserAuth(me) {
+        var guest = el('auth-guest');
+        var user = el('auth-user');
+        var status = el('auth-status');
+        var nameEl = el('auth-name');
+        var roleEl = el('auth-role');
+        var avatar = el('auth-avatar');
+        document.documentElement.classList.add('has-token');
+        if (guest) guest.hidden = true;
+        if (user) user.hidden = false;
+        var label = (me.name && String(me.name).trim()) || me.phone || 'İstifadəçi';
+        var role = roleLabel(me.active_role);
+        var initial = userInitial(me);
+        if (nameEl) nameEl.textContent = label;
+        if (roleEl) roleEl.textContent = role;
+        if (avatar) avatar.textContent = initial;
+        if (status) status.textContent = label + ' · ' + (me.active_role || '');
+        try {
+            localStorage.setItem('mysancho_web_auth_snap', JSON.stringify({
+                name: label,
+                role: role,
+                initial: initial,
+            }));
+        } catch (e) {}
+        applyRoleUi();
+    }
+
+    function setAuthStatus() {
         if (!getToken()) {
             meCache = null;
-            status.textContent = 'Qonaq';
+            showGuestAuth();
+            applyRoleUi();
             return Promise.resolve();
         }
         return api('/auth/me').then(function (me) {
             meCache = unwrapMe(me);
-            status.textContent = (meCache.name || meCache.phone) + ' · ' + meCache.active_role;
+            showUserAuth(meCache);
         }).catch(function () {
             clearToken();
             meCache = null;
-            status.textContent = 'Qonaq';
+            showGuestAuth();
+            applyRoleUi();
             log('Token etibarsız oldu, silindi');
             toast('warning', 'Sessiya bitdi, yenidən login et.');
         });
     }
 
-    function ensureRole(role) {
+    function logoutEverywhere() {
+        clearToken();
+        meCache = null;
+        localStorage.removeItem(requestKey);
+        showGuestAuth();
+        toast('info', 'Çıxış edildi');
+        log('Çıxış');
+        go('/login');
+    }
+
+    function requireRole(role) {
+        function fail() {
+            var msg = role === 'client'
+                ? 'Bu əməliyyat yalnız ailə (client) üçündür. Menyudan rolunu dəyiş.'
+                : 'Bu əməliyyat yalnız icraçı (provider) üçündür. Menyudan rolunu dəyiş.';
+            toast('warning', msg);
+            return Promise.reject(new Error(msg));
+        }
         if (!meCache) {
             return api('/auth/me').then(function (me) {
-                meCache = me;
-                return ensureRole(role);
+                meCache = unwrapMe(me);
+                if (meCache.active_role !== role) return fail();
             });
         }
-        if (meCache.active_role === role) {
-            return Promise.resolve();
-        }
+        if (meCache.active_role !== role) return fail();
+        return Promise.resolve();
+    }
+
+    function switchRole(role) {
         return api('/auth/role', {
             method: 'POST',
             body: JSON.stringify({ role: role }),
         }).then(function () {
-            meCache.active_role = role;
-            toast('info', 'Rol avtomatik "' + role + '" edildi.');
-            log('Rol avtomatik dəyişdi', { role: role });
-            return setAuthStatus();
+            if (meCache) meCache.active_role = role;
+            toast('success', 'Rol: ' + roleLabel(role));
+            log('Rol dəyişdi', { role: role });
+            return setAuthStatus().then(function () {
+                applyRoleUi();
+            });
         });
+    }
+
+    function currentRole() {
+        return meCache && meCache.active_role;
+    }
+
+    function applyRoleUi() {
+        var role = currentRole();
+        document.querySelectorAll('[data-role]').forEach(function (node) {
+            var need = node.getAttribute('data-role');
+            if (!need || need === 'any') {
+                node.hidden = false;
+                return;
+            }
+            if (!role) {
+                // Qonaq: menyu item-ləri gizlə; dashboard tile-lar marketinq üçün açıq qalsın
+                node.hidden = !!(node.closest && node.closest('#user-menu-panel'));
+                return;
+            }
+            node.hidden = need !== role;
+        });
+
+        var gateClient = el('role-gate-client');
+        var gateProvider = el('role-gate-provider');
+        if (gateClient) gateClient.hidden = !role || role === 'client';
+        if (gateProvider) gateProvider.hidden = !role || role === 'provider';
+
+        var requestForm = el('request-form');
+        if (requestForm) {
+            requestForm.hidden = role !== 'client';
+            requestForm.querySelectorAll('input,button,select,textarea').forEach(function (n) {
+                if (n.id === 'switch-to-client' || n.id === 'switch-to-provider') return;
+                n.disabled = role !== 'client';
+            });
+        }
+        var results = el('request-results');
+        if (results) results.hidden = role !== 'client';
+
+        var jobsPanel = el('jobs-panel');
+        if (jobsPanel) jobsPanel.hidden = role !== 'provider';
     }
 
     function embedSrc(lat, lng) {
@@ -718,7 +883,7 @@
             card.querySelector('.connect').addEventListener('click', function (evt) {
                 var profileId = Number(evt.currentTarget.getAttribute('data-id'));
                 if (!profileId || !request) return;
-                ensureRole('client').then(function () {
+                requireRole('client').then(function () {
                     return api('/conversations', {
                         method: 'POST',
                         body: JSON.stringify({
@@ -815,7 +980,7 @@
             connectBtn.disabled = false;
             connectBtn.onclick = function () {
                 if (!request) return;
-                ensureRole('client').then(function () {
+                requireRole('client').then(function () {
                     return api('/conversations', {
                         method: 'POST',
                         body: JSON.stringify({
@@ -883,7 +1048,7 @@
                         go('/onboarding');
                         return;
                     }
-                    go('/request');
+                    go('/');
                 }, 180);
             }).catch(function (e) {
                 toast('error', 'Login alınmadı');
@@ -1078,7 +1243,7 @@
         }
 
         function loadProviderProfiles() {
-            return ensureRole('provider').then(function () {
+            return requireRole('provider').then(function () {
                 return api('/provider-profiles');
             }).then(function (items) {
                 providerProfiles = items || [];
@@ -1126,7 +1291,7 @@
                 toast('warning', 'Əvvəl kateqoriyalar səhifəsində seçim et');
                 return;
             }
-            ensureRole('provider').then(function () {
+            requireRole('provider').then(function () {
                 var payload = {
                     category_ids: selected,
                     title: el('provider-title').value.trim() || null,
@@ -1170,31 +1335,28 @@
         });
 
         el('set-role').addEventListener('click', function () {
-            api('/auth/role', {
-                method: 'POST',
-                body: JSON.stringify({ role: el('role').value }),
-            }).then(function () {
-                toast('success', 'Rol dəyişdi');
-                log('Rol dəyişdi: ' + el('role').value);
-                return setAuthStatus();
-            }).catch(function (e) {
+            switchRole(el('role').value).catch(function (e) {
                 toast('error', 'Rol dəyişmədi');
                 log('Rol dəyişmədi: ' + e.message);
             });
         });
 
+        var switchClient = el('switch-to-client');
+        if (switchClient) {
+            switchClient.addEventListener('click', function () {
+                switchRole('client').catch(function (e) {
+                    toast('error', e.message || 'Rol dəyişmədi');
+                });
+            });
+        }
+
         el('logout').addEventListener('click', function () {
             api('/auth/logout', { method: 'POST' }).catch(function () {});
-            clearToken();
-            localStorage.removeItem(requestKey);
-            toast('info', 'Çıxış edildi');
-            setTimeout(function () {
-                go('/login');
-            }, 150);
+            logoutEverywhere();
         });
 
         el('create-request').addEventListener('click', function () {
-            ensureRole('client').then(function () {
+            requireRole('client').then(function () {
                 return api('/service-requests/text', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -1211,6 +1373,7 @@
                 log('Sorğu yaradıldı', { id: data.id, status: data.status });
                 setTimeout(refreshRequest, 1000);
             }).catch(function (e) {
+                if (e && /yalnız ailə/i.test(e.message || '')) return;
                 toast('error', 'Sorğu yaradılmadı');
                 log('Sorğu yaradılmadı: ' + e.message);
             });
@@ -1584,8 +1747,23 @@
     }
 
     function bindJobsPage() {
+        var switchProvider = el('switch-to-provider');
+        if (switchProvider) {
+            switchProvider.addEventListener('click', function () {
+                switchRole('provider').then(function () {
+                    return loadJobs();
+                }).catch(function (e) {
+                    toast('error', e.message || 'Rol dəyişmədi');
+                });
+            });
+        }
+
         function loadJobs() {
-            return ensureRole('provider').then(function () {
+            if (currentRole() !== 'provider') {
+                applyRoleUi();
+                return Promise.resolve();
+            }
+            return requireRole('provider').then(function () {
                 return api('/jobs');
             }).then(function (items) {
                 var box = el('jobs-list');
@@ -1626,6 +1804,7 @@
                 });
                 log('İşlər yükləndi', { count: rows.length });
             }).catch(function (e) {
+                if (e && /yalnız icraçı/i.test(e.message || '')) return;
                 toast('error', 'İşlər yüklənmədi');
                 log('Jobs xətası: ' + e.message);
             });
@@ -1634,7 +1813,144 @@
         loadJobs();
     }
 
+    function bindHeaderAuth() {
+        var menu = el('user-menu');
+        var toggle = el('user-menu-toggle');
+        var panel = el('user-menu-panel');
+        var btn = el('header-logout');
+
+        function closeMenu() {
+            if (!menu || !toggle || !panel) return;
+            menu.classList.remove('is-open');
+            toggle.setAttribute('aria-expanded', 'false');
+            panel.hidden = true;
+        }
+
+        function openMenu() {
+            if (!menu || !toggle || !panel) return;
+            menu.classList.add('is-open');
+            toggle.setAttribute('aria-expanded', 'true');
+            panel.hidden = false;
+        }
+
+        if (toggle && panel && toggle.dataset.bound !== '1') {
+            toggle.dataset.bound = '1';
+            toggle.addEventListener('click', function (evt) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                if (panel.hidden) openMenu();
+                else closeMenu();
+            });
+            document.addEventListener('click', function (evt) {
+                if (!menu) return;
+                if (menu.contains(evt.target)) return;
+                closeMenu();
+            });
+            document.addEventListener('keydown', function (evt) {
+                if (evt.key === 'Escape') closeMenu();
+            });
+        }
+
+        if (btn && btn.dataset.bound !== '1') {
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function () {
+                closeMenu();
+                api('/auth/logout', { method: 'POST' }).catch(function () {});
+                logoutEverywhere();
+            });
+        }
+
+        var toClient = el('menu-switch-client');
+        if (toClient && toClient.dataset.bound !== '1') {
+            toClient.dataset.bound = '1';
+            toClient.addEventListener('click', function () {
+                closeMenu();
+                switchRole('client').catch(function (e) {
+                    toast('error', e.message || 'Rol dəyişmədi');
+                });
+            });
+        }
+        var toProvider = el('menu-switch-provider');
+        if (toProvider && toProvider.dataset.bound !== '1') {
+            toProvider.dataset.bound = '1';
+            toProvider.addEventListener('click', function () {
+                closeMenu();
+                switchRole('provider').catch(function (e) {
+                    toast('error', e.message || 'Rol dəyişmədi');
+                });
+            });
+        }
+    }
+
+    function bindDashboardPage() {
+        var guestCta = el('dash-cta-guest');
+        var clientCta = el('dash-cta-client');
+        var providerCta = el('dash-cta-provider');
+        var stats = el('dash-stats');
+        var title = el('dash-title');
+        var subtitle = el('dash-subtitle');
+
+        function paintGuest() {
+            if (guestCta) guestCta.hidden = false;
+            if (clientCta) clientCta.hidden = true;
+            if (providerCta) providerCta.hidden = true;
+            if (stats) stats.hidden = true;
+            if (title) title.textContent = 'Evdə lazım olanı tez tap';
+            if (subtitle) {
+                subtitle.textContent =
+                    'Səs və ya mətnlə sorğu göndər — uyğun xidmətçilər çıxır, CONNECT ilə yazış.';
+            }
+            applyRoleUi();
+        }
+
+        function paintUser(me) {
+            if (guestCta) guestCta.hidden = true;
+            var isProvider = me.active_role === 'provider';
+            if (clientCta) clientCta.hidden = isProvider;
+            if (providerCta) providerCta.hidden = !isProvider;
+            if (stats) stats.hidden = false;
+            var name = (me.name && String(me.name).trim()) || me.phone || 'dostum';
+            if (title) title.textContent = 'Salam, ' + name;
+            if (subtitle) {
+                subtitle.textContent = isProvider
+                    ? 'Gələn işlərə bax, chat-də təklif göndər.'
+                    : 'Yeni sorğu yarat, match-lərdən CONNECT et.';
+            }
+            var bal = el('dash-balance');
+            var conn = el('dash-connect');
+            var role = el('dash-role');
+            if (bal) {
+                bal.textContent = (Number(me.balance || 0)).toFixed(0) + ' AZN';
+            }
+            if (conn) {
+                var q = me.connect_quota || {};
+                var left = q.daily_remaining != null ? q.daily_remaining : (q.remaining != null ? q.remaining : '—');
+                conn.textContent = String(left);
+            }
+            if (role) role.textContent = roleLabel(me.active_role);
+            applyRoleUi();
+        }
+
+        if (!getToken()) {
+            paintGuest();
+            return;
+        }
+        if (meCache) {
+            paintUser(meCache);
+            return;
+        }
+        api('/auth/me').then(function (me) {
+            meCache = unwrapMe(me);
+            paintUser(meCache);
+        }).catch(function () {
+            paintGuest();
+        });
+    }
+
     function bindPage() {
+        bindHeaderAuth();
+        bindPageTransitions();
+        if (page === 'dashboard') bindDashboardPage();
         if (page === 'login') bindLoginPage();
         if (page === 'onboarding') bindOnboardingPage();
         if (page === 'categories') bindCategoriesPage();
@@ -1646,15 +1962,20 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        hidePageLoader();
         bindPage();
         setAuthStatus().then(function () {
-            if (page !== 'login' && !getToken()) {
+            var publicPages = { login: 1, dashboard: 1 };
+            if (!publicPages[page] && !getToken()) {
                 go('/login');
                 return;
             }
             if (page === 'login' && getToken()) {
-                go('/request');
+                go('/');
                 return;
+            }
+            if (page === 'dashboard') {
+                bindDashboardPage();
             }
             if (page === 'request' && getRequestId()) {
                 refreshRequest();

@@ -31,7 +31,7 @@ export default {
                 line: '#E4DED6',
             },
             fontFamily: {
-                sans: ['"DM Sans"', ...defaultTheme.fontFamily.sans],
+                sans: ['Outfit', ...defaultTheme.fontFamily.sans],
                 brand: ['Fraunces', ...defaultTheme.fontFamily.serif],
             },
             boxShadow: {

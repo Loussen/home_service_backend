@@ -1,6 +1,6 @@
 @extends('web.layout')
 
-@section('title', 'MySancho Web · Söhbət')
+@section('title', 'MySancho · Söhbət')
 @section('page', 'chat-thread')
 @section('conversation_id', (string) $conversationId)
 
@@ -43,8 +43,8 @@
                 <input id="offer-note" type="text" maxlength="500" placeholder="İstəyə bağlı">
             </label>
             <div class="modal-actions">
-                <button type="button" id="offer-cancel" class="btn">Bağla</button>
-                <button type="button" id="offer-submit" class="btn btn-primary">Göndər</button>
+                <button type="button" id="offer-cancel" class="btn btn-outline btn-inline">Bağla</button>
+                <button type="button" id="offer-submit" class="btn btn-primary btn-inline">Göndər</button>
             </div>
         </div>
     </div>
@@ -69,13 +69,13 @@
                 <input id="review-comment" type="text" maxlength="1000" placeholder="Qısa rəy">
             </label>
             <div class="modal-actions">
-                <button type="button" id="review-cancel" class="btn">Bağla</button>
-                <button type="button" id="review-submit" class="btn btn-primary">Göndər</button>
+                <button type="button" id="review-cancel" class="btn btn-outline btn-inline">Bağla</button>
+                <button type="button" id="review-submit" class="btn btn-primary btn-inline">Göndər</button>
             </div>
         </div>
     </div>
 
-    <section class="card mt">
+    <section class="card card-log mt">
         <h2>Log</h2>
         <pre id="log"></pre>
     </section>

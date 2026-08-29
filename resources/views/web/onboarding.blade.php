@@ -1,13 +1,16 @@
 @extends('web.layout')
 
-@section('title', 'MySancho Web · Onboarding')
+@section('title', 'MySancho · Onboarding')
 @section('page', 'onboarding')
 
 @section('content')
-    <section class="card card-narrow">
-        <h2>Onboarding</h2>
-        <p class="muted">App-dəki kimi addım-addım: hesab, kateqoriya, məkan.</p>
+    <header class="page-hero">
+        <p class="eyebrow">Başlanğıc</p>
+        <h1>Onboarding</h1>
+        <p>App-dəki kimi: hesab, kateqoriya, məkan — üç addım.</p>
+    </header>
 
+    <section class="card card-narrow">
         <ol class="stepper" id="onb-stepper">
             <li class="active" data-step="0">1. Hesab</li>
             <li data-step="1">2. Kateqoriya</li>
@@ -49,7 +52,7 @@
         </div>
     </section>
 
-    <section class="card mt">
+    <section class="card card-log mt">
         <h2>Log</h2>
         <pre id="log"></pre>
     </section>
