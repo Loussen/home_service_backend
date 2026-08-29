@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Offer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,12 +14,20 @@ class ConversationResource extends JsonResource
         $me = $request->user();
         $other = $me && $this->client_id === $me->id ? $this->provider : $this->client;
 
+        $canSendOffer = false;
+        if ($me && (int) $this->provider_id === (int) $me->id && $me->isProvider()) {
+            $canSendOffer = ! $this->offers()
+                ->whereIn('status', [Offer::PENDING, Offer::ACCEPTED, Offer::COMPLETED])
+                ->exists();
+        }
+
         return [
             'id' => $this->id,
             'client_id' => $this->client_id,
             'provider_id' => $this->provider_id,
             'provider_profile_id' => $this->provider_profile_id,
             'service_request_id' => $this->service_request_id,
+            'can_send_offer' => $canSendOffer,
             'last_message_at' => $this->last_message_at?->toIso8601String(),
             'unread_count' => $this->when(
                 isset($this->unread_count),

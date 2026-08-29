@@ -1600,13 +1600,7 @@
                 el('thread-title').textContent = other;
             }
             if (openOfferBtn) {
-                // İcraçı aktiv rolda VƏ bu söhbətin provider tərəfi
-                var myIdForOffer = asId(me && me.id);
-                var isProviderRole = me && me.active_role === 'provider';
-                var isProviderParty =
-                    myIdForOffer != null &&
-                    myIdForOffer === asId(conversation.provider_id);
-                openOfferBtn.hidden = !(isProviderRole && isProviderParty);
+                openOfferBtn.hidden = conversation.can_send_offer !== true;
             }
 
             var box = el('thread-messages');

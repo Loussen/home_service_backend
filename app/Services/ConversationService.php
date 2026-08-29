@@ -247,8 +247,10 @@ class ConversationService
         $conversation = $this->ownedConversation($user, $conversationId);
         abort_if($conversation->provider_id !== $user->id, 403, 'Təklifi yalnız icraçı göndərir');
 
-        $pending = $conversation->offers()->where('status', Offer::PENDING)->exists();
-        abort_if($pending, 422, 'Artıq gözləyən təklif var');
+        $blocking = $conversation->offers()
+            ->whereIn('status', [Offer::PENDING, Offer::ACCEPTED, Offer::COMPLETED])
+            ->exists();
+        abort_if($blocking, 422, 'Bu söhbətdə artıq aktiv və ya tamamlanmış təklif var');
 
         return DB::transaction(function () use ($conversation, $user, $data) {
             $offer = Offer::query()->create([
