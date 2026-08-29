@@ -311,6 +311,9 @@
             log('Rol dəyişdi', { role: role });
             return setAuthStatus().then(function () {
                 applyRoleUi();
+                if (page === 'jobs' && typeof window.__reloadJobs === 'function') {
+                    return window.__reloadJobs();
+                }
             });
         });
     }
@@ -1483,10 +1486,10 @@
             reviewModal.hidden = false;
         }
 
-        function buildOfferCard(offer, me) {
+        function buildOfferCard(offer, me, conversation) {
             var myId = asId(me && me.id);
-            var isProvider = me && me.active_role === 'provider';
-            var isClient = me && me.active_role === 'client';
+            var isClientSide = myId != null && myId === asId(conversation && conversation.client_id);
+            var isProviderSide = myId != null && myId === asId(conversation && conversation.provider_id);
             var card = document.createElement('div');
             card.className = 'offer-card';
 
@@ -1514,7 +1517,7 @@
             var actions = card.querySelector('.offer-actions');
             var reviewsBox = card.querySelector('.offer-reviews');
 
-            if (offer.status === 'pending' && isClient) {
+            if (offer.status === 'pending' && isClientSide) {
                 var decline = document.createElement('button');
                 decline.type = 'button';
                 decline.className = 'btn';
@@ -1533,7 +1536,7 @@
                 actions.appendChild(accept);
             }
 
-            if (offer.status === 'pending' && isProvider) {
+            if (offer.status === 'pending' && isProviderSide) {
                 var cancel = document.createElement('button');
                 cancel.type = 'button';
                 cancel.className = 'btn';
@@ -1597,7 +1600,12 @@
                 el('thread-title').textContent = other;
             }
             if (openOfferBtn) {
-                openOfferBtn.hidden = !(me && me.active_role === 'provider');
+                // Yalnız bu söhbətin icraçı tərəfi təklif göndərə bilər (active_role deyil)
+                var myIdForOffer = asId(me && me.id);
+                openOfferBtn.hidden = !(
+                    myIdForOffer != null &&
+                    myIdForOffer === asId(conversation.provider_id)
+                );
             }
 
             var box = el('thread-messages');
@@ -1611,7 +1619,7 @@
                 row.style.justifyContent = mine ? 'flex-end' : 'flex-start';
 
                 if (m.offer && m.offer.id) {
-                    row.appendChild(buildOfferCard(m.offer, me));
+                    row.appendChild(buildOfferCard(m.offer, me, conversation));
                 } else {
                     var div = document.createElement('div');
                     div.className = 'msg' + (mine ? ' mine' : '');
@@ -1748,7 +1756,8 @@
 
     function bindJobsPage() {
         var switchProvider = el('switch-to-provider');
-        if (switchProvider) {
+        if (switchProvider && switchProvider.dataset.bound !== '1') {
+            switchProvider.dataset.bound = '1';
             switchProvider.addEventListener('click', function () {
                 switchRole('provider').then(function () {
                     return loadJobs();
@@ -1758,15 +1767,35 @@
             });
         }
 
+        function ensureMe() {
+            if (meCache) return Promise.resolve(meCache);
+            if (!getToken()) return Promise.resolve(null);
+            return api('/auth/me').then(function (me) {
+                meCache = unwrapMe(me);
+                return meCache;
+            }).catch(function () {
+                return null;
+            });
+        }
+
         function loadJobs() {
-            if (currentRole() !== 'provider') {
+            var box = el('jobs-list');
+            if (box) box.textContent = 'Yüklənir…';
+
+            return ensureMe().then(function () {
                 applyRoleUi();
-                return Promise.resolve();
-            }
-            return requireRole('provider').then(function () {
+                if (currentRole() !== 'provider') {
+                    if (box) {
+                        box.textContent = currentRole()
+                            ? 'Bu səhifə icraçı üçündür — yuxarıdakı düymədən rolunu dəyiş.'
+                            : 'Giriş lazımdır';
+                    }
+                    return null;
+                }
                 return api('/jobs');
             }).then(function (items) {
-                var box = el('jobs-list');
+                if (items == null) return;
+                if (!box) return;
                 var rows = Array.isArray(items) ? items : ((items && items.data) || []);
                 if (!rows.length) {
                     box.textContent = 'Hazırda gələn iş yoxdur';
@@ -1804,12 +1833,19 @@
                 });
                 log('İşlər yükləndi', { count: rows.length });
             }).catch(function (e) {
-                if (e && /yalnız icraçı/i.test(e.message || '')) return;
+                if (box) box.textContent = 'İşlər yüklənmədi';
                 toast('error', 'İşlər yüklənmədi');
-                log('Jobs xətası: ' + e.message);
+                log('Jobs xətası: ' + (e && e.message ? e.message : e));
             });
         }
-        el('refresh-jobs').addEventListener('click', loadJobs);
+
+        window.__reloadJobs = loadJobs;
+
+        var refresh = el('refresh-jobs');
+        if (refresh && refresh.dataset.bound !== '1') {
+            refresh.dataset.bound = '1';
+            refresh.addEventListener('click', loadJobs);
+        }
         loadJobs();
     }
 
@@ -1976,6 +2012,9 @@
             }
             if (page === 'dashboard') {
                 bindDashboardPage();
+            }
+            if (page === 'jobs' && typeof window.__reloadJobs === 'function') {
+                window.__reloadJobs();
             }
             if (page === 'request' && getRequestId()) {
                 refreshRequest();
