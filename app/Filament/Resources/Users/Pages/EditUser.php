@@ -10,6 +10,13 @@ class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $this->record?->loadMissing('providerProfiles');
+
+        return $data;
+    }
+
     protected function getHeaderActions(): array
     {
         return [

@@ -82,6 +82,45 @@ class UserForm
                             '<audio controls src="'.e($url).'" style="width:100%;max-width:360px;"></audio>'
                         );
                     }),
+                Placeholder::make('location_city')
+                    ->label('Şəhər')
+                    ->content(fn ($record) => self::locationField($record, 'city')),
+                Placeholder::make('location_district')
+                    ->label('Rayon')
+                    ->content(fn ($record) => self::locationField($record, 'district')),
+                Placeholder::make('location_address')
+                    ->label('Ünvan')
+                    ->content(function ($record): HtmlString|string {
+                        $loc = self::resolveLocation($record);
+                        if ($loc === null) {
+                            return 'Ünvan yoxdur';
+                        }
+
+                        $line = $loc['address']
+                            ?: trim(implode(', ', array_filter([$loc['district'] ?? null, $loc['city'] ?? null])));
+                        if ($line === '' && $loc['latitude'] !== null && $loc['longitude'] !== null) {
+                            $line = number_format((float) $loc['latitude'], 5).', '.number_format((float) $loc['longitude'], 5);
+                        }
+                        if ($line === '') {
+                            return 'Ünvan yoxdur';
+                        }
+
+                        if ($loc['latitude'] === null || $loc['longitude'] === null) {
+                            return $line;
+                        }
+
+                        $maps = 'https://www.google.com/maps?q='.urlencode(
+                            $loc['latitude'].','.$loc['longitude']
+                        );
+
+                        return new HtmlString(
+                            '<div style="line-height:1.45;">'.e($line).
+                            '<br><a href="'.e($maps).'" target="_blank" rel="noopener" style="color:#C24E2D;font-weight:600;">Xəritədə aç</a>'.
+                            '<div style="margin-top:4px;color:#7A746C;font-size:12px;">'.
+                            e(number_format((float) $loc['latitude'], 6).' · '.number_format((float) $loc['longitude'], 6)).
+                            '</div></div>'
+                        );
+                    }),
                 TextInput::make('balance')
                     ->label('Balans')
                     ->required()
@@ -98,5 +137,59 @@ class UserForm
                 DateTimePicker::make('phone_verified_at')
                     ->label('Telefon təsdiqi'),
             ]);
+    }
+
+    private static function locationField($record, string $key): string
+    {
+        $loc = self::resolveLocation($record);
+        $value = $loc[$key] ?? null;
+
+        return filled($value) ? (string) $value : '—';
+    }
+
+    /**
+     * @return array{city:?string,district:?string,address:?string,latitude:?float,longitude:?float}|null
+     */
+    private static function resolveLocation($record): ?array
+    {
+        if (! $record) {
+            return null;
+        }
+
+        if ($record->active_role === 'provider') {
+            $profile = $record->relationLoaded('providerProfiles')
+                ? $record->providerProfiles->sortByDesc('id')->first()
+                : $record->providerProfiles()->latest('id')->first();
+
+            if (! $profile) {
+                return null;
+            }
+
+            $address = trim(implode(', ', array_filter([
+                $profile->district,
+                $profile->city,
+            ])));
+
+            return [
+                'city' => $profile->city,
+                'district' => $profile->district,
+                'address' => $address !== '' ? $address : null,
+                'latitude' => $profile->latitude !== null ? (float) $profile->latitude : null,
+                'longitude' => $profile->longitude !== null ? (float) $profile->longitude : null,
+            ];
+        }
+
+        $request = $record->serviceRequests()->latest('id')->first();
+        if (! $request) {
+            return null;
+        }
+
+        return [
+            'city' => null,
+            'district' => null,
+            'address' => $request->address,
+            'latitude' => $request->latitude !== null ? (float) $request->latitude : null,
+            'longitude' => $request->longitude !== null ? (float) $request->longitude : null,
+        ];
     }
 }
