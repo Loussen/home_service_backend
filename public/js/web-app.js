@@ -2466,24 +2466,6 @@
             if (me) paintUserCard(me);
         };
 
-        function renderProviderList() {
-            var list = el('provider-list');
-            if (!list) return;
-            if (!providerProfiles.length) {
-                list.textContent = 'Hələ profil yoxdur';
-                return;
-            }
-            list.innerHTML = '';
-            providerProfiles.forEach(function (p) {
-                var div = document.createElement('div');
-                div.className = 'match-card';
-                div.innerHTML =
-                    '<b>' + esc(p.title || 'Başlıq yoxdur') + '</b><br>' +
-                    '<span class="muted">' + esc(p.city || '-') + ' / ' + esc(p.district || '-') + '</span>';
-                list.appendChild(div);
-            });
-        }
-
         function syncCategoriesFromProfile(profile) {
             if (!profile) return;
             var ids = (profile.category_ids || []).map(Number).filter(Boolean);
@@ -2516,7 +2498,6 @@
             if (currentRole() !== 'provider') return Promise.resolve();
             return api('/provider-profiles').then(function (items) {
                 providerProfiles = items || [];
-                renderProviderList();
                 if (providerProfiles[0]) {
                     var t = el('provider-title');
                     var b = el('provider-bio');

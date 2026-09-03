@@ -116,9 +116,4 @@
             </div>
         </section>
     </div>
-
-    <section class="card mt" data-role="provider" id="provider-list-panel" hidden>
-        <h2>Mövcud profillər</h2>
-        <div id="provider-list" class="stack muted">Hələ profil yoxdur</div>
-    </section>
 @endsection
