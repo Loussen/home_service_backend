@@ -16,15 +16,35 @@
     var bootstrapCache = null;
     var stringMap = {};
 
+    (function hydrateEmbeddedI18n() {
+        try {
+            var boot = window.__MS_I18N__;
+            if (!boot) return;
+            if (boot.strings && typeof boot.strings === 'object') {
+                stringMap = boot.strings;
+            }
+            bootstrapCache = {
+                locale: boot.locale || 'az',
+                strings: stringMap,
+                static_pages: Array.isArray(boot.static_pages) ? boot.static_pages : [],
+            };
+        } catch (e) {}
+    })();
+
+    function revealI18n() {
+        document.documentElement.classList.remove('i18n-boot');
+    }
+
     function el(id) {
         return document.getElementById(id);
     }
 
     function getStoredLocale() {
         try {
-            var fromBody = document.body && document.body.getAttribute('data-locale');
             var fromLs = localStorage.getItem(localeKey);
-            return (fromLs || fromBody || 'az').toLowerCase();
+            var fromBody = document.body && document.body.getAttribute('data-locale');
+            var fromBoot = window.__MS_I18N__ && window.__MS_I18N__.locale;
+            return String(fromLs || fromBody || fromBoot || 'az').toLowerCase();
         } catch (e) {
             return 'az';
         }
@@ -96,9 +116,12 @@
             }
         }
         function fillInfoNav(nav) {
-            if (!nav || !bootstrapCache || !Array.isArray(bootstrapCache.static_pages)) return;
+            var pages = (bootstrapCache && bootstrapCache.static_pages)
+                || (window.__MS_I18N__ && window.__MS_I18N__.static_pages)
+                || null;
+            if (!nav || !Array.isArray(pages)) return;
             var path = (window.location.pathname || '').replace(/^\/+|\/+$/g, '');
-            nav.innerHTML = bootstrapCache.static_pages
+            nav.innerHTML = pages
                 .map(function (item) {
                     var href = '/p/' + item.slug;
                     var active = path === 'p/' + item.slug ? ' class="active"' : '';
@@ -4045,10 +4068,30 @@
     document.addEventListener('DOMContentLoaded', function () {
         hidePageLoader();
         setStoredLocale(getStoredLocale());
+        applyI18n();
         bindLangSwitcher();
         bindInfoNavToggle();
         hydrateRoleFromSnap();
         bindPage();
+        // Avoid AZ→EN flash on hero before /auth/me returns.
+        if (page === 'dashboard' && getToken()) {
+            try {
+                var snap = JSON.parse(localStorage.getItem('mysancho_web_auth_snap') || 'null');
+                var title = el('dash-title');
+                var subtitle = el('dash-subtitle');
+                if (snap && title) {
+                    var name = snap.name || t('web.dashboard.friend_fallback', 'dostum');
+                    title.textContent = t('web.dashboard.hello', 'Salam, {name}', { name: name });
+                    if (subtitle) {
+                        var isProvider = snap.active_role === 'provider';
+                        subtitle.textContent = isProvider
+                            ? t('web.dashboard.provider_subtitle', 'Gələn işlərə bax, chat-də təklif göndər.')
+                            : t('web.dashboard.client_subtitle', 'Yeni sorğu yarat, match-lərdən CONNECT et.');
+                    }
+                }
+            } catch (e) {}
+        }
+        revealI18n();
         loadBootstrap().then(function () {
             return setAuthStatus();
         }).then(function () {
@@ -4070,6 +4113,8 @@
             if (page === 'requests' && typeof window.__reloadRequests === 'function') {
                 window.__reloadRequests();
             }
+        }).catch(function () {
+            revealI18n();
         });
     });
 })();

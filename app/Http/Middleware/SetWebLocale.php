@@ -20,14 +20,19 @@ class SetWebLocale
         $locale = $this->strings->normalize(is_string($raw) ? $raw : null);
 
         app()->setLocale($locale);
+
+        $stringMap = $this->strings->forLocale($locale);
+        try {
+            $menu = StaticPage::menuItems($locale);
+        } catch (\Throwable) {
+            $menu = collect();
+        }
+
         view()->share('webLocale', $locale);
         view()->share('webLocaleLabels', $this->strings->localeLabels());
         view()->share('webSupportedLocales', $this->strings->supportedLocales());
-        try {
-            view()->share('staticMenuPages', StaticPage::menuItems($locale));
-        } catch (\Throwable) {
-            view()->share('staticMenuPages', collect());
-        }
+        view()->share('webStrings', $stringMap);
+        view()->share('staticMenuPages', $menu);
 
         return $next($request);
     }
