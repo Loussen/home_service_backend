@@ -79,6 +79,18 @@
             </a>
 
             @if ($staticMenuPages->isNotEmpty())
+                <button
+                    type="button"
+                    class="header-info-toggle"
+                    id="header-info-toggle"
+                    aria-expanded="false"
+                    aria-controls="header-info-drawer"
+                    data-i18n-aria="web.nav.info_menu"
+                    aria-label="{{ wt('web.nav.info_menu', 'Məlumat') }}"
+                >
+                    <span class="header-info-toggle-bars" aria-hidden="true"></span>
+                </button>
+
                 <nav class="header-info-nav" id="header-info-nav" aria-label="Info">
                     @foreach ($staticMenuPages as $item)
                         <a
@@ -91,20 +103,6 @@
         </div>
 
         <div class="header-tools">
-            @if ($staticMenuPages->isNotEmpty())
-                <button
-                    type="button"
-                    class="header-info-toggle"
-                    id="header-info-toggle"
-                    aria-expanded="false"
-                    aria-controls="header-info-drawer"
-                    data-i18n-aria="web.nav.info_menu"
-                    aria-label="{{ wt('web.nav.info_menu', 'Məlumat') }}"
-                >
-                    <span class="header-info-toggle-bars" aria-hidden="true"></span>
-                </button>
-            @endif
-
             <div class="lang-switcher" id="lang-switcher" role="group" aria-label="Language">
                 @foreach ($webSupportedLocales as $code)
                     <button

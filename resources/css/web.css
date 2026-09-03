@@ -193,20 +193,20 @@
     }
 
     .site-header-inner {
-        @apply mx-auto flex max-w-[1120px] flex-wrap items-center gap-3 px-4 py-3 sm:gap-4 sm:px-5;
+        @apply mx-auto flex max-w-[1280px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3;
     }
 
     .header-brand-row {
-        @apply flex min-w-0 flex-1 items-center gap-3 sm:gap-5;
+        @apply flex min-w-0 items-center gap-1.5 sm:gap-3;
     }
 
     .header-info-nav {
-        @apply hidden min-w-0 flex-wrap items-center gap-1 lg:flex;
+        @apply ml-1 hidden min-w-0 items-center gap-0.5 xl:flex;
     }
 
     .header-info-nav a {
-        @apply rounded-full px-2.5 py-1.5 text-[0.78rem] font-semibold text-mute no-underline transition
-            hover:bg-white hover:text-brand;
+        @apply whitespace-nowrap rounded-full px-2 py-1.5 text-[0.75rem] font-semibold text-mute no-underline transition
+            hover:bg-white hover:text-brand 2xl:px-2.5 2xl:text-[0.78rem];
     }
 
     .header-info-nav a.active {
@@ -214,7 +214,7 @@
     }
 
     .header-info-toggle {
-        @apply inline-flex h-9 w-9 items-center justify-center rounded-full border border-line/80 bg-white/90 text-brand lg:hidden;
+        @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line/80 bg-white/90 text-brand xl:hidden;
     }
 
     .header-info-toggle-bars,
@@ -237,11 +237,11 @@
     }
 
     .header-info-drawer {
-        @apply border-t border-line/70 bg-white/95 px-4 py-3 lg:hidden;
+        @apply border-t border-line/70 bg-white/95 px-4 py-3 xl:hidden;
     }
 
     .header-info-drawer-nav {
-        @apply mx-auto flex max-w-[1120px] flex-col gap-1;
+        @apply mx-auto flex max-w-[1280px] flex-col gap-1;
     }
 
     .header-info-drawer-nav a {
@@ -253,16 +253,16 @@
     }
 
     .header-tools {
-        @apply ml-auto flex shrink-0 items-center gap-2 sm:gap-3;
+        @apply flex shrink-0 items-center gap-1.5 sm:gap-2.5;
     }
 
     .lang-switcher {
-        @apply inline-flex items-center gap-0.5 rounded-full border border-line/80 bg-white/80 p-0.5;
+        @apply inline-flex shrink-0 items-center gap-0 rounded-full border border-line/80 bg-white/80 p-0.5;
     }
 
     .lang-btn {
-        @apply rounded-full px-2 py-1 text-[0.7rem] font-bold tracking-wide text-mute transition
-            hover:text-brand;
+        @apply rounded-full px-1.5 py-1 text-[0.65rem] font-bold tracking-wide text-mute transition
+            hover:text-brand sm:px-2 sm:text-[0.7rem];
     }
 
     .lang-btn.is-active {
@@ -270,11 +270,11 @@
     }
 
     .logo {
-        @apply inline-flex shrink-0 items-center gap-2.5 no-underline transition hover:opacity-90;
+        @apply inline-flex min-w-0 max-w-full shrink items-center gap-2 no-underline transition hover:opacity-90 sm:gap-2.5 sm:shrink-0;
     }
 
     .logo-img {
-        @apply h-9 w-9 rounded-[0.7rem] object-cover shadow-soft sm:h-10 sm:w-10;
+        @apply h-8 w-8 shrink-0 rounded-[0.65rem] object-cover shadow-soft sm:h-10 sm:w-10 sm:rounded-[0.7rem];
     }
 
     .logo-mark {
@@ -284,7 +284,13 @@
     }
 
     .logo-text {
-        @apply font-brand text-[1.2rem] font-bold tracking-tight text-brand sm:text-[1.35rem];
+        @apply truncate font-brand text-[1.05rem] font-bold tracking-tight text-brand sm:text-[1.35rem];
+    }
+
+    @media (max-width: 380px) {
+        .logo-text {
+            display: none;
+        }
     }
 
     .top-nav {
@@ -355,7 +361,7 @@
     }
 
     .auth-user-card {
-        @apply inline-flex max-w-[200px] cursor-pointer items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-2.5 text-left text-inherit no-underline shadow-soft transition
+        @apply inline-flex max-w-[9.5rem] cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white py-1 pl-1 pr-1.5 text-left text-inherit no-underline shadow-soft transition
             hover:border-brand/35 hover:bg-brand-peach/40 sm:max-w-[240px] sm:gap-2.5 sm:pr-3;
     }
 
@@ -368,7 +374,7 @@
     }
 
     .auth-user-meta {
-        @apply min-w-0 leading-tight;
+        @apply hidden min-w-0 leading-tight sm:block;
     }
 
     .auth-user-meta strong {
@@ -384,7 +390,7 @@
     }
 
     .auth-status-pill {
-        @apply max-w-[7.5rem] truncate rounded-full border-0 px-2 py-1 text-[0.65rem] font-bold leading-tight tracking-wide shadow-soft;
+        @apply hidden max-w-[7.5rem] truncate rounded-full border-0 px-2 py-1 text-[0.65rem] font-bold leading-tight tracking-wide shadow-soft sm:inline-flex;
     }
 
     .auth-status-pill.is-approved {
@@ -425,7 +431,7 @@
     }
 
     .user-menu-caret {
-        @apply ml-0.5 h-0 w-0 shrink-0 border-x-[4px] border-t-[5px] border-x-transparent border-t-mute;
+        @apply ml-0.5 hidden h-0 w-0 shrink-0 border-x-[4px] border-t-[5px] border-x-transparent border-t-mute sm:inline-block;
     }
 
     .user-menu-panel {
@@ -509,7 +515,7 @@
     }
 
     .wrap {
-        @apply mx-auto max-w-[1120px] px-4 pb-16 pt-8 sm:px-5 sm:pt-10;
+        @apply mx-auto max-w-[1280px] px-4 pb-16 pt-8 sm:px-5 sm:pt-10;
     }
 
     .page-enter {
@@ -1271,7 +1277,7 @@
     }
 
     .site-footer-inner {
-        @apply mx-auto max-w-[1120px] px-4 text-center sm:px-5;
+        @apply mx-auto max-w-[1280px] px-4 text-center sm:px-5;
     }
 
     .footer-brand {
