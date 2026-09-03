@@ -164,6 +164,7 @@ class ActivityLogResource extends Resource
                         'auth.role' => 'Rol seçimi',
                         'auth.profile_update' => 'Profil yeniləmə',
                         'auth.avatar' => 'Şəkil yükləmə',
+                        'auth.provider_resubmit' => 'Yenidən baxışa göndərmə',
                         'provider.categories' => 'Kateqoriya dəyişmə',
                         'provider.profile_update' => 'Profil yeniləmə',
                         'provider.audio' => 'Audio intro',

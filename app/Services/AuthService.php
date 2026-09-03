@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Admin;
 use App\Models\User;
 use App\Notifications\NewProviderPendingApproval;
+use App\Notifications\ProviderResubmittedForReview;
 use App\Repositories\OtpRepository;
 use App\Repositories\UserRepository;
 use App\Services\ActivityLogger;
@@ -242,6 +243,33 @@ class AuthService
         return $user;
     }
 
+    public function resubmitProviderForReview(User $user): User
+    {
+        abort_unless($user->isProvider(), 422, 'Yalnız icraçı yenidən baxışa göndərə bilər');
+        abort_unless(
+            $user->provider_approval_status === 'rejected',
+            422,
+            'Yalnız rədd edilmiş profil yenidən göndərilə bilər'
+        );
+
+        $user = $this->userRepository->update($user, [
+            'provider_approval_status' => 'pending',
+            'provider_approved_at' => null,
+            'provider_approved_by' => null,
+            'provider_rejection_note' => null,
+        ]);
+
+        app(ActivityLogger::class)->record(
+            $user,
+            'auth.provider_resubmit',
+            'İcraçı yenidən baxışa göndərdi',
+        );
+
+        $this->notifyAdminsOfProviderResubmit($user);
+
+        return $user->fresh();
+    }
+
     private function notifyAdminsOfPendingProvider(User $provider): void
     {
         try {
@@ -251,6 +279,21 @@ class AuthService
                 ->each(fn (Admin $admin) => $admin->notify(new NewProviderPendingApproval($provider)));
         } catch (\Throwable $e) {
             Log::warning('Provider pending notification failed', [
+                'provider_id' => $provider->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function notifyAdminsOfProviderResubmit(User $provider): void
+    {
+        try {
+            Admin::query()
+                ->where('is_active', true)
+                ->get()
+                ->each(fn (Admin $admin) => $admin->notify(new ProviderResubmittedForReview($provider)));
+        } catch (\Throwable $e) {
+            Log::warning('Provider resubmit notification failed', [
                 'provider_id' => $provider->id,
                 'error' => $e->getMessage(),
             ]);

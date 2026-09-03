@@ -363,6 +363,8 @@
             pill.hidden = true;
             pill.textContent = '';
             pill.className = 'auth-status-pill';
+            pill.disabled = true;
+            pill.onclick = null;
             return;
         }
         var status = me.profile_status || me.provider_approval_status || 'pending';
@@ -376,9 +378,90 @@
             pending: 'Gözləyir',
         })[status] || status;
         pill.textContent = label;
-        pill.className = 'auth-status-pill is-' + status;
+        pill.className = 'auth-status-pill is-' + status + (status === 'rejected' ? ' is-clickable' : '');
         pill.hidden = false;
-        pill.title = 'Profil statusu: ' + label;
+        pill.title = status === 'rejected' ? 'Rədd səbəbinə bax' : 'Profil statusu: ' + label;
+        pill.disabled = status !== 'rejected';
+        pill.onclick = status === 'rejected'
+            ? function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                openRejectionModal(meCache || me);
+            }
+            : null;
+    }
+
+    function openRejectionModal(me) {
+        var note = (me && me.provider_rejection_note)
+            || (me && me.provider_approval_message)
+            || 'Hesabınız rədd edilib. Profili yeniləyib yenidən göndərə bilərsiniz.';
+        // Strip generic prefix if note is embedded in message
+        if (me && me.provider_rejection_note) {
+            note = me.provider_rejection_note;
+        }
+
+        var existing = document.getElementById('rejection-modal');
+        if (existing) existing.remove();
+
+        var modal = document.createElement('div');
+        modal.id = 'rejection-modal';
+        modal.className = 'modal app-alert-modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.innerHTML =
+            '<div class="modal-card app-alert-card tone-danger">' +
+            '<div class="app-alert-icon" aria-hidden="true">' +
+            '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="1.1" fill="currentColor" stroke="none"/></svg>' +
+            '</div>' +
+            '<h3>Qeydiyyat rədd edilib</h3>' +
+            '<p class="app-alert-message">Admin rədd səbəbi:</p>' +
+            '<div class="rejection-note">' + escapeHtml(note) + '</div>' +
+            '<p class="app-alert-hint">Profil və kateqoriyaları düzəldib yenidən baxışa göndərə bilərsiniz.</p>' +
+            '<div class="modal-actions app-alert-actions rejection-actions">' +
+            '<button type="button" class="btn btn-outline" id="rejection-edit">Profilə keç</button>' +
+            '<button type="button" class="btn btn-primary" id="rejection-resubmit">Yenidən göndər</button>' +
+            '</div></div>';
+
+        document.body.appendChild(modal);
+        document.body.classList.add('app-alert-open');
+
+        function close() {
+            document.body.classList.remove('app-alert-open');
+            modal.remove();
+        }
+
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) close();
+        });
+
+        modal.querySelector('#rejection-edit').addEventListener('click', function () {
+            close();
+            go('/profile');
+        });
+
+        modal.querySelector('#rejection-resubmit').addEventListener('click', function () {
+            var btn = modal.querySelector('#rejection-resubmit');
+            btn.disabled = true;
+            btn.textContent = 'Göndərilir…';
+            api('/auth/provider/resubmit-review', { method: 'POST', body: '{}' })
+                .then(function (user) {
+                    meCache = unwrapMe(user) || user;
+                    paintProfileStatus(meCache);
+                    close();
+                    toast('success', 'Yenidən baxışa göndərildi');
+                    showAppAlert({
+                        title: 'Göndərildi',
+                        message: 'Sorğunuz yenidən baxışa göndərildi. Admin təsdiqləyəndən sonra işlər açıq olacaq.',
+                        tone: 'info',
+                        confirmLabel: 'Başa düşdüm',
+                    });
+                })
+                .catch(function (e) {
+                    btn.disabled = false;
+                    btn.textContent = 'Yenidən göndər';
+                    toast('error', (e && e.message) || 'Göndərilmədi');
+                });
+        });
     }
 
     function showPageLoader() {

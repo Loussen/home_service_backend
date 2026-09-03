@@ -103,6 +103,7 @@ class ActivityLogger
             'POST v1/auth/role' => ['auth.role', 'Rol seçdi'],
             'PATCH v1/auth/profile' => ['auth.profile_update', 'Ad / profil məlumatını yenilədi'],
             'POST v1/auth/avatar' => ['auth.avatar', 'Profil şəkli yüklədi'],
+            'POST v1/auth/provider/resubmit-review' => ['auth.provider_resubmit', 'Yenidən baxışa göndərdi'],
             'POST v1/service-requests/text' => ['request.text', 'Mətnlə xidmət sorğusu yaratdı'],
             'POST v1/service-requests/audio' => ['request.audio', 'Səslə xidmət sorğusu yaratdı'],
             'POST v1/conversations' => ['chat.connect', 'CONNECT etdi / söhbət açdı'],

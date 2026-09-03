@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/role', [AuthController::class, 'setRole']);
             Route::patch('/profile', [AuthController::class, 'updateProfile']);
             Route::post('/avatar', [AuthController::class, 'uploadAvatar']);
+            Route::post('/provider/resubmit-review', [AuthController::class, 'resubmitProviderReview']);
         });
 
         Route::post('device-tokens', [DeviceTokenController::class, 'store']);

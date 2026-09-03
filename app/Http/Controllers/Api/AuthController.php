@@ -78,6 +78,13 @@ class AuthController extends Controller
         return $this->success(new UserResource($user), 'Avatar updated');
     }
 
+    public function resubmitProviderReview(Request $request): JsonResponse
+    {
+        $user = $this->authService->resubmitProviderForReview($request->user());
+
+        return $this->success(new UserResource($user), 'Yenidən baxışa göndərildi');
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $plain = $request->bearerToken();

@@ -54,17 +54,19 @@
             </div>
             <div id="auth-user" class="auth-user" hidden>
                 <div class="user-menu" id="user-menu">
-                    <button type="button" class="auth-user-card" id="user-menu-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="user-menu-panel">
-                        <span class="auth-avatar" id="auth-avatar" aria-hidden="true">?</span>
-                        <span class="auth-user-meta">
-                            <strong id="auth-name">İstifadəçi</strong>
-                            <span class="auth-user-subline">
-                                <span id="auth-role">—</span>
-                                <span class="auth-status-pill" id="auth-profile-status" hidden></span>
+                    <div class="auth-user-cluster">
+                        <button type="button" class="auth-user-card" id="user-menu-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="user-menu-panel">
+                            <span class="auth-avatar" id="auth-avatar" aria-hidden="true">?</span>
+                            <span class="auth-user-meta">
+                                <strong id="auth-name">İstifadəçi</strong>
+                                <span class="auth-user-subline">
+                                    <span id="auth-role">—</span>
+                                </span>
                             </span>
-                        </span>
-                        <span class="user-menu-caret" aria-hidden="true"></span>
-                    </button>
+                            <span class="user-menu-caret" aria-hidden="true"></span>
+                        </button>
+                        <button type="button" class="auth-status-pill" id="auth-profile-status" hidden aria-label="Profil statusu"></button>
+                    </div>
                     <div class="user-menu-panel" id="user-menu-panel" hidden role="menu">
                         <a href="{{ route('web.request') }}" class="user-menu-item {{ $path === 'request' ? 'active' : '' }}" data-role="client" role="menuitem">Sorğu yarat</a>
                         <a href="{{ route('web.requests') }}" class="user-menu-item {{ $path === 'requests' ? 'active' : '' }}" data-role="client" role="menuitem">Sorğularım</a>
