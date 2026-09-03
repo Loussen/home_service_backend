@@ -4,11 +4,12 @@ namespace App\Services;
 
 use App\Models\Admin;
 use App\Models\User;
-use App\Notifications\NewProviderPendingApproval;
-use App\Notifications\ProviderResubmittedForReview;
+use App\Filament\Resources\Users\UserResource;
 use App\Repositories\OtpRepository;
 use App\Repositories\UserRepository;
 use App\Services\ActivityLogger;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -155,11 +156,13 @@ class AuthService
             $payload['provider_approved_at'] = null;
             $payload['provider_approved_by'] = null;
             $payload['provider_rejection_note'] = null;
+            $payload['provider_resubmitted_at'] = null;
         } else {
             $payload['provider_approval_status'] = null;
             $payload['provider_approved_at'] = null;
             $payload['provider_approved_by'] = null;
             $payload['provider_rejection_note'] = null;
+            $payload['provider_resubmitted_at'] = null;
         }
 
         $user = $this->userRepository->update($user, $payload);
@@ -208,6 +211,7 @@ class AuthService
             'provider_approved_at' => now(),
             'provider_approved_by' => $admin?->id,
             'provider_rejection_note' => null,
+            'provider_resubmitted_at' => null,
         ]);
 
         app(ActivityLogger::class)->record(
@@ -230,6 +234,7 @@ class AuthService
             'provider_approved_at' => null,
             'provider_approved_by' => $admin?->id,
             'provider_rejection_note' => $note,
+            'provider_resubmitted_at' => null,
         ]);
 
         app(ActivityLogger::class)->record(
@@ -257,6 +262,7 @@ class AuthService
             'provider_approved_at' => null,
             'provider_approved_by' => null,
             'provider_rejection_note' => null,
+            'provider_resubmitted_at' => now(),
         ]);
 
         app(ActivityLogger::class)->record(
@@ -273,10 +279,35 @@ class AuthService
     private function notifyAdminsOfPendingProvider(User $provider): void
     {
         try {
+            $name = $provider->name ?: $provider->phone;
+            $editUrl = UserResource::getUrl('edit', ['record' => $provider]);
+            $listUrl = UserResource::getUrl('index', [
+                'tableFilters' => [
+                    'provider_approval_status' => ['value' => 'pending'],
+                ],
+            ]);
+
             Admin::query()
                 ->where('is_active', true)
                 ->get()
-                ->each(fn (Admin $admin) => $admin->notify(new NewProviderPendingApproval($provider)));
+                ->each(function (Admin $admin) use ($name, $editUrl, $listUrl) {
+                    FilamentNotification::make()
+                        ->title('Yeni icraçı gözləyir')
+                        ->body($name.' təsdiq gözləyir.')
+                        ->warning()
+                        ->actions([
+                            Action::make('open')
+                                ->label('Profili aç')
+                                ->url($editUrl)
+                                ->markAsRead(),
+                            Action::make('list')
+                                ->label('Gözləyənlər')
+                                ->url($listUrl)
+                                ->button()
+                                ->markAsRead(),
+                        ])
+                        ->sendToDatabase($admin);
+                });
         } catch (\Throwable $e) {
             Log::warning('Provider pending notification failed', [
                 'provider_id' => $provider->id,
@@ -288,10 +319,35 @@ class AuthService
     private function notifyAdminsOfProviderResubmit(User $provider): void
     {
         try {
+            $name = $provider->name ?: $provider->phone;
+            $editUrl = UserResource::getUrl('edit', ['record' => $provider]);
+            $listUrl = UserResource::getUrl('index', [
+                'tableFilters' => [
+                    'provider_resubmit' => ['value' => '1'],
+                ],
+            ]);
+
             Admin::query()
                 ->where('is_active', true)
                 ->get()
-                ->each(fn (Admin $admin) => $admin->notify(new ProviderResubmittedForReview($provider)));
+                ->each(function (Admin $admin) use ($name, $editUrl, $listUrl) {
+                    FilamentNotification::make()
+                        ->title('Yenidən baxışa göndərildi')
+                        ->body($name.' profilini yeniləyib yenidən review gözləyir.')
+                        ->warning()
+                        ->actions([
+                            Action::make('open')
+                                ->label('Profili aç')
+                                ->url($editUrl)
+                                ->markAsRead(),
+                            Action::make('list')
+                                ->label('Yenidən baxış siyahısı')
+                                ->url($listUrl)
+                                ->button()
+                                ->markAsRead(),
+                        ])
+                        ->sendToDatabase($admin);
+                });
         } catch (\Throwable $e) {
             Log::warning('Provider resubmit notification failed', [
                 'provider_id' => $provider->id,

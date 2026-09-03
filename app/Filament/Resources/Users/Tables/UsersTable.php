@@ -14,7 +14,9 @@ use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 
 class UsersTable
@@ -54,18 +56,37 @@ class UsersTable
                 TextColumn::make('provider_approval_status')
                     ->label('Təsdiq')
                     ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'approved' => 'success',
-                        'pending' => 'warning',
-                        'rejected' => 'danger',
-                        default => 'gray',
+                    ->color(function (User $record): string {
+                        if ($record->isProviderResubmitPending()) {
+                            return 'info';
+                        }
+
+                        return match ($record->provider_approval_status) {
+                            'approved' => 'success',
+                            'pending' => 'warning',
+                            'rejected' => 'danger',
+                            default => 'gray',
+                        };
+                    })
+                    ->getStateUsing(function (User $record): string {
+                        if ($record->isProviderResubmitPending()) {
+                            return 'resubmit';
+                        }
+
+                        return $record->provider_approval_status ?? '';
                     })
                     ->formatStateUsing(fn (?string $state): string => match ($state) {
                         'approved' => 'Təsdiqli',
                         'pending' => 'Gözləyir',
+                        'resubmit' => 'Yenidən baxış',
                         'rejected' => 'Rədd',
                         default => '—',
                     }),
+                TextColumn::make('provider_resubmitted_at')
+                    ->label('Yenidən göndərildi')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('balance')
                     ->label('Balans')
                     ->numeric()
@@ -100,6 +121,22 @@ class UsersTable
                         'approved' => 'Təsdiqli',
                         'rejected' => 'Rədd',
                     ]),
+                TernaryFilter::make('provider_resubmit')
+                    ->label('Yenidən baxış')
+                    ->placeholder('Hamısı')
+                    ->trueLabel('Yenidən göndərilənlər')
+                    ->falseLabel('İlk dəfə gözləyənlər')
+                    ->queries(
+                        true: fn (Builder $query) => $query
+                            ->where('active_role', 'provider')
+                            ->where('provider_approval_status', 'pending')
+                            ->whereNotNull('provider_resubmitted_at'),
+                        false: fn (Builder $query) => $query
+                            ->where('active_role', 'provider')
+                            ->where('provider_approval_status', 'pending')
+                            ->whereNull('provider_resubmitted_at'),
+                        blank: fn (Builder $query) => $query,
+                    ),
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([

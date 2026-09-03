@@ -22,6 +22,7 @@ class User extends Authenticatable
         'provider_approved_at',
         'provider_approved_by',
         'provider_rejection_note',
+        'provider_resubmitted_at',
         'balance',
         'status',
         'welcome_bonus_granted',
@@ -40,6 +41,7 @@ class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'role_chosen_at' => 'datetime',
             'provider_approved_at' => 'datetime',
+            'provider_resubmitted_at' => 'datetime',
         ];
     }
 
@@ -64,6 +66,12 @@ class User extends Authenticatable
     {
         return $this->isProvider()
             && $this->provider_approval_status === 'pending';
+    }
+
+    public function isProviderResubmitPending(): bool
+    {
+        return $this->isProviderPending()
+            && $this->provider_resubmitted_at !== null;
     }
 
     public function isBlocked(): bool

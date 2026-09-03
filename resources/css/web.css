@@ -1101,6 +1101,58 @@
         @apply border-brand bg-brand-peach text-brand-dark shadow-soft;
     }
 
+    .profile-accordion {
+        @apply mb-4 overflow-hidden rounded-2xl border border-line bg-parchment/60;
+    }
+
+    .profile-accordion-summary {
+        @apply flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 font-semibold text-ink;
+    }
+
+    .profile-accordion-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .profile-accordion-title {
+        @apply text-sm font-bold;
+    }
+
+    .profile-accordion-meta {
+        @apply shrink-0 rounded-full bg-white px-2.5 py-0.5 text-[0.72rem] font-bold text-mute;
+    }
+
+    .profile-accordion[open] .profile-accordion-summary {
+        @apply border-b border-line bg-white/70;
+    }
+
+    .profile-accordion-body {
+        @apply px-4 py-3.5;
+    }
+
+    .category-accordion-groups {
+        @apply grid gap-2;
+    }
+
+    .category-group {
+        @apply overflow-hidden rounded-xl border border-line bg-white;
+    }
+
+    .category-group-summary {
+        @apply flex cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2.5 text-sm font-bold text-ink;
+    }
+
+    .category-group-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .category-group-count {
+        @apply rounded-full bg-brand-peach px-2 py-px text-[0.68rem] font-bold text-brand;
+    }
+
+    .category-group-chips {
+        @apply flex flex-wrap gap-2 border-t border-line px-3.5 py-3;
+    }
+
     .map {
         @apply relative h-[300px] min-h-[300px] w-full overflow-hidden rounded-[1.25rem] border border-line bg-dusk-soft shadow-soft;
     }

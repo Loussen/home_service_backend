@@ -1335,6 +1335,77 @@
         if (el(countId)) el(countId).textContent = selected.length;
     }
 
+    function paintProfileCategorySummary(selected) {
+        var summary = el('profile-cat-summary');
+        var count = el('profile-selected-count');
+        var n = (selected || []).length;
+        if (summary) summary.textContent = n + '/3 seçilib';
+        if (count) count.textContent = String(n);
+    }
+
+    function renderProfileCategoryAccordion(selected, tree) {
+        var root = el('profile-category-groups');
+        if (!root) return;
+        root.innerHTML = '';
+        pruneSelectedCategories(selected, tree);
+        paintProfileCategorySummary(selected);
+
+        (tree || []).forEach(function (group) {
+            var leaves = [];
+            if (group.children && group.children.length) {
+                flattenCategories(group.children, leaves);
+            } else {
+                leaves = [group];
+            }
+            if (!leaves.length) return;
+
+            var groupName = group.name_az || group.name_en || group.slug || 'Kateqoriya';
+            var selectedInGroup = leaves.filter(function (c) {
+                return selected.indexOf(Number(c.id)) !== -1;
+            }).length;
+
+            var details = document.createElement('details');
+            details.className = 'category-group';
+            if (selectedInGroup > 0) details.open = true;
+
+            var summary = document.createElement('summary');
+            summary.className = 'category-group-summary';
+            summary.innerHTML =
+                '<span>' + esc(groupName) + '</span>' +
+                (selectedInGroup
+                    ? '<span class="category-group-count">' + selectedInGroup + '</span>'
+                    : '');
+            details.appendChild(summary);
+
+            var chips = document.createElement('div');
+            chips.className = 'chips category-group-chips';
+            leaves.forEach(function (c) {
+                var id = Number(c.id);
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'chip' + (selected.indexOf(id) !== -1 ? ' selected' : '');
+                btn.textContent = c.name_az || c.name_en || c.slug;
+                btn.addEventListener('click', function () {
+                    var idx = selected.indexOf(id);
+                    if (idx !== -1) {
+                        selected.splice(idx, 1);
+                    } else {
+                        if (selected.length >= 3) {
+                            toast('warning', 'Maksimum 3 kateqoriya seçilə bilər');
+                            return;
+                        }
+                        selected.push(id);
+                    }
+                    setSelectedCategories(selected);
+                    renderProfileCategoryAccordion(selected, tree);
+                });
+                chips.appendChild(btn);
+            });
+            details.appendChild(chips);
+            root.appendChild(details);
+        });
+    }
+
     function providerMarkerIcon(active, isVip) {
         return {
             path: window.google.maps.SymbolPath.CIRCLE,
@@ -2295,6 +2366,8 @@
 
     function bindProfilePage() {
         var providerProfiles = [];
+        var profileCategoryTree = [];
+        var profileSelected = getSelectedCategories();
 
         function paintUserCard(me) {
             if (!me) return;
@@ -2411,6 +2484,34 @@
             });
         }
 
+        function syncCategoriesFromProfile(profile) {
+            if (!profile) return;
+            var ids = (profile.category_ids || []).map(Number).filter(Boolean);
+            if (!ids.length && profile.categories) {
+                ids = (profile.categories || []).map(function (c) {
+                    return Number(c.id || c);
+                }).filter(Boolean);
+            }
+            if (ids.length) {
+                profileSelected = ids.slice(0, 3);
+                setSelectedCategories(profileSelected);
+            }
+            if (profileCategoryTree.length) {
+                renderProfileCategoryAccordion(profileSelected, profileCategoryTree);
+            } else {
+                paintProfileCategorySummary(profileSelected);
+            }
+        }
+
+        function loadProfileCategories() {
+            return api('/categories').then(function (items) {
+                profileCategoryTree = items || [];
+                renderProfileCategoryAccordion(profileSelected, profileCategoryTree);
+            }).catch(function (e) {
+                log('Kateqoriyalar yüklənmədi: ' + e.message);
+            });
+        }
+
         function loadProviderProfiles() {
             if (currentRole() !== 'provider') return Promise.resolve();
             return api('/provider-profiles').then(function (items) {
@@ -2438,6 +2539,7 @@
                     if (handle && lat && lng) {
                         handle.apply(Number(lat.value), Number(lng.value));
                     }
+                    syncCategoriesFromProfile(providerProfiles[0]);
                 }
             }).catch(function (e) {
                 log('Provider profil siyahısı alınmadı: ' + e.message);
@@ -2734,7 +2836,7 @@
             saveProvider.addEventListener('click', function () {
                 var selected = getSelectedCategories();
                 if (!selected.length) {
-                    toast('warning', 'Əvvəl kateqoriyalar səhifəsində seçim et');
+                    toast('warning', 'Əvvəl kateqoriya seçin (accordion)');
                     return;
                 }
                 requireRole('provider').then(function () {
@@ -2774,8 +2876,38 @@
             });
         }
 
+        var saveProfileCats = el('save-profile-categories');
+        if (saveProfileCats) {
+            saveProfileCats.addEventListener('click', function () {
+                profileSelected = getSelectedCategories();
+                if (!profileSelected.length) {
+                    toast('warning', 'Ən azı 1 kateqoriya seç');
+                    return;
+                }
+                if (!providerProfiles[0]) {
+                    toast('warning', 'Əvvəl aşağıda xidmətçi profilini yarat / saxla');
+                    setSelectedCategories(profileSelected);
+                    return;
+                }
+                var btn = saveProfileCats;
+                btn.disabled = true;
+                api('/provider-profiles/' + providerProfiles[0].id, {
+                    method: 'PUT',
+                    body: JSON.stringify({ category_ids: profileSelected.slice() }),
+                }).then(function () {
+                    toast('success', 'Kateqoriyalar saxlanıldı');
+                    return loadProviderProfiles();
+                }).catch(function (e) {
+                    toast('error', e.message || 'Kateqoriyalar saxlanmadı');
+                }).finally(function () {
+                    btn.disabled = false;
+                });
+            });
+        }
+
         ensureMe().then(function (me) {
             if (!me || me.active_role !== 'provider') return;
+            loadProfileCategories();
             if (!el('provider-map')) return;
             initPickerMap({
                 mapId: 'provider-map',

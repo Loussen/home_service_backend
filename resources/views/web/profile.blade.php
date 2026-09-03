@@ -62,8 +62,22 @@
 
         <section class="card" data-role="provider" id="provider-profile-panel" hidden>
             <h2>Xidmətçi profili</h2>
-            <p class="muted">Kateqoriyalar səhifəsində seçdiyin tag-lər burada istifadə olunur. Audio intro admin təsdiqinə kömək edir (maks. 20 san).</p>
-            <div class="stack">
+            <p class="muted">Audio intro admin təsdiqinə kömək edir (maks. 20 san). Kateqoriyaları aşağıdakı accordion-dan dəyişə bilərsiniz.</p>
+
+            <details class="profile-accordion" id="profile-categories-accordion">
+                <summary class="profile-accordion-summary">
+                    <span class="profile-accordion-title">Kateqoriyalarını dəyiş</span>
+                    <span class="profile-accordion-meta" id="profile-cat-summary">0/3 seçilib</span>
+                </summary>
+                <div class="profile-accordion-body">
+                    <p class="muted text-xs mb-2">Maksimum 3 yarpaq kateqoriya. Qrupu açaraq seçin.</p>
+                    <div id="profile-category-groups" class="category-accordion-groups"></div>
+                    <p class="muted mt">Seçilənlər: <span id="profile-selected-count">0</span>/3</p>
+                    <button type="button" id="save-profile-categories" class="btn btn-outline mt">Kateqoriyaları saxla</button>
+                </div>
+            </details>
+
+            <div class="stack mt">
                 <input id="provider-title" type="text" placeholder="Başlıq (məs: Uşaq baxıcısı)">
                 <textarea id="provider-bio" rows="4" placeholder="Qısa bio"></textarea>
                 <div class="form-row form-row-2">
