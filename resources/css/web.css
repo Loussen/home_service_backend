@@ -271,8 +271,8 @@
     }
 
     .auth-user-card {
-        @apply inline-flex max-w-[200px] cursor-pointer items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-2.5 text-left text-inherit no-underline shadow-soft transition
-            hover:border-brand/35 hover:bg-brand-peach/40 sm:max-w-[240px] sm:gap-2.5 sm:pr-3;
+        @apply inline-flex max-w-[220px] cursor-pointer items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-2.5 text-left text-inherit no-underline shadow-soft transition
+            hover:border-brand/35 hover:bg-brand-peach/40 sm:max-w-[260px] sm:gap-2.5 sm:pr-3;
     }
 
     .user-menu.is-open .auth-user-card {
@@ -291,8 +291,29 @@
         @apply block truncate text-[0.75rem] font-bold text-ink sm:text-[0.8125rem];
     }
 
-    .auth-user-meta span {
-        @apply block truncate text-[0.65rem] font-semibold text-mute sm:text-[0.7rem];
+    .auth-user-subline {
+        @apply mt-0.5 flex min-w-0 items-center gap-1.5;
+    }
+
+    .auth-user-subline #auth-role {
+        @apply truncate text-[0.65rem] font-semibold text-mute sm:text-[0.7rem];
+    }
+
+    .auth-status-pill {
+        @apply max-w-[7.5rem] truncate rounded-full px-1.5 py-px text-[0.58rem] font-bold leading-tight tracking-wide;
+    }
+
+    .auth-status-pill.is-approved {
+        @apply bg-sage text-[#3F6B48];
+    }
+
+    .auth-status-pill.is-rejected,
+    .auth-status-pill.is-blocked {
+        @apply bg-brand-peach text-brand;
+    }
+
+    .auth-status-pill.is-pending {
+        @apply bg-dusk-soft text-dusk;
     }
 
     .user-menu-caret {
@@ -314,27 +335,6 @@
 
     .user-menu-item.active {
         @apply bg-brand-peach text-brand;
-    }
-
-    .user-menu-status {
-        @apply flex cursor-default items-center justify-between gap-3 hover:bg-transparent;
-    }
-
-    .user-menu-status-value {
-        @apply shrink-0 rounded-full bg-parchment px-2.5 py-0.5 text-[0.72rem] font-bold text-ink;
-    }
-
-    .user-menu-status.is-approved .user-menu-status-value {
-        @apply bg-sage text-[#3F6B48];
-    }
-
-    .user-menu-status.is-rejected .user-menu-status-value,
-    .user-menu-status.is-blocked .user-menu-status-value {
-        @apply bg-brand-peach text-brand;
-    }
-
-    .user-menu-status.is-pending .user-menu-status-value {
-        @apply bg-dusk-soft text-dusk;
     }
 
     .user-menu-danger {

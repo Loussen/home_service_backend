@@ -58,7 +58,10 @@
                         <span class="auth-avatar" id="auth-avatar" aria-hidden="true">?</span>
                         <span class="auth-user-meta">
                             <strong id="auth-name">İstifadəçi</strong>
-                            <span id="auth-role">—</span>
+                            <span class="auth-user-subline">
+                                <span id="auth-role">—</span>
+                                <span class="auth-status-pill" id="auth-profile-status" hidden></span>
+                            </span>
                         </span>
                         <span class="user-menu-caret" aria-hidden="true"></span>
                     </button>
@@ -66,10 +69,6 @@
                         <a href="{{ route('web.request') }}" class="user-menu-item {{ $path === 'request' ? 'active' : '' }}" data-role="client" role="menuitem">Sorğu yarat</a>
                         <a href="{{ route('web.requests') }}" class="user-menu-item {{ $path === 'requests' ? 'active' : '' }}" data-role="client" role="menuitem">Sorğularım</a>
                         <a href="{{ route('web.jobs') }}" class="user-menu-item {{ $path === 'jobs' ? 'active' : '' }}" data-role="provider" role="menuitem">Gələn işlər</a>
-                        <div class="user-menu-item user-menu-status" data-role="provider" id="menu-profile-status" hidden role="presentation">
-                            <span>Profil statusu</span>
-                            <span class="user-menu-status-value" id="menu-profile-status-value">—</span>
-                        </div>
                         <a href="{{ route('web.chat') }}" class="user-menu-item {{ str_starts_with($path, 'chat') ? 'active' : '' }}" data-role="any" role="menuitem">Chat</a>
                         <a href="{{ route('web.profile') }}" class="user-menu-item {{ $path === 'profile' ? 'active' : '' }}" data-role="any" role="menuitem">Profil</a>
                         <a href="{{ route('web.categories') }}" class="user-menu-item {{ $path === 'categories' ? 'active' : '' }}" data-role="provider" role="menuitem">Kateqoriyalar</a>

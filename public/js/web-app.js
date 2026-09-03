@@ -357,11 +357,12 @@
     }
 
     function paintProfileStatus(me) {
-        var row = el('menu-profile-status');
-        var val = el('menu-profile-status-value');
-        if (!row || !val) return;
+        var pill = el('auth-profile-status');
+        if (!pill) return;
         if (!me || me.active_role !== 'provider') {
-            row.hidden = true;
+            pill.hidden = true;
+            pill.textContent = '';
+            pill.className = 'auth-status-pill';
             return;
         }
         var status = me.profile_status || me.provider_approval_status || 'pending';
@@ -374,10 +375,10 @@
             blocked: 'Bloklanıb',
             pending: 'Gözləyir',
         })[status] || status;
-        val.textContent = label;
-        row.classList.remove('is-approved', 'is-rejected', 'is-blocked', 'is-pending');
-        row.classList.add('is-' + status);
-        row.hidden = false;
+        pill.textContent = label;
+        pill.className = 'auth-status-pill is-' + status;
+        pill.hidden = false;
+        pill.title = 'Profil statusu: ' + label;
     }
 
     function showPageLoader() {
@@ -499,6 +500,7 @@
         if (guest) guest.hidden = false;
         if (user) user.hidden = true;
         if (status) status.textContent = 'Qonaq';
+        paintProfileStatus(null);
     }
 
     function showUserAuth(me) {
