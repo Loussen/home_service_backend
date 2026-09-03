@@ -147,6 +147,8 @@ class GooglePlacesService
             'longitude' => $longitude,
             'formatted_address' => $parsed['formatted_address'] ?? null,
             'hints' => $parsed['hints'] ?? [],
+            'city' => $parsed['city'] ?? null,
+            'district' => $parsed['district'] ?? null,
         ];
     }
 
@@ -162,6 +164,8 @@ class GooglePlacesService
         }
 
         $hints = [];
+        $city = null;
+        $district = null;
         $components = $result['address_components'] ?? [];
         if (is_array($components)) {
             foreach ($components as $component) {
@@ -169,8 +173,29 @@ class GooglePlacesService
                     continue;
                 }
                 $name = (string) ($component['long_name'] ?? '');
-                if ($name !== '') {
-                    $hints[] = $name;
+                if ($name === '') {
+                    continue;
+                }
+                $hints[] = $name;
+                $types = $component['types'] ?? [];
+                if (! is_array($types)) {
+                    continue;
+                }
+                // City: Bakı / Gəncə …
+                if ($city === null && (
+                    in_array('locality', $types, true)
+                    || in_array('administrative_area_level_1', $types, true)
+                )) {
+                    $city = $this->normalizeAzAreaName($name);
+                }
+                // District / rayon
+                if ($district === null && (
+                    in_array('sublocality_level_1', $types, true)
+                    || in_array('sublocality', $types, true)
+                    || in_array('administrative_area_level_2', $types, true)
+                    || in_array('neighborhood', $types, true)
+                )) {
+                    $district = $this->normalizeAzAreaName($name);
                 }
             }
         }
@@ -180,7 +205,17 @@ class GooglePlacesService
             'longitude' => (float) ($location['lng'] ?? 0),
             'formatted_address' => $result['formatted_address'] ?? null,
             'hints' => $hints,
+            'city' => $city,
+            'district' => $district,
         ];
+    }
+
+    private function normalizeAzAreaName(string $name): string
+    {
+        $name = trim($name);
+        $name = preg_replace('/\s+(rayonu|rayon|şəhəri|seheri|city|district)\.?$/iu', '', $name) ?? $name;
+
+        return trim($name);
     }
 
     private function apiKey(): string

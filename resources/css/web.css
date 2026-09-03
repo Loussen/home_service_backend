@@ -24,6 +24,11 @@
         @apply min-h-[110px] resize-y;
     }
 
+    input.input-readonly,
+    input[readonly] {
+        @apply cursor-default bg-parchment/80 text-ink;
+    }
+
     .avatar-upload {
         @apply flex items-center gap-4;
     }

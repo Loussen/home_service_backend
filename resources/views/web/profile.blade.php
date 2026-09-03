@@ -66,8 +66,13 @@
             <div class="stack">
                 <input id="provider-title" type="text" placeholder="Başlıq (məs: Uşaq baxıcısı)">
                 <textarea id="provider-bio" rows="4" placeholder="Qısa bio"></textarea>
-                <input id="provider-city" type="text" placeholder="Şəhər">
-                <input id="provider-district" type="text" placeholder="Rayon">
+                <div class="form-row form-row-2">
+                    <input id="provider-city" type="text" placeholder="Şəhər" readonly class="input-readonly" tabindex="-1">
+                    <input id="provider-district" type="text" placeholder="Rayon" readonly class="input-readonly" tabindex="-1">
+                </div>
+                <input id="provider-city-id" type="hidden" value="">
+                <input id="provider-district-id" type="hidden" value="">
+                <p class="muted text-xs">Şəhər və rayon xəritədən / ünvan axtarışından avtomatik doldurulur.</p>
                 <div class="place-wrap">
                     <input id="provider-place-search" type="text" placeholder="Ünvan axtar (Google Places)">
                     <div id="provider-place-suggestions" class="suggestions"></div>

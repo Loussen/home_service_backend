@@ -627,6 +627,26 @@
         return { lat: lat, lng: lng };
     }
 
+    function fillLocationFields(opts, place) {
+        if (!place) return;
+        if (opts.cityId && el(opts.cityId)) {
+            el(opts.cityId).value = place.city || '';
+        }
+        if (opts.districtId && el(opts.districtId)) {
+            el(opts.districtId).value = place.district || '';
+        }
+        if (opts.cityIdHidden && el(opts.cityIdHidden)) {
+            el(opts.cityIdHidden).value = place.city_id != null ? String(place.city_id) : '';
+        }
+        if (opts.districtIdHidden && el(opts.districtIdHidden)) {
+            el(opts.districtIdHidden).value = place.district_id != null ? String(place.district_id) : '';
+        }
+        // Legacy: city-only from last hint
+        if (opts.cityId && el(opts.cityId) && !place.city && place.hints && place.hints.length) {
+            el(opts.cityId).value = place.hints[place.hints.length - 1] || '';
+        }
+    }
+
     function fillAddressFromCoords(opts, lat, lng, applyFn) {
         return api('/places/reverse?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&language=az')
             .then(function (place) {
@@ -641,9 +661,7 @@
                     el(opts.suggestionsId).classList.remove('open');
                     el(opts.suggestionsId).innerHTML = '';
                 }
-                if (opts.cityId && el(opts.cityId) && place.hints && place.hints.length) {
-                    el(opts.cityId).value = place.hints[place.hints.length - 1] || el(opts.cityId).value;
-                }
+                fillLocationFields(opts, place);
                 return place;
             })
             .catch(function () {});
@@ -820,9 +838,7 @@
                                 } else {
                                     setLatLng(opts.latId, opts.lngId, details.latitude, details.longitude);
                                 }
-                                if (opts.cityId && el(opts.cityId) && details.hints && details.hints.length) {
-                                    el(opts.cityId).value = details.hints[details.hints.length - 1];
-                                }
+                                fillLocationFields(opts, details);
                                 input.value = details.formatted_address || item.description;
                                 box.classList.remove('open');
                                 box.innerHTML = '';
@@ -2074,6 +2090,10 @@
                     if (b) b.value = providerProfiles[0].bio || '';
                     if (c) c.value = providerProfiles[0].city || '';
                     if (d) d.value = providerProfiles[0].district || '';
+                    var cityIdEl = el('provider-city-id');
+                    var districtIdEl = el('provider-district-id');
+                    if (cityIdEl) cityIdEl.value = providerProfiles[0].city_id != null ? String(providerProfiles[0].city_id) : '';
+                    if (districtIdEl) districtIdEl.value = providerProfiles[0].district_id != null ? String(providerProfiles[0].district_id) : '';
                     if (lat) lat.value = providerProfiles[0].latitude || '40.4093';
                     if (lng) lng.value = providerProfiles[0].longitude || '49.8671';
                     paintAudioPlayer(providerProfiles[0].audio_intro_url || null);
@@ -2387,6 +2407,12 @@
                         bio: el('provider-bio').value.trim() || null,
                         city: el('provider-city').value.trim() || null,
                         district: el('provider-district').value.trim() || null,
+                        city_id: el('provider-city-id') && el('provider-city-id').value
+                            ? Number(el('provider-city-id').value)
+                            : null,
+                        district_id: el('provider-district-id') && el('provider-district-id').value
+                            ? Number(el('provider-district-id').value)
+                            : null,
                         latitude: Number(el('provider-lat').value || 40.4093),
                         longitude: Number(el('provider-lng').value || 49.8671),
                     };
@@ -2421,6 +2447,9 @@
                 searchId: 'provider-place-search',
                 suggestionsId: 'provider-place-suggestions',
                 cityId: 'provider-city',
+                districtId: 'provider-district',
+                cityIdHidden: 'provider-city-id',
+                districtIdHidden: 'provider-district-id',
             });
             return loadProviderProfiles();
         }).catch(function (e) {
