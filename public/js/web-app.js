@@ -1251,25 +1251,34 @@
     function bindProfilePage() {
         var providerProfiles = [];
 
-        api('/auth/me').then(function (me) {
-            meCache = me;
-            el('profile-name').value = me.name || '';
-            el('profile-avatar').value = me.avatar_url || '';
-        }).catch(function (e) {
-            log('Profil məlumatı alınmadı: ' + e.message);
-        });
+        function paintUserCard(me) {
+            if (!me) return;
+            var nameEl = el('profile-name');
+            var avatarEl = el('profile-avatar');
+            var roleEl = el('profile-role-label');
+            var balEl = el('profile-balance');
+            if (nameEl) nameEl.value = me.name || '';
+            if (avatarEl) avatarEl.value = me.avatar_url || '';
+            if (roleEl) roleEl.textContent = roleLabel(me.active_role);
+            if (balEl) balEl.textContent = (Number(me.balance || 0)).toFixed(0) + ' AZN';
+            applyRoleUi();
+        }
 
-        initPickerMap({
-            mapId: 'provider-map',
-            latId: 'provider-lat',
-            lngId: 'provider-lng',
-            searchId: 'provider-place-search',
-            suggestionsId: 'provider-place-suggestions',
-            cityId: 'provider-city',
-        });
+        function ensureMe() {
+            if (meCache) {
+                paintUserCard(meCache);
+                return Promise.resolve(meCache);
+            }
+            return api('/auth/me').then(function (me) {
+                meCache = unwrapMe(me);
+                paintUserCard(meCache);
+                return meCache;
+            });
+        }
 
         function renderProviderList() {
             var list = el('provider-list');
+            if (!list) return;
             if (!providerProfiles.length) {
                 list.textContent = 'Hələ profil yoxdur';
                 return;
@@ -1286,24 +1295,26 @@
         }
 
         function loadProviderProfiles() {
-            return requireRole('provider').then(function () {
-                return api('/provider-profiles');
-            }).then(function (items) {
+            if (currentRole() !== 'provider') return Promise.resolve();
+            return api('/provider-profiles').then(function (items) {
                 providerProfiles = items || [];
                 renderProviderList();
                 if (providerProfiles[0]) {
-                    el('provider-title').value = providerProfiles[0].title || '';
-                    el('provider-bio').value = providerProfiles[0].bio || '';
-                    el('provider-city').value = providerProfiles[0].city || '';
-                    el('provider-district').value = providerProfiles[0].district || '';
-                    el('provider-lat').value = providerProfiles[0].latitude || '40.4093';
-                    el('provider-lng').value = providerProfiles[0].longitude || '49.8671';
+                    var t = el('provider-title');
+                    var b = el('provider-bio');
+                    var c = el('provider-city');
+                    var d = el('provider-district');
+                    var lat = el('provider-lat');
+                    var lng = el('provider-lng');
+                    if (t) t.value = providerProfiles[0].title || '';
+                    if (b) b.value = providerProfiles[0].bio || '';
+                    if (c) c.value = providerProfiles[0].city || '';
+                    if (d) d.value = providerProfiles[0].district || '';
+                    if (lat) lat.value = providerProfiles[0].latitude || '40.4093';
+                    if (lng) lng.value = providerProfiles[0].longitude || '49.8671';
                     var handle = pickerMaps['provider-map'];
-                    if (handle) {
-                        handle.apply(
-                            Number(el('provider-lat').value),
-                            Number(el('provider-lng').value)
-                        );
+                    if (handle && lat && lng) {
+                        handle.apply(Number(lat.value), Number(lng.value));
                     }
                 }
             }).catch(function (e) {
@@ -1311,60 +1322,82 @@
             });
         }
 
-        el('save-profile').addEventListener('click', function () {
-            api('/auth/profile', {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    name: el('profile-name').value.trim(),
-                    avatar_url: el('profile-avatar').value.trim() || null,
-                }),
-            }).then(function () {
-                toast('success', 'İstifadəçi profili yeniləndi');
-                log('İstifadəçi profili yeniləndi');
-                return setAuthStatus();
-            }).catch(function (e) {
-                toast('error', 'Profil yenilənmədi');
-                log('Profil yenilənmədi: ' + e.message);
+        var saveProfile = el('save-profile');
+        if (saveProfile) {
+            saveProfile.addEventListener('click', function () {
+                api('/auth/profile', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        name: el('profile-name').value.trim(),
+                        avatar_url: el('profile-avatar').value.trim() || null,
+                    }),
+                }).then(function (me) {
+                    meCache = unwrapMe(me) || meCache;
+                    paintUserCard(meCache);
+                    toast('success', 'İstifadəçi profili yeniləndi');
+                    log('İstifadəçi profili yeniləndi');
+                    return setAuthStatus();
+                }).catch(function (e) {
+                    toast('error', 'Profil yenilənmədi');
+                    log('Profil yenilənmədi: ' + e.message);
+                });
             });
-        });
+        }
 
-        el('save-provider-profile').addEventListener('click', function () {
-            var selected = getSelectedCategories();
-            if (!selected.length) {
-                toast('warning', 'Əvvəl kateqoriyalar səhifəsində seçim et');
-                return;
-            }
-            requireRole('provider').then(function () {
-                var payload = {
-                    category_ids: selected,
-                    title: el('provider-title').value.trim() || null,
-                    bio: el('provider-bio').value.trim() || null,
-                    city: el('provider-city').value.trim() || null,
-                    district: el('provider-district').value.trim() || null,
-                    latitude: Number(el('provider-lat').value || 40.4093),
-                    longitude: Number(el('provider-lng').value || 49.8671),
-                };
-                if (providerProfiles[0]) {
-                    return api('/provider-profiles/' + providerProfiles[0].id, {
-                        method: 'PUT',
+        var saveProvider = el('save-provider-profile');
+        if (saveProvider) {
+            saveProvider.addEventListener('click', function () {
+                var selected = getSelectedCategories();
+                if (!selected.length) {
+                    toast('warning', 'Əvvəl kateqoriyalar səhifəsində seçim et');
+                    return;
+                }
+                requireRole('provider').then(function () {
+                    var payload = {
+                        category_ids: selected,
+                        title: el('provider-title').value.trim() || null,
+                        bio: el('provider-bio').value.trim() || null,
+                        city: el('provider-city').value.trim() || null,
+                        district: el('provider-district').value.trim() || null,
+                        latitude: Number(el('provider-lat').value || 40.4093),
+                        longitude: Number(el('provider-lng').value || 49.8671),
+                    };
+                    if (providerProfiles[0]) {
+                        return api('/provider-profiles/' + providerProfiles[0].id, {
+                            method: 'PUT',
+                            body: JSON.stringify(payload),
+                        });
+                    }
+                    return api('/provider-profiles', {
+                        method: 'POST',
                         body: JSON.stringify(payload),
                     });
-                }
-                return api('/provider-profiles', {
-                    method: 'POST',
-                    body: JSON.stringify(payload),
+                }).then(function () {
+                    toast('success', 'Provider profili saxlanıldı');
+                    log('Provider profili saxlanıldı');
+                    return loadProviderProfiles();
+                }).catch(function (e) {
+                    toast('error', 'Provider profili saxlanmadı');
+                    log('Provider profili xətası: ' + e.message);
                 });
-            }).then(function () {
-                toast('success', 'Provider profili saxlanıldı');
-                log('Provider profili saxlanıldı');
-                return loadProviderProfiles();
-            }).catch(function (e) {
-                toast('error', 'Provider profili saxlanmadı');
-                log('Provider profili xətası: ' + e.message);
             });
-        });
+        }
 
-        loadProviderProfiles();
+        ensureMe().then(function (me) {
+            if (!me || me.active_role !== 'provider') return;
+            if (!el('provider-map')) return;
+            initPickerMap({
+                mapId: 'provider-map',
+                latId: 'provider-lat',
+                lngId: 'provider-lng',
+                searchId: 'provider-place-search',
+                suggestionsId: 'provider-place-suggestions',
+                cityId: 'provider-city',
+            });
+            return loadProviderProfiles();
+        }).catch(function (e) {
+            log('Profil məlumatı alınmadı: ' + e.message);
+        });
     }
 
     function bindRequestPage() {

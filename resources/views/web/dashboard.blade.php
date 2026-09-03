@@ -76,7 +76,7 @@
             <a href="{{ route('web.profile') }}" class="dash-tile" data-role="any">
                 <span class="dash-tile-kicker">Hesab</span>
                 <strong>Profil</strong>
-                <p>Ad, bio, məkan və xidmətçi profili.</p>
+                <p>Ad, balans və hesab ayarları.</p>
             </a>
             <a href="{{ route('web.categories') }}" class="dash-tile" data-role="provider">
                 <span class="dash-tile-kicker">Tag</span>
