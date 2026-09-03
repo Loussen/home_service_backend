@@ -61,8 +61,8 @@
                     <input id="place-search" type="text" placeholder="Ünvan axtar (Google Places)">
                     <div id="place-suggestions" class="suggestions"></div>
                 </div>
-                <input id="lat" type="text" placeholder="Latitude" value="40.4093">
-                <input id="lng" type="text" placeholder="Longitude" value="49.8671">
+                <input id="lat" type="hidden" value="40.4093">
+                <input id="lng" type="hidden" value="49.8671">
                 <button type="button" id="create-request" class="btn btn-primary">Sorğu yarat</button>
                 <button type="button" id="refresh-request" class="btn btn-outline">Nəticələri yenilə</button>
             </div>

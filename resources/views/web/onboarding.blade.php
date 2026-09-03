@@ -41,8 +41,8 @@
             </div>
             <div id="onb-map" class="map mt"></div>
             <div class="form-row form-row-2 mt">
-                <input id="onb-lat" type="text" placeholder="Latitude" value="40.4093">
-                <input id="onb-lng" type="text" placeholder="Longitude" value="49.8671">
+                <input id="onb-lat" type="hidden" value="40.4093">
+                <input id="onb-lng" type="hidden" value="49.8671">
             </div>
             <p id="onb-place-label" class="muted mt">Xəritədə klik et və ya ünvan axtar.</p>
         </div>

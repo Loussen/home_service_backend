@@ -47,8 +47,8 @@
                     <div id="provider-place-suggestions" class="suggestions"></div>
                 </div>
                 <div id="provider-map" class="map"></div>
-                <input id="provider-lat" type="text" placeholder="Latitude" value="40.4093">
-                <input id="provider-lng" type="text" placeholder="Longitude" value="49.8671">
+                <input id="provider-lat" type="hidden" value="40.4093">
+                <input id="provider-lng" type="hidden" value="49.8671">
                 <button type="button" id="save-provider-profile" class="btn btn-dark">Profili yarat / yenilə</button>
             </div>
         </section>
