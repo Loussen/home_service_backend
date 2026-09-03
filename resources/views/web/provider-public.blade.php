@@ -1,6 +1,6 @@
 @extends('web.layout')
 
-@section('title', 'MySancho · Xidmətçi profili')
+@section('title', 'My Sancho · Xidmətçi profili')
 @section('page', 'provider-public')
 
 @section('content')

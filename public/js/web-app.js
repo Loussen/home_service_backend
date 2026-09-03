@@ -156,7 +156,7 @@
      */
     function showAppAlert(opts) {
         opts = opts || {};
-        var title = opts.title || 'MySancho';
+        var title = opts.title || 'My Sancho';
         var message = opts.message || '';
         var tone = opts.tone || 'info';
         var confirmLabel = opts.confirmLabel || 'Başa düşdüm';

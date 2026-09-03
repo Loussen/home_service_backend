@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="origin">
-    <link rel="icon" type="image/jpeg" href="{{ asset('images/brand/logo-light.jpg') }}">
-    <title>@yield('title', 'MySancho')</title>
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/brand/logo-color.jpg') }}">
+    <title>@yield('title', 'My Sancho')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -40,15 +40,15 @@
 
 <header class="site-header">
     <div class="site-header-inner">
-        <a href="{{ route('web.app') }}" class="logo" aria-label="MySancho ana səhifə">
+        <a href="{{ route('web.app') }}" class="logo" aria-label="My Sancho ana səhifə">
             <img
-                src="{{ asset('images/brand/logo-light.jpg') }}"
+                src="{{ asset('images/brand/logo-color.jpg') }}"
                 alt=""
                 class="logo-img"
                 width="40"
                 height="40"
             >
-            <span class="logo-text">MySancho</span>
+            <span class="logo-text">My Sancho</span>
         </a>
 
         <div class="header-auth" id="header-auth">
@@ -138,7 +138,7 @@
 
 <footer class="site-footer">
     <div class="site-footer-inner">
-        <p class="footer-brand">MySancho</p>
+        <p class="footer-brand">My Sancho</p>
         <p class="footer-copy">Ailə ilə xidmətçini birləşdirən marketplace</p>
     </div>
 </footer>

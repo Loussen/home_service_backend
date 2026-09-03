@@ -17,7 +17,7 @@ return array (
   'otp.helper' => 'Lokal: 123456',
   'otp.submit' => 'Təsdiqlə',
   'otp.submitting' => 'Yoxlanır…',
-  'role.subtitle' => 'MySancho-da necə iştirak etmək istəyirsiniz?',
+  'role.subtitle' => 'My Sancho-da necə iştirak etmək istəyirsiniz?',
   'role.title' => 'Rol seçin',
   'role.hint' => 'Bu seçim birdəfəlikdir — eyni nömrə yalnız bir rolda ola bilər.',
   'role.client.title' => 'Ailə / Müştəri',

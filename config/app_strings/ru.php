@@ -17,7 +17,7 @@ return [
     'otp.helper' => 'Локально: 123456',
     'otp.submit' => 'Подтвердить',
     'otp.submitting' => 'Проверка…',
-    'role.subtitle' => 'Как вы хотите пользоваться MySancho?',
+    'role.subtitle' => 'Как вы хотите пользоваться My Sancho?',
     'role.title' => 'Выберите роль',
     'role.hint' => 'Этот выбор один раз: один номер — либо семья, либо исполнитель.',
     'role.client.title' => 'Семья / Клиент',

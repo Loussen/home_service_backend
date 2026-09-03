@@ -1,12 +1,12 @@
 @extends('web.layout')
 
-@section('title', 'MySancho · Dashboard')
+@section('title', 'My Sancho · Dashboard')
 @section('page', 'dashboard')
 
 @section('content')
     <section class="dash-hero">
         <div class="dash-hero-copy">
-            <p class="eyebrow">MySancho marketplace</p>
+            <p class="eyebrow">My Sancho marketplace</p>
             <h1 id="dash-title">Evdə lazım olanı&nbsp;tez tap</h1>
             <p id="dash-subtitle" class="dash-lead">
                 Səs və ya mətnlə sorğu göndər — uyğun xidmətçilər çıxır, CONNECT ilə yazış.

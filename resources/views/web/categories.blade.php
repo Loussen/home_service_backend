@@ -1,6 +1,6 @@
 @extends('web.layout')
 
-@section('title', 'MySancho · Kateqoriyalar')
+@section('title', 'My Sancho · Kateqoriyalar')
 @section('page', 'categories')
 
 @section('content')

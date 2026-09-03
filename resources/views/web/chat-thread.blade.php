@@ -1,6 +1,6 @@
 @extends('web.layout')
 
-@section('title', 'MySancho · Söhbət')
+@section('title', 'My Sancho · Söhbət')
 @section('page', 'chat-thread')
 @section('conversation_id', (string) $conversationId)
 

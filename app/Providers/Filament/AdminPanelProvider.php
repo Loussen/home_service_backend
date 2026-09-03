@@ -31,7 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->authGuard('admin')
             ->authPasswordBroker('admins')
-            ->brandName('MySancho')
+            ->brandName('My Sancho')
             ->colors([
                 'primary' => Color::hex('#08215B'),
             ])

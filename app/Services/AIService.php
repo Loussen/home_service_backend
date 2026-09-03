@@ -98,7 +98,7 @@ class AIService
         $locationsJson = json_encode($locationHints, JSON_UNESCAPED_UNICODE);
 
         $prompt = <<<PROMPT
-You are the request parser for MySancho, a home-services marketplace in Azerbaijan.
+You are the request parser for My Sancho, a home-services marketplace in Azerbaijan.
 
 Input is often a Whisper ASR transcript. It may be in Azerbaijani, Russian, English, or mixed — with typos, slurred speech, and phonetic errors.
 Goal: understand human intent like a local would, fix ASR mistakes, then output JSON for search matching.
