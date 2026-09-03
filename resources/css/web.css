@@ -318,6 +318,98 @@
         @apply mb-0;
     }
 
+    .requests-toolbar {
+        @apply mb-6 items-end border-b border-line pb-5;
+    }
+
+    .requests-toolbar-hint {
+        @apply mt-1 mb-0 text-sm;
+    }
+
+    .request-history {
+        @apply grid gap-3;
+    }
+
+    @media (min-width: 720px) {
+        .request-history {
+            @apply grid-cols-2 gap-4;
+        }
+    }
+
+    .request-history-item {
+        @apply flex cursor-pointer flex-col gap-2.5 rounded-2xl border border-line bg-canvas/40 px-5 py-4 text-left transition
+            hover:border-brand/30 hover:bg-brand-peach/25 hover:shadow-soft;
+    }
+
+    .request-history-item:focus-visible {
+        @apply outline-none ring-2 ring-brand/30;
+    }
+
+    .request-history-top {
+        @apply flex flex-wrap items-center gap-2;
+    }
+
+    .request-history-id {
+        @apply text-xs font-bold tracking-wide text-mute;
+    }
+
+    .request-status {
+        @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.7rem] font-extrabold;
+    }
+
+    .request-status.is-matched {
+        @apply bg-sage text-[#3d6b48];
+    }
+
+    .request-status.is-processing,
+    .request-status.is-active-status {
+        @apply bg-dusk-soft text-dusk;
+    }
+
+    .request-status.is-done {
+        @apply bg-parchment text-mute;
+    }
+
+    .request-status.is-cancelled {
+        @apply bg-[#F3E4DE] text-brand-dark;
+    }
+
+    .request-status.is-urgent {
+        @apply bg-brand-peach text-brand;
+    }
+
+    .request-history-title {
+        @apply m-0 font-brand text-[1.15rem] font-semibold leading-snug tracking-tight text-ink;
+    }
+
+    .request-history-text {
+        @apply m-0 line-clamp-2 text-sm leading-relaxed text-mute;
+    }
+
+    .request-history-foot {
+        @apply mt-1 flex flex-wrap items-center justify-between gap-2 border-t border-line/80 pt-3;
+    }
+
+    .request-history-meta {
+        @apply text-xs font-semibold text-mute;
+    }
+
+    .request-history-cta {
+        @apply text-sm font-extrabold text-brand;
+    }
+
+    .request-history-item:hover .request-history-cta {
+        @apply text-brand-dark;
+    }
+
+    .request-history-empty {
+        @apply flex flex-col items-start gap-3 rounded-2xl border border-dashed border-line bg-parchment/50 px-5 py-8;
+    }
+
+    .request-history-empty p {
+        @apply m-0 text-mute;
+    }
+
     .muted {
         @apply text-sm leading-relaxed text-mute;
     }

@@ -19,19 +19,17 @@
         </div>
     </section>
 
-    <section class="card" id="requests-panel" data-role="client">
-        <div class="section-head">
-            <h2>Tarixçə</h2>
+    <section class="card requests-panel" id="requests-panel" data-role="client">
+        <div class="section-head requests-toolbar">
+            <div>
+                <h2>Tarixçə</h2>
+                <p class="requests-toolbar-hint muted">Son sorğulardan match nəticəsinə qayıt</p>
+            </div>
             <div class="actions">
                 <a href="{{ route('web.request') }}" class="btn btn-primary btn-inline">Yeni sorğu</a>
                 <button type="button" id="refresh-requests" class="btn btn-outline btn-inline">Yenilə</button>
             </div>
         </div>
-        <div id="requests-list" class="matches mt">Yüklənir…</div>
-    </section>
-
-    <section class="card card-log mt">
-        <h2>Log</h2>
-        <pre id="log"></pre>
+        <div id="requests-list" class="request-history">Yüklənir…</div>
     </section>
 @endsection
