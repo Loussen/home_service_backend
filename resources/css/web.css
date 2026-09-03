@@ -24,6 +24,14 @@
         @apply min-h-[110px] resize-y;
     }
 
+    .field {
+        @apply grid gap-1.5 text-left;
+    }
+
+    .field > span {
+        @apply text-sm font-semibold text-mute;
+    }
+
     /* Tailwind preflight + Google Maps: tiles break with max-width:100% on img */
     .gm-style img,
     .gm-style map,

@@ -7,7 +7,7 @@
     <header class="page-hero">
         <p class="eyebrow">Ailə · Client</p>
         <h1 id="request-page-title">Sorğu yarat</h1>
-        <p id="request-page-sub">Nə lazımdır, harada və nə vaxt — yaz, uyğun xidmətçiləri gör və CONNECT et.</p>
+        <p id="request-page-sub">Kateqoriya seç, əlavə qeyd yaz, ünvanı göstər — uyğun icraçılar çıxır.</p>
         <p class="mt">
             <a href="{{ route('web.requests') }}" class="btn btn-outline btn-inline">Sorğularım</a>
             <a href="{{ route('web.request') }}" class="btn btn-primary btn-inline" id="request-new-link" hidden>Yeni sorğu</a>
@@ -35,9 +35,18 @@
 
         <section class="card" id="request-editor">
             <h2 id="request-form-title">Yeni sorğu</h2>
-            <p class="muted" id="request-form-hint">Mətn və ünvan — xəritədə dəqiq yer seçə bilərsiniz.</p>
+            <p class="muted" id="request-form-hint">Əvvəl kateqoriya seçin — əlavə qeyd və ünvan dəqiqləşdirir.</p>
             <div class="form-row form-row-2">
-                <input id="text" class="span-2" type="text" placeholder="Məs: Nərimanovda sabah 2 saatlıq it gəzdirmə lazımdır">
+                <label class="span-2 field">
+                    <span>Kateqoriya</span>
+                    <select id="request-category" required>
+                        <option value="">Kateqoriya seçin…</option>
+                    </select>
+                </label>
+                <label class="span-2 field">
+                    <span>Əlavə qeyd (istəyə bağlı)</span>
+                    <input id="text" class="span-2" type="text" placeholder="Məs: Nərimanovda sabah 2 saatlıq, təcrübəli olsun">
+                </label>
                 <div class="span-2 place-wrap">
                     <input id="place-search" type="text" placeholder="Ünvan axtar (Google Places)">
                     <div id="place-suggestions" class="suggestions"></div>
@@ -58,6 +67,7 @@
             <h2>Nəticələr</h2>
             <span id="match-count" class="pill">0 nəticə</span>
         </div>
+        <p id="search-meta" class="muted" hidden></p>
         <p id="connect-hint" class="muted" hidden></p>
         <div id="matches" class="matches"></div>
     </section>

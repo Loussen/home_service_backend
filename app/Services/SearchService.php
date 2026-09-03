@@ -63,6 +63,10 @@ class SearchService
             ];
 
         foreach ($attempts as $attempt) {
+            // Explicit category must stay — never fall back to unrelated providers.
+            if (filled($request->category_id) && empty($attempt['category'])) {
+                continue;
+            }
             $categoryId = $attempt['category'] ? $request->category_id : null;
             $slot = ($attempt['schedule'] ?? false) && filled($desiredSlot) ? $desiredSlot : null;
             $radii = $attempt['radius']

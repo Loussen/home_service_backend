@@ -779,6 +779,60 @@
         });
     }
 
+    function fillRequestCategorySelect(tree, selectedId) {
+        var select = el('request-category');
+        if (!select) return;
+        var previous = selectedId != null
+            ? String(selectedId)
+            : (select.value || '');
+        select.innerHTML = '<option value="">Kateqoriya seçin…</option>';
+
+        function addLeafOptions(nodes, groupLabel) {
+            (nodes || []).forEach(function (node) {
+                var label = node.name_az || node.name_en || node.slug || ('#' + node.id);
+                if (node.children && node.children.length) {
+                    addLeafOptions(node.children, label);
+                    return;
+                }
+                var opt = document.createElement('option');
+                opt.value = String(node.id);
+                opt.textContent = groupLabel ? (groupLabel + ' · ' + label) : label;
+                select.appendChild(opt);
+            });
+        }
+
+        addLeafOptions(tree || [], '');
+        if (previous) select.value = previous;
+    }
+
+    function paintSearchMeta(request) {
+        var box = el('search-meta');
+        if (!box) return;
+        var meta = (request && request.parsed_criteria && request.parsed_criteria.search_meta) || {};
+        var notes = [];
+        if (meta.dropped_category) {
+            notes.push('Bu kateqoriyada tapılmadı — yaxın digər icraçılar göstərilir.');
+        }
+        if (meta.expanded && meta.base_radius_km != null && meta.radius_km != null) {
+            notes.push(
+                'Radius ' + meta.base_radius_km + ' km-dən ' + meta.radius_km + ' km-ə genişləndi.'
+            );
+        }
+        if (meta.dropped_area) {
+            notes.push('Seçilmiş ərazidə tapılmadı — daha geniş zona.');
+        }
+        if (meta.dropped_schedule) {
+            notes.push('Seçilmiş vaxt üçün tapılmadı — digər vaxtlar göstərilir.');
+        }
+        if (!notes.length) {
+            box.hidden = true;
+            box.textContent = '';
+            return;
+        }
+        box.hidden = false;
+        box.textContent = notes.join(' ');
+    }
+
     function renderCategoryChips(targetId, countId, selected, items) {
         var target = el(targetId);
         if (!target) return;
@@ -928,6 +982,7 @@
         box.innerHTML = '';
         selectedMatchId = null;
         paintConnectHint(meCache);
+        paintSearchMeta(request);
 
         var handle = pickerMaps.map;
         matchMarkers.forEach(function (m) { m.setMap(null); });
@@ -1360,6 +1415,7 @@
         if (el('request-info')) {
             el('request-info').textContent = 'Yeni sorğu yazın — əvvəlki nəticələr göstərilmir';
         }
+        paintSearchMeta(null);
         renderMatches(null);
         paintConnectHint(meCache);
     }
@@ -1369,6 +1425,9 @@
         if (el('text') && req.transcribed_text) {
             el('text').value = req.transcribed_text;
         }
+        if (el('request-category') && req.category_id) {
+            el('request-category').value = String(req.category_id);
+        }
         if (el('lat') && req.latitude != null) {
             el('lat').value = String(req.latitude);
         }
@@ -1376,12 +1435,16 @@
             el('lng').value = String(req.longitude);
         }
         if (el('request-info')) {
+            var catName = req.category && (req.category.name_az || req.category.name);
             el('request-info').textContent =
-                'Sorğu #' + req.id + ' · ' + (req.status || '—') +
+                'Sorğu #' + req.id +
+                (catName ? (' · ' + catName) : '') +
+                ' · ' + (req.status || '—') +
                 (req.matches && req.matches.length
                     ? (' · ' + req.matches.length + ' uyğunluq')
                     : '');
         }
+        paintSearchMeta(req);
 
         function applyAddress(address) {
             req._resolvedAddress = address || '';
@@ -1824,7 +1887,7 @@
     }
 
     function setRequestViewMode(on) {
-        ['text', 'place-search', 'lat', 'lng'].forEach(function (id) {
+        ['text', 'place-search', 'lat', 'lng', 'request-category'].forEach(function (id) {
             var node = el(id);
             if (node) node.disabled = !!on;
         });
@@ -1844,7 +1907,7 @@
         if (el('request-page-sub')) {
             el('request-page-sub').textContent = on
                 ? 'Bu sorğunun məlumatı və uyğun icraçılar — forma yalnız baxış üçündür.'
-                : 'Nə lazımdır, harada və nə vaxt — yaz, uyğun xidmətçiləri gör və CONNECT et.';
+                : 'Kateqoriya seç, əlavə qeyd yaz, ünvanı göstər — uyğun icraçılar çıxır.';
         }
         if (el('request-form-title')) {
             el('request-form-title').textContent = on ? 'Sorğu detalları' : 'Yeni sorğu';
@@ -1852,7 +1915,7 @@
         if (el('request-form-hint')) {
             el('request-form-hint').textContent = on
                 ? 'Sahələr kilidlidir. Yeni sorğu üçün yuxarıdakı düymədən keçin.'
-                : 'Mətn və ünvan — xəritədə dəqiq yer seçə bilərsiniz.';
+                : 'Əvvəl kateqoriya seçin — əlavə qeyd və ünvan dəqiqləşdirir.';
         }
 
         var editor = el('request-editor');
@@ -1882,6 +1945,12 @@
             searchId: 'place-search',
             suggestionsId: 'place-suggestions',
             labelId: 'place-label',
+        }).then(function () {
+            return api('/categories').then(function (items) {
+                fillRequestCategorySelect(items || []);
+            }).catch(function () {
+                toast('warning', 'Kateqoriyalar yüklənmədi');
+            });
         }).then(function () {
             if (!restoreId) {
                 setRequestViewMode(false);
@@ -1932,11 +2001,24 @@
 
         el('create-request').addEventListener('click', function () {
             if (el('create-request').disabled || el('create-request').hidden) return;
+            var categorySelect = el('request-category');
+            var categoryId = categorySelect ? Number(categorySelect.value || 0) : 0;
+            if (!categoryId) {
+                toast('warning', 'Əvvəl kateqoriya seçin');
+                return;
+            }
+            var note = el('text').value.trim();
+            var catLabel = '';
+            if (categorySelect && categorySelect.selectedIndex >= 0) {
+                catLabel = (categorySelect.options[categorySelect.selectedIndex].textContent || '').trim();
+            }
+            var text = note || catLabel || 'Sorğu';
             requireRole('client').then(function () {
                 return api('/service-requests/text', {
                     method: 'POST',
                     body: JSON.stringify({
-                        text: el('text').value.trim(),
+                        text: text,
+                        category_id: categoryId,
                         latitude: Number(el('lat').value || 0),
                         longitude: Number(el('lng').value || 0),
                         address: (el('place-search') && el('place-search').value.trim()) || null,
@@ -1945,10 +2027,17 @@
                 });
             }).then(function (data) {
                 setRequestId(data.id);
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState({}, '', '/request?requestId=' + encodeURIComponent(data.id));
+                }
                 el('request-info').textContent = 'Sorğu #' + data.id + ' yaradıldı · ' + data.status;
                 toast('success', 'Sorğu yaradıldı');
-                log('Sorğu yaradıldı', { id: data.id, status: data.status });
-                setTimeout(refreshRequest, 1000);
+                log('Sorğu yaradıldı', { id: data.id, status: data.status, category_id: categoryId });
+                setTimeout(function () {
+                    refreshRequest().then(function () {
+                        setRequestViewMode(true);
+                    });
+                }, 1000);
             }).catch(function (e) {
                 if (e && /yalnız ailə/i.test(e.message || '')) return;
                 toast('error', 'Sorğu yaradılmadı');
