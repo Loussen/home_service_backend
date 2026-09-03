@@ -94,6 +94,10 @@
             if (nameEl && snap.name) nameEl.textContent = snap.name;
             if (roleEl && snap.role) roleEl.textContent = snap.role;
             if (avatar && snap.initial) avatar.textContent = snap.initial;
+            var role = snap.active_role;
+            if (role === 'client' || role === 'provider') {
+                document.documentElement.setAttribute('data-auth-role', role);
+            }
         } catch (e) {}
     })();
 </script>
@@ -103,6 +107,24 @@
         @yield('content')
     </main>
 </div>
+
+<script>
+    // Rol UI: API-dən əvvəl snap ilə — ailə/xidmətçi flash olmasın
+    (function () {
+        try {
+            var role = document.documentElement.getAttribute('data-auth-role');
+            if (role !== 'client' && role !== 'provider') return;
+            document.querySelectorAll('[data-role]').forEach(function (node) {
+                var need = node.getAttribute('data-role');
+                if (!need || need === 'any') {
+                    node.hidden = false;
+                    return;
+                }
+                node.hidden = need !== role;
+            });
+        } catch (e) {}
+    })();
+</script>
 
 <footer class="site-footer">
     <div class="site-footer-inner">

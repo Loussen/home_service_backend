@@ -7,7 +7,7 @@
     <header class="page-hero">
         <p class="eyebrow">Hesab</p>
         <h1>Profil</h1>
-        <p id="profile-hero-sub" data-role="client">Ad, şəkil, balans — ailə hesabı.</p>
+        <p id="profile-hero-sub" data-role="client" hidden>Ad, şəkil, balans — ailə hesabı.</p>
         <p id="profile-hero-sub-provider" data-role="provider" hidden>Şəxsi məlumat, şəkil, audio və xidmətçi profili.</p>
     </header>
 
@@ -47,7 +47,7 @@
             </div>
         </section>
 
-        <section class="card" data-role="client" id="client-profile-panel">
+        <section class="card" data-role="client" id="client-profile-panel" hidden>
             <h2>Ailə hesabı</h2>
             <p class="muted">Xidmət axtarır, CONNECT edir və chat-də razılaşırsınız.</p>
             <div class="stack mt">

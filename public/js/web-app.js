@@ -372,6 +372,7 @@
         var user = el('auth-user');
         var status = el('auth-status');
         document.documentElement.classList.remove('has-token');
+        document.documentElement.removeAttribute('data-auth-role');
         try {
             localStorage.removeItem('mysancho_web_auth_snap');
         } catch (e) {}
@@ -388,6 +389,9 @@
         var roleEl = el('auth-role');
         var avatar = el('auth-avatar');
         document.documentElement.classList.add('has-token');
+        if (me.active_role === 'client' || me.active_role === 'provider') {
+            document.documentElement.setAttribute('data-auth-role', me.active_role);
+        }
         if (guest) guest.hidden = true;
         if (user) user.hidden = false;
         var label = (me.name && String(me.name).trim()) || me.phone || 'İstifadəçi';
@@ -401,11 +405,29 @@
             localStorage.setItem('mysancho_web_auth_snap', JSON.stringify({
                 name: label,
                 role: role,
+                active_role: me.active_role || null,
                 initial: initial,
             }));
         } catch (e) {}
         applyRoleUi();
         paintConnectHint(me);
+    }
+
+    function hydrateRoleFromSnap() {
+        if (!getToken() || meCache) return;
+        try {
+            var snap = JSON.parse(localStorage.getItem('mysancho_web_auth_snap') || 'null');
+            if (!snap || (snap.active_role !== 'client' && snap.active_role !== 'provider')) {
+                return;
+            }
+            meCache = {
+                active_role: snap.active_role,
+                name: snap.name || '',
+                needs_role: false,
+            };
+            document.documentElement.setAttribute('data-auth-role', snap.active_role);
+            applyRoleUi();
+        } catch (e) {}
     }
 
     function setAuthStatus() {
@@ -3162,6 +3184,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         hidePageLoader();
+        hydrateRoleFromSnap();
         bindPage();
         setAuthStatus().then(function () {
             var publicPages = { login: 1, dashboard: 1 };
