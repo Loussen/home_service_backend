@@ -780,29 +780,174 @@
     }
 
     function fillRequestCategorySelect(tree, selectedId) {
-        var select = el('request-category');
-        if (!select) return;
-        var previous = selectedId != null
-            ? String(selectedId)
-            : (select.value || '');
-        select.innerHTML = '<option value="">Kateqoriya seçin…</option>';
+        var picker = el('request-category-picker');
+        var hidden = el('request-category');
+        var search = el('request-category-search');
+        var menu = el('request-category-menu');
+        if (!picker || !hidden || !search || !menu) return;
 
-        function addLeafOptions(nodes, groupLabel) {
+        var groups = [];
+
+        function walk(nodes, parentLabel) {
             (nodes || []).forEach(function (node) {
                 var label = node.name_az || node.name_en || node.slug || ('#' + node.id);
                 if (node.children && node.children.length) {
-                    addLeafOptions(node.children, label);
+                    walk(node.children, label);
                     return;
                 }
-                var opt = document.createElement('option');
-                opt.value = String(node.id);
-                opt.textContent = groupLabel ? (groupLabel + ' · ' + label) : label;
-                select.appendChild(opt);
+                var groupName = parentLabel || 'Digər';
+                var group = groups.find(function (g) {
+                    return g.label === groupName;
+                });
+                if (!group) {
+                    group = { label: groupName, leaves: [] };
+                    groups.push(group);
+                }
+                group.leaves.push({
+                    id: Number(node.id),
+                    name: label,
+                    search: (groupName + ' ' + label).toLocaleLowerCase('az'),
+                });
             });
         }
 
-        addLeafOptions(tree || [], '');
-        if (previous) select.value = previous;
+        walk(tree || [], '');
+        picker._groups = groups;
+        picker._bound = picker._bound || false;
+
+        function selectedLeaf() {
+            var id = Number(hidden.value || 0);
+            if (!id) return null;
+            for (var i = 0; i < groups.length; i++) {
+                for (var j = 0; j < groups[i].leaves.length; j++) {
+                    if (groups[i].leaves[j].id === id) {
+                        return {
+                            group: groups[i].label,
+                            leaf: groups[i].leaves[j],
+                        };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function setValue(id, closeMenu) {
+            hidden.value = id ? String(id) : '';
+            var found = selectedLeaf();
+            if (found) {
+                search.value = found.leaf.name;
+                search.dataset.display = found.group + ' · ' + found.leaf.name;
+            } else if (!search.matches(':focus')) {
+                search.value = '';
+                search.dataset.display = '';
+            }
+            renderMenu(search.value);
+            if (closeMenu) closeCategoryMenu();
+        }
+
+        function openMenu() {
+            if (picker.classList.contains('is-disabled') || search.disabled) return;
+            menu.hidden = false;
+            search.setAttribute('aria-expanded', 'true');
+            renderMenu(search.value);
+        }
+
+        function closeCategoryMenu() {
+            menu.hidden = true;
+            search.setAttribute('aria-expanded', 'false');
+            var found = selectedLeaf();
+            if (found) {
+                search.value = found.leaf.name;
+            } else if (!hidden.value) {
+                search.value = '';
+            }
+        }
+
+        function renderMenu(query) {
+            var q = String(query || '').trim().toLocaleLowerCase('az');
+            menu.innerHTML = '';
+            var any = false;
+            groups.forEach(function (group) {
+                var leaves = group.leaves.filter(function (leaf) {
+                    if (!q) return true;
+                    return leaf.search.indexOf(q) !== -1;
+                });
+                if (!leaves.length) return;
+                any = true;
+                var wrap = document.createElement('div');
+                wrap.className = 'cat-picker-group';
+                wrap.innerHTML = '<div class="cat-picker-group-title">' + esc(group.label) + '</div>';
+                leaves.forEach(function (leaf) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'cat-picker-option' +
+                        (Number(hidden.value) === leaf.id ? ' is-active' : '');
+                    btn.setAttribute('role', 'option');
+                    btn.setAttribute('data-id', String(leaf.id));
+                    btn.textContent = leaf.name;
+                    btn.addEventListener('mousedown', function (evt) {
+                        evt.preventDefault();
+                    });
+                    btn.addEventListener('click', function () {
+                        setValue(leaf.id, true);
+                    });
+                    wrap.appendChild(btn);
+                });
+                menu.appendChild(wrap);
+            });
+            if (!any) {
+                menu.innerHTML = '<p class="cat-picker-empty">Uyğun kateqoriya yoxdur</p>';
+            }
+        }
+
+        if (!picker._bound) {
+            picker._bound = true;
+            search.addEventListener('focus', openMenu);
+            search.addEventListener('click', openMenu);
+            search.addEventListener('input', function () {
+                if (hidden.value) {
+                    var cur = selectedLeaf();
+                    if (!cur || search.value.trim() !== cur.leaf.name) {
+                        hidden.value = '';
+                    }
+                }
+                openMenu();
+                renderMenu(search.value);
+            });
+            search.addEventListener('keydown', function (evt) {
+                if (evt.key === 'Escape') {
+                    closeCategoryMenu();
+                    search.blur();
+                }
+            });
+            document.addEventListener('click', function (evt) {
+                if (!picker.contains(evt.target)) closeCategoryMenu();
+            });
+        }
+
+        var wantId = selectedId != null ? Number(selectedId) : Number(hidden.value || 0);
+        setValue(wantId || 0, true);
+        picker._setCategory = setValue;
+        picker._closeMenu = closeCategoryMenu;
+    }
+
+    function getRequestCategoryId() {
+        return Number((el('request-category') && el('request-category').value) || 0) || 0;
+    }
+
+    function getRequestCategoryLabel() {
+        var picker = el('request-category-picker');
+        var hidden = el('request-category');
+        var id = getRequestCategoryId();
+        if (!id || !picker || !picker._groups) return '';
+        for (var i = 0; i < picker._groups.length; i++) {
+            for (var j = 0; j < picker._groups[i].leaves.length; j++) {
+                if (picker._groups[i].leaves[j].id === id) {
+                    return picker._groups[i].leaves[j].name;
+                }
+            }
+        }
+        return (el('request-category-search') && el('request-category-search').value.trim()) || '';
     }
 
     function paintSearchMeta(request) {
@@ -1426,7 +1571,12 @@
             el('text').value = req.transcribed_text;
         }
         if (el('request-category') && req.category_id) {
-            el('request-category').value = String(req.category_id);
+            var picker = el('request-category-picker');
+            if (picker && typeof picker._setCategory === 'function') {
+                picker._setCategory(req.category_id, true);
+            } else {
+                el('request-category').value = String(req.category_id);
+            }
         }
         if (el('lat') && req.latitude != null) {
             el('lat').value = String(req.latitude);
@@ -1887,10 +2037,13 @@
     }
 
     function setRequestViewMode(on) {
-        ['text', 'place-search', 'lat', 'lng', 'request-category'].forEach(function (id) {
+        ['text', 'place-search', 'lat', 'lng', 'request-category-search'].forEach(function (id) {
             var node = el(id);
             if (node) node.disabled = !!on;
         });
+        var picker = el('request-category-picker');
+        if (picker) picker.classList.toggle('is-disabled', !!on);
+        if (el('request-category')) el('request-category').disabled = !!on;
 
         var createBtn = el('create-request');
         if (createBtn) {
@@ -2001,17 +2154,15 @@
 
         el('create-request').addEventListener('click', function () {
             if (el('create-request').disabled || el('create-request').hidden) return;
-            var categorySelect = el('request-category');
-            var categoryId = categorySelect ? Number(categorySelect.value || 0) : 0;
+            var categoryId = getRequestCategoryId();
             if (!categoryId) {
                 toast('warning', 'Əvvəl kateqoriya seçin');
+                var search = el('request-category-search');
+                if (search) search.focus();
                 return;
             }
             var note = el('text').value.trim();
-            var catLabel = '';
-            if (categorySelect && categorySelect.selectedIndex >= 0) {
-                catLabel = (categorySelect.options[categorySelect.selectedIndex].textContent || '').trim();
-            }
+            var catLabel = getRequestCategoryLabel();
             var text = note || catLabel || 'Sorğu';
             requireRole('client').then(function () {
                 return api('/service-requests/text', {

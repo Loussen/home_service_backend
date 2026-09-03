@@ -37,12 +37,22 @@
             <h2 id="request-form-title">Yeni sorğu</h2>
             <p class="muted" id="request-form-hint">Əvvəl kateqoriya seçin — əlavə qeyd və ünvan dəqiqləşdirir.</p>
             <div class="form-row form-row-2">
-                <label class="span-2 field">
+                <div class="span-2 field">
                     <span>Kateqoriya</span>
-                    <select id="request-category" required>
-                        <option value="">Kateqoriya seçin…</option>
-                    </select>
-                </label>
+                    <div class="cat-picker" id="request-category-picker">
+                        <input type="hidden" id="request-category" value="">
+                        <input
+                            id="request-category-search"
+                            type="search"
+                            autocomplete="off"
+                            placeholder="Axtar və ya kateqoriya seç…"
+                            aria-autocomplete="list"
+                            aria-controls="request-category-menu"
+                            aria-expanded="false"
+                        >
+                        <div id="request-category-menu" class="cat-picker-menu" hidden role="listbox"></div>
+                    </div>
+                </div>
                 <label class="span-2 field">
                     <span>Əlavə qeyd (istəyə bağlı)</span>
                     <input id="text" class="span-2" type="text" placeholder="Məs: Nərimanovda sabah 2 saatlıq, təcrübəli olsun">
