@@ -1410,7 +1410,7 @@
         return {
             path: window.google.maps.SymbolPath.CIRCLE,
             scale: active ? 11 : 9,
-            fillColor: active ? '#C24E2D' : (isVip ? '#D4A84B' : '#3D4F7C'),
+            fillColor: active ? '#FB8000' : (isVip ? '#FB8000' : '#08215B'),
             fillOpacity: 1,
             strokeColor: '#ffffff',
             strokeWeight: active ? 3 : 2,

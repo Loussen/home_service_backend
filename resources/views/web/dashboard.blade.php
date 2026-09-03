@@ -12,7 +12,7 @@
                 Səs və ya mətnlə sorğu göndər — uyğun xidmətçilər çıxır, CONNECT ilə yazış.
             </p>
             <div class="dash-cta" id="dash-cta-guest">
-                <a href="{{ route('web.login') }}" class="btn btn-primary btn-inline">Başla · Giriş</a>
+                <a href="{{ route('web.login') }}" class="btn btn-primary btn-inline">Başla · Daxil ol</a>
             </div>
             <div class="dash-cta" id="dash-cta-client" hidden>
                 <a href="{{ route('web.request') }}" class="btn btn-primary btn-inline">Yeni sorğu</a>
@@ -83,11 +83,6 @@
                 <span class="dash-tile-kicker">Tag</span>
                 <strong>Kateqoriyalar</strong>
                 <p>Maksimum 3 yarpaq kateqoriya seç.</p>
-            </a>
-            <a href="{{ route('web.onboarding') }}" class="dash-tile" data-role="any">
-                <span class="dash-tile-kicker">Start</span>
-                <strong>Onboarding</strong>
-                <p>Hesab → kateqoriya → məkan addımları.</p>
             </a>
         </div>
     </section>

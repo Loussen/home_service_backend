@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="origin">
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/brand/logo-light.jpg') }}">
     <title>@yield('title', 'MySancho')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,16 +41,21 @@
 <header class="site-header">
     <div class="site-header-inner">
         <a href="{{ route('web.app') }}" class="logo" aria-label="MySancho ana səhifə">
-            <span class="logo-mark" aria-hidden="true"></span>
+            <img
+                src="{{ asset('images/brand/logo-light.jpg') }}"
+                alt=""
+                class="logo-img"
+                width="40"
+                height="40"
+            >
             <span class="logo-text">MySancho</span>
         </a>
 
         <div class="header-auth" id="header-auth">
             <div id="auth-guest" class="auth-guest">
-                <a href="{{ route('web.login') }}" class="btn btn-outline btn-auth">Giriş</a>
-                <a href="{{ route('web.login') }}" class="btn btn-primary btn-auth" title="Qeydiyyat">
-                    <span class="label-full">Qeydiyyat</span>
-                    <span class="label-short">Qeyd.</span>
+                <a href="{{ route('web.login') }}" class="btn btn-primary btn-auth" aria-label="Daxil ol və ya qeydiyyat">
+                    <span class="label-full">Daxil ol</span>
+                    <span class="label-short">Giriş</span>
                 </a>
             </div>
             <div id="auth-user" class="auth-user" hidden>
@@ -74,7 +80,6 @@
                         <a href="{{ route('web.chat') }}" class="user-menu-item {{ str_starts_with($path, 'chat') ? 'active' : '' }}" data-role="any" role="menuitem">Chat</a>
                         <a href="{{ route('web.profile') }}" class="user-menu-item {{ $path === 'profile' ? 'active' : '' }}" data-role="any" role="menuitem">Profil</a>
                         <a href="{{ route('web.categories') }}" class="user-menu-item {{ $path === 'categories' ? 'active' : '' }}" data-role="provider" role="menuitem">Kateqoriyalar</a>
-                        <a href="{{ route('web.onboarding') }}" class="user-menu-item {{ $path === 'onboarding' ? 'active' : '' }}" data-role="any" role="menuitem">Onboarding</a>
                         <button type="button" id="header-logout" class="user-menu-item user-menu-danger" data-role="any" role="menuitem">Çıxış</button>
                     </div>
                 </div>

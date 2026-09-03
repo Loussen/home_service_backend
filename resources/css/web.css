@@ -6,9 +6,9 @@
     body {
         @apply bg-canvas text-ink font-sans antialiased min-h-screen;
         background-image:
-            radial-gradient(ellipse 900px 480px at 8% -8%, rgba(194, 78, 45, 0.11), transparent 55%),
-            radial-gradient(ellipse 800px 420px at 96% 0%, rgba(61, 79, 124, 0.12), transparent 50%),
-            radial-gradient(ellipse 700px 360px at 50% 100%, rgba(212, 168, 75, 0.06), transparent 45%);
+            radial-gradient(ellipse 900px 480px at 8% -8%, rgba(8, 33, 91, 0.10), transparent 55%),
+            radial-gradient(ellipse 800px 420px at 96% 0%, rgba(251, 128, 0, 0.10), transparent 50%),
+            radial-gradient(ellipse 700px 360px at 50% 100%, rgba(8, 33, 91, 0.05), transparent 45%);
         background-attachment: fixed;
     }
 
@@ -45,7 +45,7 @@
     }
 
     .avatar-shell:hover .avatar-frame {
-        box-shadow: 0 0 0 2px #C24E2D;
+        box-shadow: 0 0 0 2px #08215B;
     }
 
     .avatar-frame:focus-visible {
@@ -200,10 +200,14 @@
         @apply inline-flex shrink-0 items-center gap-2.5 no-underline transition hover:opacity-90;
     }
 
+    .logo-img {
+        @apply h-9 w-9 rounded-[0.7rem] object-cover shadow-soft sm:h-10 sm:w-10;
+    }
+
     .logo-mark {
         @apply block h-9 w-9 rounded-xl shadow-soft;
         background:
-            linear-gradient(145deg, #C24E2D 0%, #9A3B22 55%, #3D4F7C 130%);
+            linear-gradient(145deg, #08215B 0%, #05163F 55%, #FB8000 130%);
     }
 
     .logo-text {
@@ -250,7 +254,7 @@
     }
 
     .btn-auth {
-        @apply w-auto min-w-0 shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-[0.75rem] font-bold leading-none no-underline sm:px-3.5 sm:text-[0.8125rem];
+        @apply w-auto min-w-0 shrink-0 whitespace-nowrap rounded-full px-3.5 py-2.5 text-[0.8125rem] font-bold leading-none no-underline sm:px-4 sm:text-sm;
     }
 
     .btn-auth .label-short {
@@ -258,6 +262,9 @@
     }
 
     @media (max-width: 420px) {
+        .btn-auth {
+            @apply px-3 py-2 text-[0.75rem];
+        }
         .btn-auth .label-full {
             display: none;
         }
@@ -564,7 +571,7 @@
     }
 
     .request-status.is-cancelled {
-        @apply bg-[#F3E4DE] text-brand-dark;
+        @apply bg-brand-peach text-brand-dark;
     }
 
     .request-status.is-urgent {
@@ -851,7 +858,7 @@
     }
 
     .app-alert-card.tone-danger .app-alert-icon {
-        @apply bg-[#F3E4DE] text-brand;
+        @apply bg-brand-peach text-brand;
     }
 
     .app-alert-card.tone-warning .app-alert-icon {
@@ -1381,7 +1388,7 @@
 
     .page-loader-spinner {
         animation: none !important;
-        border-top-color: #C24E2D;
+        border-top-color: #08215B;
         opacity: 0.85;
     }
 

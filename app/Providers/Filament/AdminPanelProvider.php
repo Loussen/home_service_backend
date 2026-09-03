@@ -33,7 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->authPasswordBroker('admins')
             ->brandName('MySancho')
             ->colors([
-                'primary' => Color::hex('#E65C34'),
+                'primary' => Color::hex('#08215B'),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

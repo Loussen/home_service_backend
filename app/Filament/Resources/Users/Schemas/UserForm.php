@@ -112,7 +112,7 @@ class UserForm
                         $chips = $cats->map(function ($c) {
                             $name = e($c->name_az ?? $c->name ?? '#'.$c->id);
 
-                            return '<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;background:#F3E4DE;color:#9A3B22;font-size:12px;font-weight:700;">'.$name.'</span>';
+                            return '<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;background:#FFE8CC;color:#08215B;font-size:12px;font-weight:700;">'.$name.'</span>';
                         })->implode('');
 
                         return new HtmlString('<div>'.$chips.'</div>');
@@ -150,7 +150,7 @@ class UserForm
 
                         return new HtmlString(
                             '<div style="line-height:1.45;">'.e($line).
-                            '<br><a href="'.e($maps).'" target="_blank" rel="noopener" style="color:#C24E2D;font-weight:600;">Xəritədə aç</a>'.
+                            '<br><a href="'.e($maps).'" target="_blank" rel="noopener" style="color:#08215B;font-weight:600;">Xəritədə aç</a>'.
                             '<div style="margin-top:4px;color:#7A746C;font-size:12px;">'.
                             e(number_format((float) $loc['latitude'], 6).' · '.number_format((float) $loc['longitude'], 6)).
                             '</div></div>'

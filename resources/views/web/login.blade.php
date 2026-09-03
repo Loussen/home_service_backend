@@ -1,6 +1,6 @@
 @extends('web.layout')
 
-@section('title', 'MySancho · Giriş')
+@section('title', 'MySancho · Daxil ol')
 @section('page', 'login')
 
 @section('content')
@@ -20,13 +20,13 @@
         </div>
 
         <section class="card card-hero">
-            <h2>Giriş</h2>
-            <p class="muted">Telefon nömrənizə OTP göndərilir. Sonra sorğu səhifəsinə keçirsiniz.</p>
+            <h2>Daxil ol</h2>
+            <p class="muted">Telefonla OTP — yeni nömrə avtomatik qeydiyyat olunur, mövcud hesab isə daxil olur.</p>
             <div class="stack mt">
                 <input id="phone" type="tel" placeholder="+994501111111" autocomplete="tel">
                 <button type="button" id="send-otp" class="btn btn-primary">Kod göndər</button>
                 <input id="otp" type="text" placeholder="OTP kodu" inputmode="numeric" autocomplete="one-time-code">
-                <button type="button" id="verify-otp" class="btn btn-secondary">Daxil ol</button>
+                <button type="button" id="verify-otp" class="btn btn-secondary">Davam et</button>
             </div>
             <p class="muted mt">Demo kod: <b>123456</b></p>
         </section>

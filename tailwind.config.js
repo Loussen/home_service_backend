@@ -14,29 +14,30 @@ export default {
         extend: {
             colors: {
                 brand: {
-                    DEFAULT: '#C24E2D',
-                    dark: '#9A3B22',
-                    peach: '#F3E4DE',
+                    DEFAULT: '#08215B',
+                    dark: '#05163F',
+                    peach: '#FFE8CC',
+                    accent: '#FB8000',
                 },
                 dusk: {
-                    DEFAULT: '#3D4F7C',
-                    soft: '#E8EEF6',
+                    DEFAULT: '#08215B',
+                    soft: '#E4EAF5',
                 },
-                gold: '#D4A84B',
-                ink: '#1C1917',
-                mute: '#7A746C',
-                canvas: '#F7F4EF',
-                parchment: '#F1EBE3',
+                gold: '#FB8000',
+                ink: '#0F172A',
+                mute: '#64748B',
+                canvas: '#F5F7FB',
+                parchment: '#EEF1F7',
                 sage: '#E7F0E8',
-                line: '#E4DED6',
+                line: '#DCE3EF',
             },
             fontFamily: {
                 sans: ['Outfit', ...defaultTheme.fontFamily.sans],
                 brand: ['Fraunces', ...defaultTheme.fontFamily.serif],
             },
             boxShadow: {
-                soft: '0 4px 16px rgba(28, 25, 23, 0.05)',
-                lift: '0 12px 32px rgba(28, 25, 23, 0.08)',
+                soft: '0 4px 16px rgba(8, 33, 91, 0.06)',
+                lift: '0 12px 32px rgba(8, 33, 91, 0.10)',
             },
             borderRadius: {
                 xl2: '1.125rem',
