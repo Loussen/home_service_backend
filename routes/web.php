@@ -16,6 +16,9 @@ Route::get('/jobs', [WebAppController::class, 'jobs'])->name('web.jobs');
 Route::get('/providers/{id}', [WebAppController::class, 'providerShow'])
     ->whereNumber('id')
     ->name('web.providers.show');
+Route::get('/p/{slug}', [WebAppController::class, 'staticPage'])
+    ->where('slug', '[a-z0-9\-]+')
+    ->name('web.static');
 
 // Legacy /web/* → root (köhnə bookmark / deploy)
 Route::redirect('/web', '/', 301);

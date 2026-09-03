@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="az">
+<html lang="{{ $webLocale ?? 'az' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,6 +18,11 @@
     <script>
         (function () {
             try {
+                var KEY = 'mysancho_locale';
+                var fromLs = localStorage.getItem(KEY);
+                if (fromLs) {
+                    document.cookie = KEY + '=' + encodeURIComponent(fromLs) + ';path=/;max-age=31536000;SameSite=Lax';
+                }
                 if (localStorage.getItem('mysancho_web_token')) {
                     document.documentElement.classList.add('has-token');
                 }
@@ -27,20 +32,25 @@
 </head>
 @php
     $path = trim(request()->path(), '/');
+    $webLocale = $webLocale ?? 'az';
+    $webSupportedLocales = $webSupportedLocales ?? ['az', 'en', 'ru'];
+    $webLocaleLabels = $webLocaleLabels ?? ['az' => 'Azərbaycan', 'en' => 'English', 'ru' => 'Русский'];
+    $staticMenuPages = $staticMenuPages ?? collect();
 @endphp
 <body
     data-page="@yield('page', 'generic')"
+    data-locale="{{ $webLocale }}"
     data-maps-key="{{ config('homeservice.google_maps_browser_key') }}"
     data-maps-js="{{ filled(config('homeservice.google_maps_browser_key')) ? '1' : '0' }}"
     data-conversation-id="@yield('conversation_id', '')"
     data-provider-id="{{ $providerId ?? '' }}"
     class="font-sans"
 >
-<a class="skip-link" href="#main">Məzmuna keç</a>
+<a class="skip-link" href="#main" data-i18n="web.skip">Məzmuna keç</a>
 
 <header class="site-header">
     <div class="site-header-inner">
-        <a href="{{ route('web.app') }}" class="logo" aria-label="My Sancho ana səhifə">
+        <a href="{{ route('web.app') }}" class="logo" aria-label="My Sancho ana səhifə" data-i18n-aria="web.logo_aria">
             <img
                 src="{{ asset('images/brand/logo-color.jpg') }}"
                 alt=""
@@ -51,40 +61,53 @@
             <span class="logo-text">My Sancho</span>
         </a>
 
-        <div class="header-auth" id="header-auth">
-            <div id="auth-guest" class="auth-guest">
-                <a href="{{ route('web.login') }}" class="btn btn-primary btn-auth" aria-label="Daxil ol və ya qeydiyyat">
-                    <span class="label-full">Daxil ol</span>
-                    <span class="label-short">Giriş</span>
-                </a>
+        <div class="header-tools">
+            <div class="lang-switcher" id="lang-switcher" role="group" aria-label="Language">
+                @foreach ($webSupportedLocales as $code)
+                    <button
+                        type="button"
+                        class="lang-btn {{ $webLocale === $code ? 'is-active' : '' }}"
+                        data-locale="{{ $code }}"
+                        aria-pressed="{{ $webLocale === $code ? 'true' : 'false' }}"
+                    >{{ strtoupper($code) }}</button>
+                @endforeach
             </div>
-            <div id="auth-user" class="auth-user" hidden>
-                <div class="user-menu" id="user-menu">
-                    <div class="auth-user-cluster">
-                        <button type="button" class="auth-user-card" id="user-menu-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="user-menu-panel">
-                            <span class="auth-avatar" id="auth-avatar" aria-hidden="true">?</span>
-                            <span class="auth-user-meta">
-                                <strong id="auth-name">İstifadəçi</strong>
-                                <span class="auth-user-subline">
-                                    <span id="auth-role">—</span>
+
+            <div class="header-auth" id="header-auth">
+                <div id="auth-guest" class="auth-guest">
+                    <a href="{{ route('web.login') }}" class="btn btn-primary btn-auth" aria-label="Daxil ol və ya qeydiyyat" data-i18n-aria="web.auth.cta_aria">
+                        <span class="label-full" data-i18n="web.auth.login">Daxil ol</span>
+                        <span class="label-short" data-i18n="web.auth.login_short">Giriş</span>
+                    </a>
+                </div>
+                <div id="auth-user" class="auth-user" hidden>
+                    <div class="user-menu" id="user-menu">
+                        <div class="auth-user-cluster">
+                            <button type="button" class="auth-user-card" id="user-menu-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="user-menu-panel">
+                                <span class="auth-avatar" id="auth-avatar" aria-hidden="true">?</span>
+                                <span class="auth-user-meta">
+                                    <strong id="auth-name" data-i18n-fallback="web.auth.user">İstifadəçi</strong>
+                                    <span class="auth-user-subline">
+                                        <span id="auth-role">—</span>
+                                    </span>
                                 </span>
-                            </span>
-                            <span class="user-menu-caret" aria-hidden="true"></span>
-                        </button>
-                        <button type="button" class="auth-status-pill" id="auth-profile-status" hidden aria-label="Profil statusu"></button>
-                    </div>
-                    <div class="user-menu-panel" id="user-menu-panel" hidden role="menu">
-                        <a href="{{ route('web.request') }}" class="user-menu-item {{ $path === 'request' ? 'active' : '' }}" data-role="client" role="menuitem">Sorğu yarat</a>
-                        <a href="{{ route('web.requests') }}" class="user-menu-item {{ $path === 'requests' ? 'active' : '' }}" data-role="client" role="menuitem">Sorğularım</a>
-                        <a href="{{ route('web.jobs') }}" class="user-menu-item {{ $path === 'jobs' ? 'active' : '' }}" data-role="provider" role="menuitem">Gələn işlər</a>
-                        <a href="{{ route('web.chat') }}" class="user-menu-item {{ str_starts_with($path, 'chat') ? 'active' : '' }}" data-role="any" role="menuitem">Chat</a>
-                        <a href="{{ route('web.profile') }}" class="user-menu-item {{ $path === 'profile' ? 'active' : '' }}" data-role="any" role="menuitem">Profil</a>
-                        <a href="{{ route('web.categories') }}" class="user-menu-item {{ $path === 'categories' ? 'active' : '' }}" data-role="provider" role="menuitem">Kateqoriyalar</a>
-                        <button type="button" id="header-logout" class="user-menu-item user-menu-danger" data-role="any" role="menuitem">Çıxış</button>
+                                <span class="user-menu-caret" aria-hidden="true"></span>
+                            </button>
+                            <button type="button" class="auth-status-pill" id="auth-profile-status" hidden aria-label="Profil statusu"></button>
+                        </div>
+                        <div class="user-menu-panel" id="user-menu-panel" hidden role="menu">
+                            <a href="{{ route('web.request') }}" class="user-menu-item {{ $path === 'request' ? 'active' : '' }}" data-role="client" role="menuitem" data-i18n="web.nav.request">Sorğu yarat</a>
+                            <a href="{{ route('web.requests') }}" class="user-menu-item {{ $path === 'requests' ? 'active' : '' }}" data-role="client" role="menuitem" data-i18n="web.nav.requests">Sorğularım</a>
+                            <a href="{{ route('web.jobs') }}" class="user-menu-item {{ $path === 'jobs' ? 'active' : '' }}" data-role="provider" role="menuitem" data-i18n="web.nav.jobs">Gələn işlər</a>
+                            <a href="{{ route('web.chat') }}" class="user-menu-item {{ str_starts_with($path, 'chat') ? 'active' : '' }}" data-role="any" role="menuitem" data-i18n="web.nav.chat">Chat</a>
+                            <a href="{{ route('web.profile') }}" class="user-menu-item {{ $path === 'profile' ? 'active' : '' }}" data-role="any" role="menuitem" data-i18n="web.nav.profile">Profil</a>
+                            <a href="{{ route('web.categories') }}" class="user-menu-item {{ $path === 'categories' ? 'active' : '' }}" data-role="provider" role="menuitem" data-i18n="web.nav.categories">Kateqoriyalar</a>
+                            <button type="button" id="header-logout" class="user-menu-item user-menu-danger" data-role="any" role="menuitem" data-i18n="web.nav.logout">Çıxış</button>
+                        </div>
                     </div>
                 </div>
+                <strong id="auth-status" class="sr-only" aria-live="polite">Qonaq</strong>
             </div>
-            <strong id="auth-status" class="sr-only" aria-live="polite">Qonaq</strong>
         </div>
     </div>
 </header>
@@ -139,7 +162,14 @@
 <footer class="site-footer">
     <div class="site-footer-inner">
         <p class="footer-brand">My Sancho</p>
-        <p class="footer-copy">Ailə ilə xidmətçini birləşdirən marketplace</p>
+        <p class="footer-copy" data-i18n="web.footer.tagline">Ailə ilə xidmətçini birləşdirən marketplace</p>
+        @if ($staticMenuPages->isNotEmpty())
+            <nav class="footer-links" id="footer-links" aria-label="Info">
+                @foreach ($staticMenuPages as $item)
+                    <a href="{{ route('web.static', ['slug' => $item['slug']]) }}">{{ $item['title'] }}</a>
+                @endforeach
+            </nav>
+        @endif
     </div>
 </footer>
 
@@ -148,7 +178,7 @@
 <div id="page-loader" class="page-loader" hidden aria-live="assertive" aria-busy="false">
     <div class="page-loader-card">
         <div class="page-loader-spinner" aria-hidden="true"></div>
-        <p>Yüklənir…</p>
+        <p data-i18n="web.loading">Yüklənir…</p>
     </div>
 </div>
 

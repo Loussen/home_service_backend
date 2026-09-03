@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\StaticPage;
 use Illuminate\View\View;
 
 class WebAppController extends Controller
@@ -60,6 +61,21 @@ class WebAppController extends Controller
     public function providerShow(int $id): View
     {
         return view('web.provider-public', ['providerId' => $id]);
+    }
+
+    public function staticPage(string $slug): View
+    {
+        $locale = app()->getLocale();
+        $page = StaticPage::query()
+            ->published()
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        return view('web.static-page', [
+            'page' => $page,
+            'pageTitle' => $page->titleFor($locale),
+            'pageBody' => $page->bodyFor($locale),
+        ]);
     }
 }
 

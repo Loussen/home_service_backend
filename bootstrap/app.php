@@ -12,8 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->encryptCookies(except: [
+            'mysancho_locale',
+        ]);
         $middleware->api(append: [
             App\Http\Middleware\LogUserActivity::class,
+        ]);
+        $middleware->web(append: [
+            App\Http\Middleware\SetWebLocale::class,
         ]);
         $middleware->alias([
             'role' => App\Http\Middleware\EnsureRole::class,

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\StaticPage;
 use App\Repositories\AppStringRepository;
 
 class BootstrapService
@@ -24,6 +25,7 @@ class BootstrapService
             'supported_locales' => $this->strings->supportedLocales(),
             'locale_labels' => $this->strings->localeLabels(),
             'strings' => $stringMap,
+            'static_pages' => $this->staticPageMenu($locale),
             'config' => [
                 'max_category_tags' => $hs['max_category_tags'],
                 'fees' => [
@@ -60,5 +62,17 @@ class BootstrapService
                 'push_configured' => $this->fcm->isConfigured() && ($hs['feature_push'] ?? true),
             ],
         ];
+    }
+
+    /**
+     * @return list<array{slug: string, title: string, sort_order: int}>
+     */
+    private function staticPageMenu(string $locale): array
+    {
+        try {
+            return StaticPage::menuItems($locale)->all();
+        } catch (\Throwable) {
+            return [];
+        }
     }
 }

@@ -1,6 +1,7 @@
 (function () {
     var API = '/api/v1';
     var tokenKey = 'mysancho_web_token';
+    var localeKey = 'mysancho_locale';
     var requestKey = 'mysancho_web_request_id';
     var selectedCategoriesKey = 'mysancho_selected_categories';
     var page = document.body ? document.body.getAttribute('data-page') : '';
@@ -12,9 +13,110 @@
     var matchMarkerById = {};
     var matchInfoById = {};
     var selectedMatchId = null;
+    var bootstrapCache = null;
+    var stringMap = {};
 
     function el(id) {
         return document.getElementById(id);
+    }
+
+    function getStoredLocale() {
+        try {
+            var fromBody = document.body && document.body.getAttribute('data-locale');
+            var fromLs = localStorage.getItem(localeKey);
+            return (fromLs || fromBody || 'az').toLowerCase();
+        } catch (e) {
+            return 'az';
+        }
+    }
+
+    function setStoredLocale(code) {
+        code = String(code || 'az').toLowerCase();
+        try {
+            localStorage.setItem(localeKey, code);
+        } catch (e) {}
+        document.cookie =
+            localeKey + '=' + encodeURIComponent(code) + ';path=/;max-age=31536000;SameSite=Lax';
+        if (document.documentElement) {
+            document.documentElement.lang = code;
+        }
+        if (document.body) {
+            document.body.setAttribute('data-locale', code);
+        }
+    }
+
+    function t(key, fallback) {
+        if (stringMap && stringMap[key] != null && stringMap[key] !== '') {
+            return String(stringMap[key]);
+        }
+        return fallback != null ? fallback : key;
+    }
+
+    window.t = t;
+
+    function applyI18n() {
+        document.querySelectorAll('[data-i18n]').forEach(function (node) {
+            var key = node.getAttribute('data-i18n');
+            if (!key) return;
+            var value = t(key, node.textContent);
+            if (value) node.textContent = value;
+        });
+        document.querySelectorAll('[data-i18n-aria]').forEach(function (node) {
+            var key = node.getAttribute('data-i18n-aria');
+            if (!key) return;
+            var value = t(key, node.getAttribute('aria-label') || '');
+            if (value) node.setAttribute('aria-label', value);
+        });
+        var footer = el('footer-links');
+        if (footer && bootstrapCache && Array.isArray(bootstrapCache.static_pages)) {
+            footer.innerHTML = bootstrapCache.static_pages
+                .map(function (item) {
+                    return (
+                        '<a href="/p/' +
+                        esc(item.slug) +
+                        '">' +
+                        esc(item.title) +
+                        '</a>'
+                    );
+                })
+                .join('');
+        }
+    }
+
+    function loadBootstrap() {
+        var locale = getStoredLocale();
+        return fetch(API + '/bootstrap?locale=' + encodeURIComponent(locale), {
+            headers: { Accept: 'application/json', 'Accept-Language': locale },
+        })
+            .then(function (res) {
+                return res.json().catch(function () {
+                    return {};
+                });
+            })
+            .then(function (json) {
+                var data = json && json.data ? json.data : null;
+                if (!data) return null;
+                bootstrapCache = data;
+                stringMap = data.strings || {};
+                applyI18n();
+                return data;
+            })
+            .catch(function () {
+                return null;
+            });
+    }
+
+    function bindLangSwitcher() {
+        var root = el('lang-switcher');
+        if (!root) return;
+        root.querySelectorAll('[data-locale]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var code = btn.getAttribute('data-locale');
+                if (!code || code === getStoredLocale()) return;
+                setStoredLocale(code);
+                window.location.reload();
+            });
+        });
     }
 
     function esc(value) {
@@ -156,10 +258,10 @@
      */
     function showAppAlert(opts) {
         opts = opts || {};
-        var title = opts.title || 'My Sancho';
+        var title = opts.title || t('web.alert.brand', 'My Sancho');
         var message = opts.message || '';
         var tone = opts.tone || 'info';
-        var confirmLabel = opts.confirmLabel || 'Başa düşdüm';
+        var confirmLabel = opts.confirmLabel || t('web.alert.ok', 'Başa düşdüm');
 
         return new Promise(function (resolve) {
             var existing = document.getElementById('app-alert-modal');
@@ -3835,10 +3937,14 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         hidePageLoader();
+        setStoredLocale(getStoredLocale());
+        bindLangSwitcher();
         hydrateRoleFromSnap();
         bindPage();
-        setAuthStatus().then(function () {
-            var publicPages = { login: 1, dashboard: 1 };
+        loadBootstrap().then(function () {
+            return setAuthStatus();
+        }).then(function () {
+            var publicPages = { login: 1, dashboard: 1, 'static-page': 1 };
             if (!publicPages[page] && !getToken()) {
                 go('/login');
                 return;

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\PlacesController;
 use App\Http\Controllers\Api\ProviderProfileController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceRequestController;
+use App\Http\Controllers\Api\StaticPageController;
 use App\Http\Controllers\Api\VerificationDocumentController;
 use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,10 @@ Route::prefix('v1')->group(function () {
     ]));
 
     Route::get('/bootstrap', [BootstrapController::class, 'show']);
+
+    Route::get('/pages', [StaticPageController::class, 'index']);
+    Route::get('/pages/{slug}', [StaticPageController::class, 'show'])
+        ->where('slug', '[a-z0-9\-]+');
 
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/cities', [LocationController::class, 'cities']);
