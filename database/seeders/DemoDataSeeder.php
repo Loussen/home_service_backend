@@ -30,9 +30,17 @@ class DemoDataSeeder extends Seeder
 
         DB::transaction(function () use ($categories) {
             $this->seedClients();
+            $this->seedExtraClients();
             $providers = $this->seedProviders($categories);
+            $this->seedExtraProviders($providers);
             $this->seedServiceRequestsAndMatches($providers, $categories);
         });
+
+        $clientCount = User::query()->where('active_role', 'client')->count();
+        $providerCount = User::query()->where('active_role', 'provider')->count();
+        $leafCount = Category::query()
+            ->whereDoesntHave('children')
+            ->count();
 
         $this->command?->newLine();
         $this->command?->info('=== Demo login (OTP: 123456) ===');
@@ -41,13 +49,16 @@ class DemoDataSeeder extends Seeder
             [
                 ['client', '+994501111111', 'Aysel Məmmədova', 'Balans 25 AZN · aktiv sorğular'],
                 ['client', '+994502222222', 'Rəşad Əliyev', 'Balans 5 AZN'],
+                ['client', '+994511000001 … 020', 'Bulk ailə', '20 əlavə müştəri'],
                 ['provider', '+994503333333', 'Nərminə Həsənova', 'Dayə · verified · VIP'],
                 ['provider', '+994504444444', 'Kamran Quliyev', 'Təmizlik · multi-profile'],
-                ['provider', '+994505555555', 'Leyla İsmayılova', 'Baxıcı + dayə'],
+                ['provider', '+994505555555', 'Leyla İsmayılova', 'Yaşlı baxımı + dayə'],
                 ['provider', '+994506666666', 'Orxan Məlikov', 'Aşpaz'],
                 ['provider', '+994507777777', 'Günel Rəhimli', 'Repetitor'],
+                ['provider', '+994512000001 … 030', 'Bulk icraçı', '30 əlavə icraçı'],
             ]
         );
+        $this->command?->info("Kateqoriya (yarpaq): {$leafCount} · Ailə: {$clientCount} · İcraçı: {$providerCount}");
     }
 
     private function seedClients(): void
@@ -78,6 +89,123 @@ class DemoDataSeeder extends Seeder
                     'phone_verified_at' => now(),
                 ]
             );
+        }
+    }
+
+    private function seedExtraClients(): void
+    {
+        $first = ['Nigar', 'Elvin', 'Aytən', 'Tural', 'Sevinc', 'Rauf', 'Günay', 'Farid', 'Ləman', 'Kamal', 'Aynurə', 'Vüsal', 'Nərmin', 'Elnur', 'Fidan', 'Murad', 'Könül', 'Səid', 'Ülviyyə', 'Cavid'];
+        $last = ['Hüseynov', 'Əliyeva', 'Qasımov', 'Məmmədova', 'İbrahimov', 'Rzayeva', 'Nəsirov', 'Səfərova', 'Abbasov', 'Karimova'];
+
+        for ($i = 1; $i <= 20; $i++) {
+            $name = $first[($i - 1) % count($first)].' '.$last[($i - 1) % count($last)];
+            User::updateOrCreate(
+                ['phone' => sprintf('+994511%06d', $i)],
+                [
+                    'name' => $name,
+                    'active_role' => 'client',
+                    'role_chosen_at' => now(),
+                    'balance' => [10, 15, 20, 30, 50][$i % 5],
+                    'status' => 'active',
+                    'welcome_bonus_granted' => true,
+                    'phone_verified_at' => now(),
+                ]
+            );
+        }
+    }
+
+    /**
+     * @param  array<int, ProviderProfile>  $createdProfiles
+     */
+    private function seedExtraProviders(array &$createdProfiles): void
+    {
+        $leaves = Category::query()
+            ->whereDoesntHave('children')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        if ($leaves->isEmpty()) {
+            return;
+        }
+
+        $first = ['Aygün', 'Rəşad', 'Könül', 'Elçin', 'Səbinə', 'Tərlan', 'Nəzakət', 'Orxan', 'Gülşən', 'Kamran', 'Lalə', 'Vüqar', 'Sevda', 'Anar', 'Mehriban', 'Zaur', 'Arzu', 'Elvin', 'Nigar', 'Samir', 'Fəridə', 'Ramil', 'Şəhla', 'Ilqar', 'Aytac', 'Namiq', 'Günel', 'Kənan', 'Ülviyyə', 'Tofiq'];
+        $last = ['Məmmədov', 'Əliyev', 'Hüseynova', 'Quliyeva', 'İsmayılov', 'Rəhimova', 'Mustafayev', 'Həsənova', 'Karimov', 'Nəsirova'];
+        $districts = [
+            ['Nərimanov', 40.4093, 49.8671],
+            ['Yasamal', 40.3777, 49.8920],
+            ['Nəsimi', 40.3950, 49.8500],
+            ['Səbail', 40.3660, 49.8350],
+            ['Xətai', 40.3830, 49.8720],
+            ['Binəqədi', 40.4520, 49.8260],
+            ['Nizami', 40.4180, 49.9400],
+            ['Sabunçu', 40.4420, 49.9480],
+        ];
+        $slots = ['morning', 'afternoon', 'evening', 'night'];
+
+        for ($i = 1; $i <= 30; $i++) {
+            $leaf = $leaves[($i - 1) % $leaves->count()];
+            $place = $districts[($i - 1) % count($districts)];
+            $name = $first[($i - 1) % count($first)].' '.$last[($i - 1) % count($last)];
+            $jitter = (($i % 7) - 3) * 0.004;
+
+            $user = User::updateOrCreate(
+                ['phone' => sprintf('+994512%06d', $i)],
+                [
+                    'name' => $name,
+                    'active_role' => 'provider',
+                    'role_chosen_at' => now(),
+                    'balance' => 8 + ($i % 6) * 5,
+                    'status' => 'active',
+                    'welcome_bonus_granted' => true,
+                    'phone_verified_at' => now(),
+                ]
+            );
+
+            $title = $leaf->name_az.' — '.$place[0];
+            $profile = ProviderProfile::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'category_id' => $leaf->id,
+                    'title' => $title,
+                ],
+                [
+                    'bio' => $place[0].' ərazisində '.$leaf->name_az.' xidməti. Seed profil.',
+                    'is_verified' => $i % 3 === 0,
+                    'is_vip' => $i % 7 === 0,
+                    'latitude' => $place[1] + $jitter,
+                    'longitude' => $place[2] + $jitter,
+                    'city' => 'Bakı',
+                    'district' => $place[0],
+                    'rating_avg' => round(4.0 + ($i % 10) * 0.09, 2),
+                    'rating_count' => 3 + ($i % 25),
+                    'bumped_at' => $i % 5 === 0 ? now()->subHours($i % 12) : null,
+                    'vip_expires_at' => $i % 7 === 0 ? now()->addDays(10) : null,
+                    'is_active' => true,
+                ]
+            );
+
+            $profile->syncCategoryIds([$leaf->id]);
+
+            Schedule::query()->where('provider_profile_id', $profile->id)->delete();
+            $days = $i % 2 === 0 ? [1, 2, 3, 4, 5] : [1, 2, 3, 4, 5, 6, 7];
+            $timeSlots = $i % 3 === 0 ? $slots : ['morning', 'afternoon', 'evening'];
+            $rows = [];
+            foreach ($days as $day) {
+                foreach ($timeSlots as $slot) {
+                    $rows[] = [
+                        'provider_profile_id' => $profile->id,
+                        'day_of_week' => $day,
+                        'time_slot' => $slot,
+                        'is_available' => true,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+            }
+            Schedule::insert($rows);
+
+            $createdProfiles[] = $profile;
         }
     }
 
@@ -167,7 +295,7 @@ class DemoDataSeeder extends Seeder
                 'balance' => 12.00,
                 'profiles' => [
                     [
-                        'slug' => 'caregiver',
+                        'slug' => 'elderly-care',
                         'title' => 'Yaşlı baxımı (evdə)',
                         'bio' => 'Qocalara qulluq, dərman nəzarəti, gəzinti yoldaşı.',
                         'lat' => 40.3950,
