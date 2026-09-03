@@ -317,28 +317,24 @@
     }
 
     .user-menu-status {
-        @apply mx-1 mb-1 mt-0.5 rounded-xl bg-parchment px-3.5 py-2.5;
-    }
-
-    .user-menu-status-label {
-        @apply block text-[0.68rem] font-bold uppercase tracking-wide text-mute;
+        @apply flex cursor-default items-center justify-between gap-3 hover:bg-transparent;
     }
 
     .user-menu-status-value {
-        @apply mt-0.5 block text-sm font-extrabold text-ink;
+        @apply shrink-0 rounded-full bg-parchment px-2.5 py-0.5 text-[0.72rem] font-bold text-ink;
     }
 
     .user-menu-status.is-approved .user-menu-status-value {
-        @apply text-[#5F9A6B];
+        @apply bg-sage text-[#3F6B48];
     }
 
     .user-menu-status.is-rejected .user-menu-status-value,
     .user-menu-status.is-blocked .user-menu-status-value {
-        @apply text-brand;
+        @apply bg-brand-peach text-brand;
     }
 
     .user-menu-status.is-pending .user-menu-status-value {
-        @apply text-dusk;
+        @apply bg-dusk-soft text-dusk;
     }
 
     .user-menu-danger {
