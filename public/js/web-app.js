@@ -1788,9 +1788,6 @@
             }
             refreshRequest()
                 .then(function () {
-                    if (window.history && window.history.replaceState) {
-                        window.history.replaceState({}, '', '/request');
-                    }
                     var results = el('request-results');
                     if (results && results.scrollIntoView) {
                         results.scrollIntoView({ behavior: 'smooth', block: 'start' });
