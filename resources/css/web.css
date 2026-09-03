@@ -148,6 +148,14 @@
         @apply mb-6 border-brand/30 bg-brand-peach/40;
     }
 
+    .card-hero#provider-pending-banner.is-approved {
+        @apply border-sage bg-sage/70;
+    }
+
+    .card-hero#provider-pending-banner.is-rejected {
+        @apply border-brand/40 bg-brand-peach;
+    }
+
     .card-hero#provider-pending-banner h2 {
         @apply mb-2;
     }

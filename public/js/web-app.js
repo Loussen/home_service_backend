@@ -375,6 +375,7 @@
         document.documentElement.removeAttribute('data-auth-role');
         try {
             localStorage.removeItem('mysancho_web_auth_snap');
+            localStorage.removeItem('mysancho_approval_status');
         } catch (e) {}
         if (guest) guest.hidden = false;
         if (user) user.hidden = true;
@@ -414,19 +415,15 @@
     }
 
     function hydrateRoleFromSnap() {
-        if (!getToken() || meCache) return;
+        if (!getToken()) return;
         try {
             var snap = JSON.parse(localStorage.getItem('mysancho_web_auth_snap') || 'null');
             if (!snap || (snap.active_role !== 'client' && snap.active_role !== 'provider')) {
                 return;
             }
-            meCache = {
-                active_role: snap.active_role,
-                name: snap.name || '',
-                needs_role: false,
-            };
             document.documentElement.setAttribute('data-auth-role', snap.active_role);
-            applyRoleUi();
+            // meCache-i natamam doldurma — profil avatarı və s. itib getməsin
+            applyRoleUi(snap.active_role);
         } catch (e) {}
     }
 
@@ -440,6 +437,10 @@
         return api('/auth/me').then(function (me) {
             meCache = unwrapMe(me);
             showUserAuth(meCache);
+            if (typeof window.__onAuthReady === 'function') {
+                window.__onAuthReady(meCache);
+            }
+            notifyApprovalChange(meCache);
         }).catch(function () {
             clearToken();
             meCache = null;
@@ -448,6 +449,28 @@
             log('Token etibarsız oldu, silindi');
             toast('warning', 'Sessiya bitdi, yenidən login et.');
         });
+    }
+
+    function notifyApprovalChange(me) {
+        if (!me || me.active_role !== 'provider' || !me.provider_approval_status) return;
+        var key = 'mysancho_approval_status';
+        var prev = null;
+        try {
+            prev = localStorage.getItem(key);
+        } catch (e) {}
+        var cur = me.provider_approval_status;
+        if (prev && prev !== cur) {
+            if (cur === 'approved') {
+                toast('success', me.provider_approval_message || 'Hesabınız təsdiqləndi');
+            } else if (cur === 'rejected') {
+                toast('error', me.provider_approval_message || 'Hesabınız rədd edildi');
+            } else if (cur === 'pending') {
+                toast('info', me.provider_approval_message || 'Təsdiq gözlənilir');
+            }
+        }
+        try {
+            localStorage.setItem(key, cur);
+        } catch (e) {}
     }
 
     function logoutEverywhere() {
@@ -502,11 +525,13 @@
     }
 
     function currentRole() {
-        return meCache && meCache.active_role;
+        return (meCache && meCache.active_role)
+            || document.documentElement.getAttribute('data-auth-role')
+            || null;
     }
 
-    function applyRoleUi() {
-        var role = currentRole();
+    function applyRoleUi(forcedRole) {
+        var role = forcedRole || currentRole();
         document.querySelectorAll('[data-role]').forEach(function (node) {
             var need = node.getAttribute('data-role');
             if (!need || need === 'any') {
@@ -2007,6 +2032,18 @@
             var fallback = el('profile-avatar-fallback');
             if (img) {
                 if (me.avatar_url) {
+                    img.onload = function () {
+                        img.hidden = false;
+                        if (fallback) fallback.hidden = true;
+                    };
+                    img.onerror = function () {
+                        img.hidden = true;
+                        if (fallback) {
+                            fallback.hidden = false;
+                            var n0 = (me.name || me.phone || '?').trim();
+                            fallback.textContent = n0.charAt(0).toUpperCase();
+                        }
+                    };
                     img.src = me.avatar_url;
                     img.hidden = false;
                     if (fallback) fallback.hidden = true;
@@ -2034,18 +2071,35 @@
                 }
             }
             if (pendingBanner) {
-                var needs = me.needs_provider_approval === true
-                    || (me.active_role === 'provider' && me.provider_approval_status !== 'approved');
-                pendingBanner.hidden = !needs;
-                if (pendingText && me.provider_approval_message) {
-                    pendingText.textContent = me.provider_approval_message;
+                var status = me.active_role === 'provider' ? me.provider_approval_status : null;
+                if (!status) {
+                    pendingBanner.hidden = true;
+                } else {
+                    pendingBanner.hidden = false;
+                    pendingBanner.classList.remove('is-pending', 'is-approved', 'is-rejected');
+                    pendingBanner.classList.add('is-' + status);
+                    var titleEl = el('provider-pending-title');
+                    var titles = {
+                        pending: 'Təsdiq gözlənilir',
+                        approved: 'Hesab təsdiqləndi',
+                        rejected: 'Hesab rədd edilib',
+                    };
+                    if (titleEl) titleEl.textContent = titles[status] || 'Təsdiq statusu';
+                    if (pendingText) {
+                        pendingText.textContent = me.provider_approval_message
+                            || (status === 'approved'
+                                ? 'İndi iş sorğuları gələ bilər.'
+                                : status === 'rejected'
+                                    ? 'Dəstəklə əlaqə saxlayın və ya profili yeniləyin.'
+                                    : 'Sorğunuz 1 saat ərzində baxılacaq.');
+                    }
                 }
             }
             applyRoleUi();
         }
 
         function ensureMe() {
-            if (meCache) {
+            if (meCache && meCache.id) {
                 paintUserCard(meCache);
                 return Promise.resolve(meCache);
             }
@@ -2055,6 +2109,10 @@
                 return meCache;
             });
         }
+
+        window.__onAuthReady = function (me) {
+            if (me) paintUserCard(me);
+        };
 
         function renderProviderList() {
             var list = el('provider-list');

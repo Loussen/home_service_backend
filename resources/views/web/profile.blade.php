@@ -11,8 +11,8 @@
         <p id="profile-hero-sub-provider" data-role="provider" hidden>Şəxsi məlumat, şəkil, audio və xidmətçi profili.</p>
     </header>
 
-    <section class="card card-hero" id="provider-pending-banner" hidden>
-        <h2>Təsdiq gözlənilir</h2>
+    <section class="card card-hero approval-banner" id="provider-pending-banner" hidden>
+        <h2 id="provider-pending-title">Təsdiq gözlənilir</h2>
         <p id="provider-pending-text" class="muted">
             Sorğunuz 1 saat ərzində baxılacaq. Təsdiqləndikdən sonra iş sorğuları gələcək.
         </p>

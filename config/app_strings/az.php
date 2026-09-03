@@ -282,6 +282,7 @@ return array (
   'match.reason.bump_hint' => 'İcraçı profilini ödənişlə müvəqqəti yüksəldib — axtarışda daha görünəndir. Qalan: {hours} saat.',
   'provider.approval.pending_title' => 'Təsdiq gözlənilir',
   'provider.approval.pending' => 'Sorğunuz 1 saat ərzində baxılacaq. Təsdiqləndikdən sonra iş sorğuları gələcək.',
+  'provider.approval.approved' => 'Hesabınız təsdiqləndi. İndi iş sorğuları gələ bilər.',
   'provider.approval.rejected_title' => 'Qeydiyyat rədd edilib',
   'provider.approval.rejected' => 'Hesabınız rədd edilib. Dəstəklə əlaqə saxlayın və ya profili tamamlayın.',
   'provider.approval.complete_profile' => 'Profili tamamla',

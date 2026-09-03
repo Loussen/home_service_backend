@@ -18,6 +18,20 @@ class UserResource extends JsonResource
         $avatar = $this->avatar_url;
         if ($avatar && ! str_starts_with($avatar, 'http')) {
             $avatar = Storage::disk('public')->url($avatar);
+            if (! str_starts_with($avatar, 'http')) {
+                $avatar = url($avatar);
+            }
+        }
+
+        $approvalMessage = null;
+        if ($this->isProvider() && $this->provider_approval_status) {
+            $approvalMessage = match ($this->provider_approval_status) {
+                'rejected' => filled($this->provider_rejection_note)
+                    ? 'Hesabınız rədd edilib: '.$this->provider_rejection_note
+                    : 'Hesabınız rədd edilib. Dəstəklə əlaqə saxlayın.',
+                'approved' => 'Hesabınız təsdiqləndi. İndi iş sorğuları gələ bilər.',
+                default => 'Sorğunuz 1 saat ərzində baxılacaq. Təsdiqləndikdən sonra iş sorğuları gələcək.',
+            };
         }
 
         return [
@@ -33,12 +47,7 @@ class UserResource extends JsonResource
                 $this->provider_approval_status === 'rejected',
                 $this->provider_rejection_note
             ),
-            'provider_approval_message' => $this->when(
-                $this->needsProviderApproval(),
-                $this->provider_approval_status === 'rejected'
-                    ? 'Hesabınız rədd edilib. Dəstəklə əlaqə saxlayın.'
-                    : 'Sorğunuz 1 saat ərzində baxılacaq. Təsdiqləndikdən sonra iş sorğuları gələcək.'
-            ),
+            'provider_approval_message' => $approvalMessage,
             'balance' => (float) $this->balance,
             'status' => $this->status,
             'welcome_bonus_granted' => $this->welcome_bonus_granted,
