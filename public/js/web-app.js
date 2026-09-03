@@ -763,11 +763,56 @@
         };
     }
 
+    function closeAllMatchInfoWindows() {
+        Object.keys(matchInfoById).forEach(function (id) {
+            var info = matchInfoById[id];
+            if (info && info.window) info.window.close();
+        });
+    }
+
+    function closeMeInfoWindow() {
+        var handle = pickerMaps.map;
+        if (handle && handle.meInfo) handle.meInfo.close();
+    }
+
+    function updateMeMarkerInfo(address) {
+        var handle = pickerMaps.map;
+        if (!handle || !handle.marker || !handle.map || !window.google) return;
+
+        var title = 'Sizin sorğu göndərdiyiniz ünvan';
+        var html =
+            '<div class="map-info">' +
+            '<strong>' + esc(title) + '</strong>' +
+            (address ? '<div>' + esc(address) + '</div>' : '') +
+            '</div>';
+
+        if (!handle.meInfo) {
+            handle.meInfo = new window.google.maps.InfoWindow();
+            handle.marker.addListener('click', function () {
+                closeAllMatchInfoWindows();
+                selectedMatchId = null;
+                document.querySelectorAll('.match-card').forEach(function (card) {
+                    card.classList.remove('is-active');
+                });
+                Object.keys(matchMarkerById).forEach(function (id) {
+                    var m = matchMarkerById[id];
+                    var info = matchInfoById[id];
+                    var vip = !!(info && info.isVip);
+                    if (m) m.setIcon(providerMarkerIcon(false, vip));
+                });
+                handle.meInfo.open(handle.map, handle.marker);
+            });
+        }
+        handle.meInfo.setContent(html);
+        handle.marker.setTitle(title);
+    }
+
     function focusMatchOnMap(providerId) {
         var handle = pickerMaps.map;
         var marker = matchMarkerById[providerId];
         if (!handle || !handle.map || !marker || !window.google) return;
         selectedMatchId = providerId;
+        closeMeInfoWindow();
         Object.keys(matchMarkerById).forEach(function (id) {
             var m = matchMarkerById[id];
             var info = matchInfoById[id];
@@ -853,11 +898,14 @@
                         strokeColor: '#ffffff',
                         strokeWeight: 3,
                     });
-                    handle.marker.setTitle('Sənin yerin');
                 } else {
                     handle.marker.setIcon(null);
-                    handle.marker.setTitle('');
                 }
+                updateMeMarkerInfo(
+                    (request && (request.address || request._resolvedAddress)) ||
+                    (el('place-search') && el('place-search').value) ||
+                    ''
+                );
             }
 
             matches.forEach(function (m) {
@@ -1261,7 +1309,7 @@
     }
 
     function paintRequestForm(req) {
-        if (!req) return;
+        if (!req) return Promise.resolve(null);
         if (el('text') && req.transcribed_text) {
             el('text').value = req.transcribed_text;
         }
@@ -1271,14 +1319,6 @@
         if (el('lng') && req.longitude != null) {
             el('lng').value = String(req.longitude);
         }
-        if (el('place-search') && req.address) {
-            el('place-search').value = req.address;
-        }
-        if (el('place-label')) {
-            el('place-label').textContent = req.address
-                ? ('Ünvan: ' + req.address)
-                : 'Google Map. Ünvan axtar və ya “Mənim yerim”.';
-        }
         if (el('request-info')) {
             el('request-info').textContent =
                 'Sorğu #' + req.id + ' · ' + (req.status || '—') +
@@ -1286,15 +1326,48 @@
                     ? (' · ' + req.matches.length + ' uyğunluq')
                     : '');
         }
-        var handle = pickerMaps.map;
-        if (handle && handle.map && req.latitude != null && req.longitude != null && window.google) {
-            var pos = {
-                lat: Number(req.latitude),
-                lng: Number(req.longitude),
-            };
-            handle.map.setCenter(pos);
-            if (handle.marker) handle.marker.setPosition(pos);
+
+        function applyAddress(address) {
+            req._resolvedAddress = address || '';
+            if (el('place-search') && address) {
+                el('place-search').value = address;
+            }
+            if (el('place-label')) {
+                el('place-label').textContent = address
+                    ? ('Ünvan: ' + address)
+                    : 'Google Map. Ünvan axtar və ya “Mənim yerim”.';
+            }
+            var handle = pickerMaps.map;
+            if (handle && handle.map && req.latitude != null && req.longitude != null && window.google) {
+                var pos = {
+                    lat: Number(req.latitude),
+                    lng: Number(req.longitude),
+                };
+                handle.map.setCenter(pos);
+                if (handle.marker) handle.marker.setPosition(pos);
+                if (handle.apply) handle.apply(pos.lat, pos.lng, address || undefined);
+            }
+            updateMeMarkerInfo(address || '');
+            return req;
         }
+
+        if (req.address) {
+            return Promise.resolve(applyAddress(req.address));
+        }
+
+        if (req.latitude == null || req.longitude == null) {
+            return Promise.resolve(applyAddress(''));
+        }
+
+        return api(
+            '/places/reverse?lat=' + encodeURIComponent(req.latitude) +
+            '&lng=' + encodeURIComponent(req.longitude) +
+            '&language=az'
+        ).then(function (place) {
+            return applyAddress(place.formatted_address || '');
+        }).catch(function () {
+            return applyAddress('');
+        });
     }
 
     function refreshRequest() {
@@ -1304,10 +1377,11 @@
             return Promise.resolve();
         }
         return api('/service-requests/' + id).then(function (req) {
-            paintRequestForm(req);
-            renderMatches(req);
-            log('Sorğu yeniləndi', { id: req.id, status: req.status });
-            return req;
+            return paintRequestForm(req).then(function (painted) {
+                renderMatches(painted || req);
+                log('Sorğu yeniləndi', { id: req.id, status: req.status });
+                return painted || req;
+            });
         }).catch(function (e) {
             toast('warning', 'Sorğu yenilənmədi');
             log('Sorğu yenilənmədi: ' + e.message);
@@ -1759,6 +1833,7 @@
                         text: el('text').value.trim(),
                         latitude: Number(el('lat').value || 0),
                         longitude: Number(el('lng').value || 0),
+                        address: (el('place-search') && el('place-search').value.trim()) || null,
                         is_urgent: false,
                     }),
                 });
