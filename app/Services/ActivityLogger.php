@@ -27,6 +27,16 @@ class ActivityLogger
         }
 
         $action = $this->resolveAction($request->method(), $path);
+        if (
+            in_array($action['key'], ['provider.profile_update', 'provider.profile_create'], true)
+            && $request->has('category_ids')
+        ) {
+            $action = [
+                'key' => 'provider.categories',
+                'label' => 'Kateqoriyalar yeniləndi',
+            ];
+        }
+
         $this->write([
             'user_id' => $user?->id,
             'action' => $action['key'],
@@ -40,6 +50,7 @@ class ActivityLogger
             'properties' => array_filter([
                 'phone' => $request->input('phone'),
                 'role' => $request->input('role'),
+                'category_ids' => $request->input('category_ids'),
             ]),
         ]);
     }

@@ -2000,7 +2000,31 @@
 
     function bindCategoriesPage() {
         var selected = getSelectedCategories();
-        api('/categories').then(function (items) {
+
+        function syncFromProfile() {
+            return api('/provider-profiles').then(function (items) {
+                var list = items || [];
+                if (!list[0]) return;
+                var ids = (list[0].category_ids || []).map(Number).filter(Boolean);
+                if (!ids.length && list[0].categories) {
+                    ids = (list[0].categories || []).map(function (c) {
+                        return Number(c.id);
+                    }).filter(Boolean);
+                }
+                if (!ids.length) return;
+                selected.length = 0;
+                ids.forEach(function (id) { selected.push(id); });
+                setSelectedCategories(selected);
+            }).catch(function () {});
+        }
+
+        var load = (currentRole() === 'provider')
+            ? syncFromProfile()
+            : Promise.resolve();
+
+        load.then(function () {
+            return api('/categories');
+        }).then(function (items) {
             renderCategoryChips('category-list', 'selected-count', selected, items || []);
             log('Kateqoriyalar yükləndi', { count: (items || []).length });
         }).catch(function (e) {
@@ -2009,9 +2033,41 @@
         });
 
         el('save-categories').addEventListener('click', function () {
+            if (!selected.length) {
+                toast('warning', 'Ən azı 1 kateqoriya seç');
+                return;
+            }
+            var btn = el('save-categories');
+            if (btn) btn.disabled = true;
             setSelectedCategories(selected);
-            toast('success', 'Kateqoriya seçimi yadda saxlanıldı');
-            log('Kateqoriya seçimi saxlanıldı', { selected: selected });
+            requireRole('provider').then(function () {
+                return api('/provider-profiles');
+            }).then(function (items) {
+                var list = items || [];
+                var payload = { category_ids: selected.slice() };
+                if (list[0] && list[0].id) {
+                    return api('/provider-profiles/' + list[0].id, {
+                        method: 'PUT',
+                        body: JSON.stringify(payload),
+                    });
+                }
+                return api('/provider-profiles', {
+                    method: 'POST',
+                    body: JSON.stringify(Object.assign({
+                        title: (meCache && meCache.name) || 'Profil',
+                        latitude: 40.4093,
+                        longitude: 49.8671,
+                    }, payload)),
+                });
+            }).then(function () {
+                toast('success', 'Kateqoriyalar saxlanıldı');
+                log('Kateqoriya seçimi saxlanıldı', { selected: selected });
+            }).catch(function (e) {
+                toast('error', e.message || 'Kateqoriyalar saxlanmadı');
+                log('Kateqoriya saxlama xətası: ' + e.message);
+            }).finally(function () {
+                if (btn) btn.disabled = false;
+            });
         });
     }
 

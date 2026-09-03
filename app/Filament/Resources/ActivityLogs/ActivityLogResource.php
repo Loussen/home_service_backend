@@ -176,6 +176,7 @@ class ActivityLogResource extends Resource
                         'chat.offer' => 'Təklif',
                         'provider.profile_create' => 'Profil yaradıldı',
                         'provider.profile_update' => 'Profil yeniləndi',
+                        'provider.categories' => 'Kateqoriyalar yeniləndi',
                         'provider.audio' => 'Audio intro',
                         'admin.provider_approve' => 'İcraçı təsdiqi',
                         'admin.provider_reject' => 'İcraçı rədd',
