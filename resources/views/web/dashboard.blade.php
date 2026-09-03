@@ -16,6 +16,7 @@
             </div>
             <div class="dash-cta" id="dash-cta-client" hidden>
                 <a href="{{ route('web.request') }}" class="btn btn-primary btn-inline">Yeni sorğu</a>
+                <a href="{{ route('web.requests') }}" class="btn btn-outline btn-inline">Sorğularım</a>
                 <a href="{{ route('web.chat') }}" class="btn btn-outline btn-inline">Söhbətlər</a>
             </div>
             <div class="dash-cta" id="dash-cta-provider" hidden>

@@ -27,6 +27,7 @@
             <p class="muted">Xidmət axtarır, CONNECT edir və chat-də razılaşırsınız. İcraçı profili bu hesabda yoxdur.</p>
             <div class="stack mt">
                 <a href="{{ route('web.request') }}" class="btn btn-primary">Yeni sorğu yarat</a>
+                <a href="{{ route('web.requests') }}" class="btn btn-outline">Sorğularım</a>
                 <a href="{{ route('web.chat') }}" class="btn btn-outline">Söhbətlər</a>
                 <a href="{{ route('web.app') }}" class="btn btn-outline">Ana səhifə</a>
             </div>

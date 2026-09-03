@@ -8,6 +8,7 @@
         <p class="eyebrow">Ailə · Client</p>
         <h1>Sorğu yarat</h1>
         <p>Nə lazımdır, harada və nə vaxt — yaz, uyğun xidmətçiləri gör və CONNECT et.</p>
+        <p class="mt"><a href="{{ route('web.requests') }}" class="btn btn-outline btn-inline">Sorğularım</a></p>
     </header>
 
     <section id="role-gate-client" class="card card-hero" hidden>

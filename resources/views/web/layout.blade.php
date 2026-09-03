@@ -64,6 +64,7 @@
                     </button>
                     <div class="user-menu-panel" id="user-menu-panel" hidden role="menu">
                         <a href="{{ route('web.request') }}" class="user-menu-item {{ $path === 'request' ? 'active' : '' }}" data-role="client" role="menuitem">Sorğu yarat</a>
+                        <a href="{{ route('web.requests') }}" class="user-menu-item {{ $path === 'requests' ? 'active' : '' }}" data-role="client" role="menuitem">Sorğularım</a>
                         <a href="{{ route('web.jobs') }}" class="user-menu-item {{ $path === 'jobs' ? 'active' : '' }}" data-role="provider" role="menuitem">Gələn işlər</a>
                         <a href="{{ route('web.chat') }}" class="user-menu-item {{ str_starts_with($path, 'chat') ? 'active' : '' }}" data-role="any" role="menuitem">Chat</a>
                         <a href="{{ route('web.profile') }}" class="user-menu-item {{ $path === 'profile' ? 'active' : '' }}" data-role="any" role="menuitem">Profil</a>

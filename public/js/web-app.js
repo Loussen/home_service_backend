@@ -421,6 +421,9 @@
 
         var jobsPanel = el('jobs-panel');
         if (jobsPanel) jobsPanel.hidden = role !== 'provider';
+
+        var requestsPanel = el('requests-panel');
+        if (requestsPanel) requestsPanel.hidden = role !== 'client';
     }
 
     function embedSrc(lat, lng) {
@@ -2157,6 +2160,111 @@
         loadJobs();
     }
 
+    function requestStatusLabel(status) {
+        var map = {
+            processing: 'Emal olunur',
+            active: 'Aktiv',
+            matched: 'Uyğunlaşıb',
+            completed: 'Tamamlanıb',
+            cancelled: 'Ləğv edilib',
+        };
+        return map[status] || status || '—';
+    }
+
+    function formatRequestWhen(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '';
+        try {
+            return d.toLocaleString('az-AZ', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch (e) {
+            return d.toLocaleString();
+        }
+    }
+
+    function bindRequestsPage() {
+        function ensureMe() {
+            if (meCache) return Promise.resolve(meCache);
+            if (!getToken()) return Promise.resolve(null);
+            return api('/auth/me').then(function (me) {
+                meCache = unwrapMe(me);
+                return meCache;
+            }).catch(function () {
+                return null;
+            });
+        }
+
+        function loadRequests() {
+            var box = el('requests-list');
+            if (box) box.textContent = 'Yüklənir…';
+
+            return ensureMe().then(function () {
+                applyRoleUi();
+                if (currentRole() !== 'client') {
+                    if (box) {
+                        box.textContent = currentRole()
+                            ? 'Bu səhifə yalnız ailə üçündür.'
+                            : 'Giriş lazımdır';
+                    }
+                    return null;
+                }
+                return api('/service-requests');
+            }).then(function (items) {
+                if (items == null) return;
+                if (!box) return;
+                var rows = Array.isArray(items) ? items : ((items && items.data) || []);
+                if (!rows.length) {
+                    box.innerHTML =
+                        '<p class="muted">Hələ sorğu yoxdur. Yeni sorğu yazın — uyğun xidmətçilər burada qalacaq.</p>';
+                    return;
+                }
+                box.innerHTML = '';
+                rows.forEach(function (req) {
+                    var cat = (req.category && (req.category.name_az || req.category.name)) || '';
+                    var text = req.transcribed_text || req.address || '';
+                    var count = req.matches_count != null ? req.matches_count : 0;
+                    var card = document.createElement('article');
+                    card.className = 'match-card';
+                    card.innerHTML =
+                        (req.is_urgent ? '<span class="pill">TƏCİLİ</span>' : '') +
+                        '<h3>Sorğu #' + esc(req.id) + (cat ? ' · ' + esc(cat) : '') + '</h3>' +
+                        (text ? '<p class="reasons">' + esc(text) + '</p>' : '') +
+                        '<p class="meta">' +
+                        esc(requestStatusLabel(req.status)) +
+                        ' · ' +
+                        esc(count) +
+                        ' uyğunluq' +
+                        (req.created_at ? ' · ' + esc(formatRequestWhen(req.created_at)) : '') +
+                        '</p>' +
+                        '<button type="button" class="btn btn-primary open-request">Nəticələrə bax</button>';
+                    card.querySelector('.open-request').addEventListener('click', function () {
+                        go('/request?requestId=' + encodeURIComponent(req.id));
+                    });
+                    box.appendChild(card);
+                });
+                log('Sorğular yükləndi', { count: rows.length });
+            }).catch(function (e) {
+                if (box) box.textContent = 'Sorğular yüklənmədi';
+                toast('error', 'Sorğular yüklənmədi');
+                log('Requests xətası: ' + (e && e.message ? e.message : e));
+            });
+        }
+
+        window.__reloadRequests = loadRequests;
+
+        var refresh = el('refresh-requests');
+        if (refresh && refresh.dataset.bound !== '1') {
+            refresh.dataset.bound = '1';
+            refresh.addEventListener('click', loadRequests);
+        }
+        loadRequests();
+    }
+
     function bindHeaderAuth() {
         var menu = el('user-menu');
         var toggle = el('user-menu-toggle');
@@ -2300,6 +2408,7 @@
         if (page === 'categories') bindCategoriesPage();
         if (page === 'profile') bindProfilePage();
         if (page === 'request') bindRequestPage();
+        if (page === 'requests') bindRequestsPage();
         if (page === 'provider-public') bindProviderPublicPage();
         if (page === 'chat') bindChatPage();
         if (page === 'chat-thread') bindChatThreadPage();
@@ -2324,6 +2433,9 @@
             }
             if (page === 'jobs' && typeof window.__reloadJobs === 'function') {
                 window.__reloadJobs();
+            }
+            if (page === 'requests' && typeof window.__reloadRequests === 'function') {
+                window.__reloadRequests();
             }
         });
     });

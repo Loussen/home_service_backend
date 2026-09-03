@@ -22,6 +22,11 @@ class WebAppController extends Controller
         return view('web.request');
     }
 
+    public function requests(): View
+    {
+        return view('web.requests');
+    }
+
     public function onboarding(): View
     {
         return view('web.onboarding');
