@@ -82,6 +82,19 @@ class UserForm
                             '<audio controls src="'.e($url).'" style="width:100%;max-width:360px;"></audio>'
                         );
                     }),
+                Placeholder::make('provider_bio')
+                    ->label('Bio')
+                    ->content(function ($record): string {
+                        if (! $record || $record->active_role !== 'provider') {
+                            return '—';
+                        }
+                        $profile = $record->relationLoaded('providerProfiles')
+                            ? $record->providerProfiles->sortByDesc('id')->first()
+                            : $record->providerProfiles()->latest('id')->first();
+                        $bio = trim((string) ($profile?->bio ?? ''));
+
+                        return $bio !== '' ? $bio : 'Bio yoxdur';
+                    }),
                 Placeholder::make('location_city')
                     ->label('Şəhər')
                     ->content(fn ($record) => self::locationField($record, 'city')),
