@@ -45,11 +45,19 @@
         }
     }
 
-    function t(key, fallback) {
+    function t(key, fallback, params) {
+        var value;
         if (stringMap && stringMap[key] != null && stringMap[key] !== '') {
-            return String(stringMap[key]);
+            value = String(stringMap[key]);
+        } else {
+            value = fallback != null ? String(fallback) : key;
         }
-        return fallback != null ? fallback : key;
+        if (params) {
+            value = value.replace(/\{(\w+)\}/g, function (_, name) {
+                return params[name] != null ? String(params[name]) : '';
+            });
+        }
+        return value;
     }
 
     window.t = t;
@@ -674,8 +682,8 @@
     }
 
     function roleLabel(role) {
-        if (role === 'provider') return 'İcraçı';
-        if (role === 'client') return 'Ailə';
+        if (role === 'provider') return t('web.role.provider', 'İcraçı');
+        if (role === 'client') return t('web.role.client', 'Ailə');
         return role || '—';
     }
 
@@ -3864,11 +3872,19 @@
             if (clientCta) clientCta.hidden = true;
             if (providerCta) providerCta.hidden = true;
             if (stats) stats.hidden = true;
-            if (title) title.textContent = 'Evdə lazım olanı tez tap';
-            if (subtitle) {
-                subtitle.textContent =
-                    'Səs və ya mətnlə sorğu göndər — uyğun xidmətçilər çıxır, CONNECT ilə yazış.';
+            if (title) {
+                title.textContent = t(
+                    'web.dashboard.guest_title',
+                    'Evdə lazım olanı tez tap'
+                );
             }
+            if (subtitle) {
+                subtitle.textContent = t(
+                    'web.dashboard.guest_subtitle',
+                    'Səs və ya mətnlə sorğu göndər — uyğun xidmətçilər çıxır, CONNECT ilə yazış.'
+                );
+            }
+            applyI18n();
             applyRoleUi();
         }
 
@@ -3878,33 +3894,70 @@
             if (clientCta) clientCta.hidden = isProvider;
             if (providerCta) providerCta.hidden = !isProvider;
             if (stats) stats.hidden = false;
-            var name = (me.name && String(me.name).trim()) || me.phone || 'dostum';
-            if (title) title.textContent = 'Salam, ' + name;
+            var name =
+                (me.name && String(me.name).trim()) ||
+                me.phone ||
+                t('web.dashboard.friend_fallback', 'dostum');
+            if (title) {
+                title.textContent = t('web.dashboard.hello', 'Salam, {name}', {
+                    name: name,
+                });
+            }
             if (subtitle) {
                 subtitle.textContent = isProvider
-                    ? 'Gələn işlərə bax, chat-də təklif göndər.'
-                    : 'Yeni sorğu yarat, match-lərdən CONNECT et.';
+                    ? t(
+                          'web.dashboard.provider_subtitle',
+                          'Gələn işlərə bax, chat-də təklif göndər.'
+                      )
+                    : t(
+                          'web.dashboard.client_subtitle',
+                          'Yeni sorğu yarat, match-lərdən CONNECT et.'
+                      );
             }
             var bal = el('dash-balance');
             var conn = el('dash-connect');
             var connLabel = el('dash-connect-label');
             var role = el('dash-role');
             if (bal) {
-                bal.textContent = (Number(me.balance || 0)).toFixed(0) + ' AZN';
+                bal.textContent =
+                    Number(me.balance || 0).toFixed(0) + ' AZN';
             }
             if (conn) {
                 var q = me.connect_quota || {};
                 if (me.active_role === 'client') {
                     if (q.in_free_window) {
-                        var left = q.free_remaining != null
-                            ? q.free_remaining
-                            : Math.max(0, (q.free_quota || 5) - (q.free_used || 0));
-                        conn.textContent = left + '/' + (q.free_quota || 5) + ' pulsuz';
-                        if (connLabel) connLabel.textContent = 'Pulsuz CONNECT';
+                        var left =
+                            q.free_remaining != null
+                                ? q.free_remaining
+                                : Math.max(
+                                      0,
+                                      (q.free_quota || 5) - (q.free_used || 0)
+                                  );
+                        conn.textContent = t(
+                            'web.dashboard.connect_free',
+                            '{left}/{quota} free',
+                            {
+                                left: left,
+                                quota: q.free_quota || 5,
+                            }
+                        );
+                        if (connLabel) {
+                            connLabel.textContent = t(
+                                'web.dashboard.connect_free_label',
+                                'Free CONNECT'
+                            );
+                        }
                     } else {
                         var fee = Number(q.fee || 0);
-                        var feeText = Number.isInteger(fee) ? String(fee) : fee.toFixed(1);
-                        conn.textContent = feeText + ' AZN · ' + (q.daily_remaining != null ? q.daily_remaining : '—');
+                        var feeText = Number.isInteger(fee)
+                            ? String(fee)
+                            : fee.toFixed(1);
+                        conn.textContent =
+                            feeText +
+                            ' AZN · ' +
+                            (q.daily_remaining != null
+                                ? q.daily_remaining
+                                : '—');
                         if (connLabel) connLabel.textContent = 'CONNECT';
                     }
                 } else {
@@ -3913,6 +3966,7 @@
                 }
             }
             if (role) role.textContent = roleLabel(me.active_role);
+            applyI18n();
             applyRoleUi();
         }
 
@@ -3924,12 +3978,14 @@
             paintUser(meCache);
             return;
         }
-        api('/auth/me').then(function (me) {
-            meCache = unwrapMe(me);
-            paintUser(meCache);
-        }).catch(function () {
-            paintGuest();
-        });
+        api('/auth/me')
+            .then(function (me) {
+                meCache = unwrapMe(me);
+                paintUser(meCache);
+            })
+            .catch(function () {
+                paintGuest();
+            });
     }
 
     function bindPage() {
