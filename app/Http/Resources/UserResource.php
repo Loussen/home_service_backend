@@ -2,9 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Repositories\AppStringRepository;
 use App\Support\BumpQuota;
 use App\Support\ConnectQuota;
 use App\Support\ProfileCompleteness;
+use App\Support\RequestLocale;
 use App\Support\UrgentQuota;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,6 +17,13 @@ class UserResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $strings = app(AppStringRepository::class)->forLocale(RequestLocale::from($request));
+        $t = static function (string $key, string $fallback) use ($strings): string {
+            $value = $strings[$key] ?? $fallback;
+
+            return is_string($value) && $value !== '' ? $value : $fallback;
+        };
+
         $avatar = $this->avatar_url;
         if ($avatar && ! str_starts_with($avatar, 'http')) {
             $avatar = Storage::disk('public')->url($avatar);
@@ -27,10 +36,16 @@ class UserResource extends JsonResource
         if ($this->isProvider() && $this->provider_approval_status) {
             $approvalMessage = match ($this->provider_approval_status) {
                 'rejected' => filled($this->provider_rejection_note)
-                    ? 'Hesabınız rədd edilib: '.$this->provider_rejection_note
-                    : 'Hesabınız rədd edilib. Dəstəklə əlaqə saxlayın.',
-                'approved' => 'Hesabınız təsdiqləndi. İndi iş sorğuları gələ bilər.',
-                default => 'Sorğunuz 1 saat ərzində baxılacaq. Təsdiqləndikdən sonra iş sorğuları gələcək.',
+                    ? $t('provider.approval.rejected', 'Hesabınız rədd edilib. Dəstəklə əlaqə saxlayın.').' '.$this->provider_rejection_note
+                    : $t('provider.approval.rejected', 'Hesabınız rədd edilib. Dəstəklə əlaqə saxlayın.'),
+                'approved' => $t(
+                    'provider.approval.approved',
+                    'Hesabınız təsdiqləndi. İndi iş sorğuları gələ bilər.'
+                ),
+                default => $t(
+                    'provider.approval.pending',
+                    'Sorğunuz 1 saat ərzində baxılacaq. Təsdiqləndikdən sonra iş sorğuları gələcək.'
+                ),
             };
         }
 
@@ -38,13 +53,13 @@ class UserResource extends JsonResource
         $profileStatusLabel = null;
         if ($this->isBlocked()) {
             $profileStatus = 'blocked';
-            $profileStatusLabel = 'Bloklanıb';
+            $profileStatusLabel = $t('web.status.blocked', 'Bloklanıb');
         } elseif ($this->isProvider()) {
             $profileStatus = $this->provider_approval_status ?: 'pending';
             $profileStatusLabel = match ($profileStatus) {
-                'approved' => 'Təsdiqli',
-                'rejected' => 'Rədd edilib',
-                default => 'Gözləyir',
+                'approved' => $t('web.status.approved', 'Təsdiqli'),
+                'rejected' => $t('web.status.rejected', 'Rədd edilib'),
+                default => $t('web.status.pending', 'Gözləyir'),
             };
         }
 

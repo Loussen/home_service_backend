@@ -75,20 +75,52 @@
             var value = t(key, node.getAttribute('aria-label') || '');
             if (value) node.setAttribute('aria-label', value);
         });
-        var footer = el('footer-links');
-        if (footer && bootstrapCache && Array.isArray(bootstrapCache.static_pages)) {
-            footer.innerHTML = bootstrapCache.static_pages
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(function (node) {
+            var key = node.getAttribute('data-i18n-placeholder');
+            if (!key) return;
+            var value = t(key, node.getAttribute('placeholder') || '');
+            if (value) node.setAttribute('placeholder', value);
+        });
+        var roleEl = el('auth-role');
+        if (roleEl) {
+            var code = roleEl.getAttribute('data-role-code');
+            if (!code) {
+                try {
+                    var snap = JSON.parse(localStorage.getItem('mysancho_web_auth_snap') || 'null');
+                    code = snap && snap.active_role;
+                } catch (e) {}
+            }
+            if (code === 'client' || code === 'provider') {
+                roleEl.setAttribute('data-role-code', code);
+                roleEl.textContent = roleLabel(code);
+            }
+        }
+        function fillInfoNav(nav) {
+            if (!nav || !bootstrapCache || !Array.isArray(bootstrapCache.static_pages)) return;
+            var path = (window.location.pathname || '').replace(/^\/+|\/+$/g, '');
+            nav.innerHTML = bootstrapCache.static_pages
                 .map(function (item) {
-                    return (
-                        '<a href="/p/' +
-                        esc(item.slug) +
-                        '">' +
-                        esc(item.title) +
-                        '</a>'
-                    );
+                    var href = '/p/' + item.slug;
+                    var active = path === 'p/' + item.slug ? ' class="active"' : '';
+                    return '<a href="' + esc(href) + '"' + active + '>' + esc(item.title) + '</a>';
                 })
                 .join('');
         }
+        fillInfoNav(el('footer-links'));
+        fillInfoNav(el('header-info-nav'));
+        fillInfoNav(el('header-info-drawer-nav'));
+    }
+
+    function bindInfoNavToggle() {
+        var btn = el('header-info-toggle');
+        var drawer = el('header-info-drawer');
+        if (!btn || !drawer) return;
+        btn.addEventListener('click', function () {
+            var open = drawer.hidden;
+            drawer.hidden = !open;
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            document.documentElement.classList.toggle('info-nav-open', open);
+        });
     }
 
     function loadBootstrap() {
@@ -107,6 +139,7 @@
                 bootstrapCache = data;
                 stringMap = data.strings || {};
                 applyI18n();
+                if (meCache) paintProfileStatus(meCache);
                 return data;
             })
             .catch(function () {
@@ -494,16 +527,18 @@
         if (me.is_blocked || me.status === 'blocked') {
             status = 'blocked';
         }
-        var label = me.profile_status_label || ({
-            approved: 'Təsdiqli',
-            rejected: 'Rədd edilib',
-            blocked: 'Bloklanıb',
-            pending: 'Gözləyir',
-        })[status] || status;
+        var label = ({
+            approved: t('web.status.approved', 'Təsdiqli'),
+            rejected: t('web.status.rejected', 'Rədd edilib'),
+            blocked: t('web.status.blocked', 'Bloklanıb'),
+            pending: t('web.status.pending', 'Gözləyir'),
+        })[status] || me.profile_status_label || status;
         pill.textContent = label;
         pill.className = 'auth-status-pill is-' + status + (status === 'rejected' ? ' is-clickable' : '');
         pill.hidden = false;
-        pill.title = status === 'rejected' ? 'Rədd səbəbinə bax' : 'Profil statusu: ' + label;
+        pill.title = status === 'rejected'
+            ? t('web.status.rejected_hint', 'Rədd səbəbinə bax')
+            : t('web.status.aria', 'Profil statusu') + ': ' + label;
         pill.disabled = status !== 'rejected';
         pill.onclick = status === 'rejected'
             ? function (e) {
@@ -737,6 +772,9 @@
                 initial: initial,
             }));
         } catch (e) {}
+        if (roleEl && me.active_role) {
+            roleEl.setAttribute('data-role-code', me.active_role);
+        }
         applyRoleUi();
         paintProfileStatus(me);
         paintConnectHint(me);
@@ -1445,7 +1483,7 @@
                     selected.splice(idx, 1);
                 } else {
                     if (selected.length >= 3) {
-                        toast('warning', 'Maksimum 3 kateqoriya seçilə bilər');
+                        toast('warning', t('web.categories.max_three', 'Maksimum 3 kateqoriya seçilə bilər'));
                         return;
                     }
                     selected.push(id);
@@ -1514,7 +1552,7 @@
                         selected.splice(idx, 1);
                     } else {
                         if (selected.length >= 3) {
-                            toast('warning', 'Maksimum 3 kateqoriya seçilə bilər');
+                            toast('warning', t('web.categories.max_three', 'Maksimum 3 kateqoriya seçilə bilər'));
                             return;
                         }
                         selected.push(id);
@@ -2442,15 +2480,15 @@
             return api('/categories');
         }).then(function (items) {
             renderCategoryChips('category-list', 'selected-count', selected, items || []);
-            log('Kateqoriyalar yükləndi', { count: (items || []).length });
+            log(t('web.categories.log_loaded', 'Kateqoriyalar yükləndi'), { count: (items || []).length });
         }).catch(function (e) {
-            toast('error', 'Kateqoriyalar yüklənmədi');
-            log('Kateqoriya xətası: ' + e.message);
+            toast('error', t('web.categories.load_error', 'Kateqoriyalar yüklənmədi'));
+            log(t('web.categories.log_error', 'Kateqoriya xətası') + ': ' + e.message);
         });
 
         el('save-categories').addEventListener('click', function () {
             if (!selected.length) {
-                toast('warning', 'Ən azı 1 kateqoriya seç');
+                toast('warning', t('web.categories.need_one', 'Ən azı 1 kateqoriya seç'));
                 return;
             }
             var btn = el('save-categories');
@@ -2470,17 +2508,17 @@
                 return api('/provider-profiles', {
                     method: 'POST',
                     body: JSON.stringify(Object.assign({
-                        title: (meCache && meCache.name) || 'Profil',
+                        title: (meCache && meCache.name) || t('web.nav.profile', 'Profil'),
                         latitude: 40.4093,
                         longitude: 49.8671,
                     }, payload)),
                 });
             }).then(function () {
-                toast('success', 'Kateqoriyalar saxlanıldı');
-                log('Kateqoriya seçimi saxlanıldı', { selected: selected });
+                toast('success', t('web.categories.saved', 'Kateqoriyalar saxlanıldı'));
+                log(t('web.categories.saved', 'Kateqoriyalar saxlanıldı'), { selected: selected });
             }).catch(function (e) {
-                toast('error', e.message || 'Kateqoriyalar saxlanmadı');
-                log('Kateqoriya saxlama xətası: ' + e.message);
+                toast('error', e.message || t('web.categories.save_error', 'Kateqoriyalar saxlanmadı'));
+                log(t('web.categories.save_error', 'Kateqoriyalar saxlanmadı') + ': ' + e.message);
             }).finally(function () {
                 if (btn) btn.disabled = false;
             });
@@ -4008,6 +4046,7 @@
         hidePageLoader();
         setStoredLocale(getStoredLocale());
         bindLangSwitcher();
+        bindInfoNavToggle();
         hydrateRoleFromSnap();
         bindPage();
         loadBootstrap().then(function () {

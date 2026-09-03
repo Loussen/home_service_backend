@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    {{-- Production: static CSS (serverdə Node/Vite lazım deyil). Local `npm run dev` → public/hot. --}}
     @if (file_exists(public_path('hot')))
         @vite(['resources/css/web.css'])
     @else
@@ -34,8 +33,8 @@
     $path = trim(request()->path(), '/');
     $webLocale = $webLocale ?? 'az';
     $webSupportedLocales = $webSupportedLocales ?? ['az', 'en', 'ru'];
-    $webLocaleLabels = $webLocaleLabels ?? ['az' => 'Azərbaycan', 'en' => 'English', 'ru' => 'Русский'];
     $staticMenuPages = $staticMenuPages ?? collect();
+    $isStaticPath = str_starts_with($path, 'p/');
 @endphp
 <body
     data-page="@yield('page', 'generic')"
@@ -50,18 +49,45 @@
 
 <header class="site-header">
     <div class="site-header-inner">
-        <a href="{{ route('web.app') }}" class="logo" aria-label="My Sancho ana səhifə" data-i18n-aria="web.logo_aria">
-            <img
-                src="{{ asset('images/brand/logo-color.jpg') }}"
-                alt=""
-                class="logo-img"
-                width="40"
-                height="40"
-            >
-            <span class="logo-text">My Sancho</span>
-        </a>
+        <div class="header-brand-row">
+            <a href="{{ route('web.app') }}" class="logo" aria-label="My Sancho ana səhifə" data-i18n-aria="web.logo_aria">
+                <img
+                    src="{{ asset('images/brand/logo-color.jpg') }}"
+                    alt=""
+                    class="logo-img"
+                    width="40"
+                    height="40"
+                >
+                <span class="logo-text">My Sancho</span>
+            </a>
+
+            @if ($staticMenuPages->isNotEmpty())
+                <nav class="header-info-nav" id="header-info-nav" aria-label="Info">
+                    @foreach ($staticMenuPages as $item)
+                        <a
+                            href="{{ route('web.static', ['slug' => $item['slug']]) }}"
+                            class="{{ $path === 'p/'.$item['slug'] ? 'active' : '' }}"
+                        >{{ $item['title'] }}</a>
+                    @endforeach
+                </nav>
+            @endif
+        </div>
 
         <div class="header-tools">
+            @if ($staticMenuPages->isNotEmpty())
+                <button
+                    type="button"
+                    class="header-info-toggle"
+                    id="header-info-toggle"
+                    aria-expanded="false"
+                    aria-controls="header-info-drawer"
+                    data-i18n-aria="web.nav.info_menu"
+                    aria-label="Məlumat"
+                >
+                    <span class="header-info-toggle-bars" aria-hidden="true"></span>
+                </button>
+            @endif
+
             <div class="lang-switcher" id="lang-switcher" role="group" aria-label="Language">
                 @foreach ($webSupportedLocales as $code)
                     <button
@@ -86,14 +112,14 @@
                             <button type="button" class="auth-user-card" id="user-menu-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="user-menu-panel">
                                 <span class="auth-avatar" id="auth-avatar" aria-hidden="true">?</span>
                                 <span class="auth-user-meta">
-                                    <strong id="auth-name" data-i18n-fallback="web.auth.user">İstifadəçi</strong>
+                                    <strong id="auth-name">İstifadəçi</strong>
                                     <span class="auth-user-subline">
                                         <span id="auth-role">—</span>
                                     </span>
                                 </span>
                                 <span class="user-menu-caret" aria-hidden="true"></span>
                             </button>
-                            <button type="button" class="auth-status-pill" id="auth-profile-status" hidden aria-label="Profil statusu"></button>
+                            <button type="button" class="auth-status-pill" id="auth-profile-status" hidden aria-label="Profil statusu" data-i18n-aria="web.status.aria"></button>
                         </div>
                         <div class="user-menu-panel" id="user-menu-panel" hidden role="menu">
                             <a href="{{ route('web.request') }}" class="user-menu-item {{ $path === 'request' ? 'active' : '' }}" data-role="client" role="menuitem" data-i18n="web.nav.request">Sorğu yarat</a>
@@ -110,6 +136,19 @@
             </div>
         </div>
     </div>
+
+    @if ($staticMenuPages->isNotEmpty())
+        <div class="header-info-drawer" id="header-info-drawer" hidden>
+            <nav class="header-info-drawer-nav" id="header-info-drawer-nav" aria-label="Info">
+                @foreach ($staticMenuPages as $item)
+                    <a
+                        href="{{ route('web.static', ['slug' => $item['slug']]) }}"
+                        class="{{ $path === 'p/'.$item['slug'] ? 'active' : '' }}"
+                    >{{ $item['title'] }}</a>
+                @endforeach
+            </nav>
+        </div>
+    @endif
 </header>
 <script>
     (function () {
@@ -125,7 +164,10 @@
             var roleEl = document.getElementById('auth-role');
             var avatar = document.getElementById('auth-avatar');
             if (nameEl && snap.name) nameEl.textContent = snap.name;
-            if (roleEl && snap.role) roleEl.textContent = snap.role;
+            if (roleEl && snap.active_role) {
+                roleEl.setAttribute('data-role-code', snap.active_role);
+                if (snap.role) roleEl.textContent = snap.role;
+            }
             if (avatar && snap.initial) avatar.textContent = snap.initial;
             var role = snap.active_role;
             if (role === 'client' || role === 'provider') {
@@ -142,7 +184,6 @@
 </div>
 
 <script>
-    // Rol UI: API-dən əvvəl snap ilə — ailə/xidmətçi flash olmasın
     (function () {
         try {
             var role = document.documentElement.getAttribute('data-auth-role');
@@ -182,7 +223,6 @@
     </div>
 </div>
 
-{{-- Logic qalır static (Vite yalnız CSS). Eyni /api/v1. --}}
 <script src="{{ asset('js/web-app.js') }}?v={{ @filemtime(public_path('js/web-app.js')) }}"></script>
 </body>
 </html>
