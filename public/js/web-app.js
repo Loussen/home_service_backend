@@ -1195,7 +1195,9 @@
         var back = el('pp-back');
 
         if (back) {
-            back.href = requestId ? '/request' : '/';
+            back.href = requestId
+                ? '/request?requestId=' + encodeURIComponent(requestId)
+                : '/';
         }
 
         api('/providers/' + profileId).then(function (provider) {
@@ -1258,6 +1260,43 @@
         paintConnectHint(meCache);
     }
 
+    function paintRequestForm(req) {
+        if (!req) return;
+        if (el('text') && req.transcribed_text) {
+            el('text').value = req.transcribed_text;
+        }
+        if (el('lat') && req.latitude != null) {
+            el('lat').value = String(req.latitude);
+        }
+        if (el('lng') && req.longitude != null) {
+            el('lng').value = String(req.longitude);
+        }
+        if (el('place-search') && req.address) {
+            el('place-search').value = req.address;
+        }
+        if (el('place-label')) {
+            el('place-label').textContent = req.address
+                ? ('Ünvan: ' + req.address)
+                : 'Google Map. Ünvan axtar və ya “Mənim yerim”.';
+        }
+        if (el('request-info')) {
+            el('request-info').textContent =
+                'Sorğu #' + req.id + ' · ' + (req.status || '—') +
+                (req.matches && req.matches.length
+                    ? (' · ' + req.matches.length + ' uyğunluq')
+                    : '');
+        }
+        var handle = pickerMaps.map;
+        if (handle && handle.map && req.latitude != null && req.longitude != null && window.google) {
+            var pos = {
+                lat: Number(req.latitude),
+                lng: Number(req.longitude),
+            };
+            handle.map.setCenter(pos);
+            if (handle.marker) handle.marker.setPosition(pos);
+        }
+    }
+
     function refreshRequest() {
         var id = getRequestId();
         if (!id) {
@@ -1265,14 +1304,14 @@
             return Promise.resolve();
         }
         return api('/service-requests/' + id).then(function (req) {
-            if (el('request-info')) {
-                el('request-info').textContent = 'Sorğu #' + req.id + ' · ' + req.status;
-            }
+            paintRequestForm(req);
             renderMatches(req);
             log('Sorğu yeniləndi', { id: req.id, status: req.status });
+            return req;
         }).catch(function (e) {
             toast('warning', 'Sorğu yenilənmədi');
             log('Sorğu yenilənmədi: ' + e.message);
+            throw e;
         });
     }
 
@@ -1652,9 +1691,9 @@
     }
 
     function bindRequestPage() {
-        // Səhifəyə hər girişdə təmiz forma — son sorğunun nəticələrini avtomatik göstərmə
-        clearRequestId();
-        resetRequestResultsUi();
+        var restoreId = Number(
+            new URLSearchParams(window.location.search).get('requestId') || 0
+        ) || null;
 
         initPickerMap({
             mapId: 'map',
@@ -1664,6 +1703,32 @@
             suggestionsId: 'place-suggestions',
             labelId: 'place-label',
         });
+
+        if (restoreId) {
+            setRequestId(restoreId);
+            if (el('request-info')) {
+                el('request-info').textContent = 'Sorğu #' + restoreId + ' yüklənir…';
+            }
+            if (el('matches')) {
+                el('matches').innerHTML = '<p class="muted">Nəticələr yüklənir…</p>';
+            }
+            refreshRequest()
+                .then(function () {
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({}, '', '/request');
+                    }
+                    var results = el('request-results');
+                    if (results && results.scrollIntoView) {
+                        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                })
+                .catch(function () {
+                    resetRequestResultsUi();
+                });
+        } else {
+            clearRequestId();
+            resetRequestResultsUi();
+        }
 
         var logoutBtn = el('logout');
         if (logoutBtn) {
@@ -1713,7 +1778,7 @@
         el('refresh-request').addEventListener('click', function () {
             refreshRequest().then(function () {
                 toast('info', 'Sorğu yeniləndi');
-            });
+            }).catch(function () {});
         });
     }
 
