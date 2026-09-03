@@ -23,6 +23,13 @@ class AuthService
 
     public function sendOtp(string $phone): array
     {
+        $existing = $this->userRepository->findByPhone($phone);
+        if ($existing && $existing->isBlocked()) {
+            throw ValidationException::withMessages([
+                'phone' => ['Sizin profiliniz admin tərəfindən bloklanıb.'],
+            ]);
+        }
+
         $window = (int) config('homeservice.otp_send_window_minutes', 15);
         $maxSends = (int) config('homeservice.otp_send_max', 3);
         $resendAfter = (int) config('homeservice.otp_resend_seconds', 30);

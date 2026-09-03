@@ -149,6 +149,73 @@
         }, 2600);
     }
 
+    /**
+     * Branded modal alert (replaces native window.alert).
+     * @param {{title?: string, message: string, tone?: string, confirmLabel?: string}} opts
+     * @returns {Promise<void>}
+     */
+    function showAppAlert(opts) {
+        opts = opts || {};
+        var title = opts.title || 'MySancho';
+        var message = opts.message || '';
+        var tone = opts.tone || 'info';
+        var confirmLabel = opts.confirmLabel || 'Başa düşdüm';
+
+        return new Promise(function (resolve) {
+            var existing = document.getElementById('app-alert-modal');
+            if (existing) existing.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'app-alert-modal';
+            modal.className = 'modal app-alert-modal';
+            modal.setAttribute('role', 'alertdialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'app-alert-title');
+            modal.setAttribute('aria-describedby', 'app-alert-message');
+            modal.innerHTML =
+                '<div class="modal-card app-alert-card tone-' + tone + '">' +
+                '<div class="app-alert-icon" aria-hidden="true">' +
+                (tone === 'danger'
+                    ? '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="1.1" fill="currentColor" stroke="none"/></svg>'
+                    : '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="1.1" fill="currentColor" stroke="none"/></svg>') +
+                '</div>' +
+                '<h3 id="app-alert-title">' + escapeHtml(title) + '</h3>' +
+                '<p id="app-alert-message" class="app-alert-message">' + escapeHtml(message) + '</p>' +
+                '<div class="modal-actions app-alert-actions">' +
+                '<button type="button" class="btn btn-primary" id="app-alert-ok">' + escapeHtml(confirmLabel) + '</button>' +
+                '</div></div>';
+
+            document.body.appendChild(modal);
+            document.body.classList.add('app-alert-open');
+
+            function close() {
+                document.body.classList.remove('app-alert-open');
+                modal.remove();
+                resolve();
+            }
+
+            modal.querySelector('#app-alert-ok').addEventListener('click', close);
+            modal.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' || e.key === 'Enter') {
+                    e.preventDefault();
+                    close();
+                }
+            });
+            setTimeout(function () {
+                var btn = modal.querySelector('#app-alert-ok');
+                if (btn) btn.focus();
+            }, 30);
+        });
+    }
+
+    function escapeHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     function getToken() {
         return localStorage.getItem(tokenKey);
     }
@@ -271,9 +338,6 @@
         if (window.__accountBlockedHandled) return;
         window.__accountBlockedHandled = true;
         var msg = message || 'Sizin profiliniz admin tərəfindən bloklanıb.';
-        try {
-            window.alert(msg);
-        } catch (e) {}
         clearToken();
         meCache = null;
         try {
@@ -282,7 +346,14 @@
         } catch (e2) {}
         showGuestAuth();
         applyRoleUi();
-        go('/login');
+        showAppAlert({
+            title: 'Hesab bloklanıb',
+            message: msg,
+            tone: 'danger',
+            confirmLabel: 'Başa düşdüm',
+        }).then(function () {
+            go('/login');
+        });
     }
 
     function paintProfileStatus(me) {
@@ -1850,8 +1921,18 @@
                 toast('success', 'OTP göndərildi');
                 log('OTP göndərildi');
             }).catch(function (e) {
-                toast('error', 'OTP göndərilmədi');
-                log('OTP göndərilmədi: ' + e.message);
+                var msg = (e && e.message) || 'OTP göndərilmədi';
+                if (msg.indexOf('bloklanıb') >= 0 || msg.indexOf('bloklanib') >= 0) {
+                    showAppAlert({
+                        title: 'Hesab bloklanıb',
+                        message: msg,
+                        tone: 'danger',
+                        confirmLabel: 'Başa düşdüm',
+                    });
+                } else {
+                    toast('error', msg);
+                }
+                log('OTP göndərilmədi: ' + msg);
             });
         });
 
@@ -1878,9 +1959,6 @@
                 }, 180);
             }).catch(function (e) {
                 var msg = (e && e.message) || 'Login alınmadı';
-                if (msg.indexOf('bloklanıb') >= 0 || msg.indexOf('bloklanib') >= 0) {
-                    try { window.alert(msg); } catch (err) {}
-                }
                 toast('error', msg);
                 log('Login alınmadı: ' + msg);
             });

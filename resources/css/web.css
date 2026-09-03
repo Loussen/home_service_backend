@@ -818,6 +818,42 @@
         @apply mt-5 flex flex-wrap justify-end gap-2;
     }
 
+    .app-alert-card {
+        @apply max-w-[400px] text-center px-7 py-8;
+    }
+
+    .app-alert-icon {
+        @apply mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-peach text-brand;
+    }
+
+    .app-alert-card.tone-danger .app-alert-icon {
+        @apply bg-[#F3E4DE] text-brand;
+    }
+
+    .app-alert-card.tone-warning .app-alert-icon {
+        @apply bg-[#F7F0E4] text-[#C4872A];
+    }
+
+    .app-alert-card h3 {
+        @apply mb-2 text-center text-[1.35rem];
+    }
+
+    .app-alert-message {
+        @apply m-0 text-[0.95rem] leading-relaxed text-mute;
+    }
+
+    .app-alert-actions {
+        @apply mt-6 justify-center;
+    }
+
+    .app-alert-actions .btn {
+        @apply min-w-[10rem];
+    }
+
+    body.app-alert-open {
+        overflow: hidden;
+    }
+
     .modal-card.provider-preview {
         @apply max-w-[480px] p-0 overflow-hidden;
     }
