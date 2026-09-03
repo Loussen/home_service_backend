@@ -47,11 +47,11 @@ Route::prefix('v1')->group(function () {
         Route::post('device-tokens', [DeviceTokenController::class, 'store']);
         Route::delete('device-tokens', [DeviceTokenController::class, 'destroy']);
 
-        Route::middleware('role.chosen')->group(function () {
         Route::get('places/autocomplete', [PlacesController::class, 'autocomplete']);
         Route::get('places/reverse', [PlacesController::class, 'reverse']);
         Route::get('places/{placeId}', [PlacesController::class, 'details']);
 
+        Route::middleware('role.chosen')->group(function () {
         Route::get('providers/{id}', [ProviderProfileController::class, 'publicShow'])
             ->whereNumber('id');
 
