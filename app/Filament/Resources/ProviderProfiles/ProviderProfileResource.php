@@ -18,11 +18,11 @@ class ProviderProfileResource extends Resource
 {
     protected static ?string $model = ProviderProfile::class;
 
-    protected static ?string $navigationLabel = 'Profillər';
+    protected static ?string $navigationLabel = 'Xidmətçi profilləri';
 
-    protected static ?string $modelLabel = 'profil';
+    protected static ?string $modelLabel = 'xidmətçi profili';
 
-    protected static ?string $pluralModelLabel = 'Profillər';
+    protected static ?string $pluralModelLabel = 'Xidmətçi profilləri';
 
     protected static ?int $navigationSort = 3;
 

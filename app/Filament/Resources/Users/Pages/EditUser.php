@@ -12,7 +12,7 @@ class EditUser extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        $this->record?->loadMissing('providerProfiles');
+        $this->record?->loadMissing(['providerProfiles.categories']);
 
         return $data;
     }

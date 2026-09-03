@@ -88,12 +88,34 @@ class UserForm
                         if (! $record || $record->active_role !== 'provider') {
                             return '—';
                         }
-                        $profile = $record->relationLoaded('providerProfiles')
-                            ? $record->providerProfiles->sortByDesc('id')->first()
-                            : $record->providerProfiles()->latest('id')->first();
+                        $profile = self::latestProviderProfile($record);
                         $bio = trim((string) ($profile?->bio ?? ''));
 
                         return $bio !== '' ? $bio : 'Bio yoxdur';
+                    }),
+                Placeholder::make('provider_categories')
+                    ->label('Kateqoriyalar')
+                    ->content(function ($record): HtmlString|string {
+                        if (! $record || $record->active_role !== 'provider') {
+                            return '—';
+                        }
+                        $profile = self::latestProviderProfile($record);
+                        if (! $profile) {
+                            return 'Profil yoxdur';
+                        }
+                        $cats = $profile->relationLoaded('categories')
+                            ? $profile->categories
+                            : $profile->categories()->get();
+                        if ($cats->isEmpty()) {
+                            return 'Kateqoriya seçilməyib';
+                        }
+                        $chips = $cats->map(function ($c) {
+                            $name = e($c->name_az ?? $c->name ?? '#'.$c->id);
+
+                            return '<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;background:#F3E4DE;color:#9A3B22;font-size:12px;font-weight:700;">'.$name.'</span>';
+                        })->implode('');
+
+                        return new HtmlString('<div>'.$chips.'</div>');
                     }),
                 Placeholder::make('location_city')
                     ->label('Şəhər')
@@ -160,6 +182,19 @@ class UserForm
         return filled($value) ? (string) $value : '—';
     }
 
+    private static function latestProviderProfile($record)
+    {
+        if (! $record) {
+            return null;
+        }
+
+        if ($record->relationLoaded('providerProfiles')) {
+            return $record->providerProfiles->sortByDesc('id')->first();
+        }
+
+        return $record->providerProfiles()->with('categories')->latest('id')->first();
+    }
+
     /**
      * @return array{city:?string,district:?string,address:?string,latitude:?float,longitude:?float}|null
      */
@@ -170,9 +205,7 @@ class UserForm
         }
 
         if ($record->active_role === 'provider') {
-            $profile = $record->relationLoaded('providerProfiles')
-                ? $record->providerProfiles->sortByDesc('id')->first()
-                : $record->providerProfiles()->latest('id')->first();
+            $profile = self::latestProviderProfile($record);
 
             if (! $profile) {
                 return null;
