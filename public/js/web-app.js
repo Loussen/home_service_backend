@@ -2076,16 +2076,7 @@
                     if (d) d.value = providerProfiles[0].district || '';
                     if (lat) lat.value = providerProfiles[0].latitude || '40.4093';
                     if (lng) lng.value = providerProfiles[0].longitude || '49.8671';
-                    var audioPlayer = el('provider-audio-player');
-                    if (audioPlayer) {
-                        if (providerProfiles[0].audio_intro_url) {
-                            audioPlayer.src = providerProfiles[0].audio_intro_url;
-                            audioPlayer.hidden = false;
-                        } else {
-                            audioPlayer.hidden = true;
-                            audioPlayer.removeAttribute('src');
-                        }
-                    }
+                    paintAudioPlayer(providerProfiles[0].audio_intro_url || null);
                     var handle = pickerMaps['provider-map'];
                     if (handle && lat && lng) {
                         handle.apply(Number(lat.value), Number(lng.value));
@@ -2166,37 +2157,218 @@
             });
         }
 
-        var uploadAudio = el('upload-provider-audio');
-        if (uploadAudio) {
-            uploadAudio.addEventListener('click', function () {
+        function setAudioStatus(text) {
+            var status = el('audio-intro-status');
+            if (status) status.textContent = text;
+        }
+
+        function paintAudioPlayer(url) {
+            var player = el('provider-audio-player');
+            if (!player) return;
+            if (url) {
+                player.src = url;
+                player.hidden = false;
+                setAudioStatus('Mövcud intro hazırdır');
+            } else {
+                player.hidden = true;
+                player.removeAttribute('src');
+                setAudioStatus('Hələ audio yoxdur');
+            }
+        }
+
+        function uploadAudioBlob(file, label) {
+            if (!providerProfiles[0]) {
+                toast('warning', 'Əvvəl xidmətçi profilini yaradın / saxlayın');
+                return Promise.reject(new Error('no profile'));
+            }
+            var fd = new FormData();
+            fd.append('audio', file, file.name || 'intro.webm');
+            setAudioStatus((label || 'Yüklənir') + '…');
+            var recordBtnEl = el('audio-record-btn');
+            var pickBtnEl = el('audio-pick-btn');
+            if (recordBtnEl) recordBtnEl.disabled = true;
+            if (pickBtnEl) pickBtnEl.disabled = true;
+            return api('/provider-profiles/' + providerProfiles[0].id + '/audio-intro', {
+                method: 'POST',
+                body: fd,
+            }).then(function (profile) {
+                providerProfiles[0] = profile;
+                paintAudioPlayer(profile.audio_intro_url);
+                toast('success', 'Audio yükləndi');
+                return profile;
+            }).catch(function (e) {
+                toast('error', 'Audio yüklənmədi: ' + e.message);
+                setAudioStatus('Yükləmə alınmadı — yenidən cəhd edin');
+                throw e;
+            }).finally(function () {
+                if (recordBtnEl) recordBtnEl.disabled = false;
+                if (pickBtnEl) pickBtnEl.disabled = false;
                 var fileInput = el('provider-audio-file');
-                if (!providerProfiles[0]) {
-                    toast('warning', 'Əvvəl xidmətçi profilini yaradın');
+                if (fileInput) fileInput.value = '';
+            });
+        }
+
+        var audioRecorder = null;
+        var audioChunks = [];
+        var audioStream = null;
+        var audioTimer = null;
+        var audioElapsed = 0;
+        var audioMaxSec = 20;
+
+        function stopAudioTracks() {
+            if (audioStream) {
+                audioStream.getTracks().forEach(function (t) { t.stop(); });
+                audioStream = null;
+            }
+        }
+
+        function clearAudioTimer() {
+            if (audioTimer) {
+                clearInterval(audioTimer);
+                audioTimer = null;
+            }
+            var timerEl = el('audio-intro-timer');
+            if (timerEl) {
+                timerEl.hidden = true;
+                timerEl.classList.remove('is-recording');
+                timerEl.textContent = '00:00';
+            }
+            audioElapsed = 0;
+        }
+
+        function formatAudioClock(sec) {
+            var mm = String(Math.floor(sec / 60)).padStart(2, '0');
+            var ss = String(sec % 60).padStart(2, '0');
+            return mm + ':' + ss;
+        }
+
+        function setRecordButton(recording) {
+            var btn = el('audio-record-btn');
+            if (!btn) return;
+            var label = btn.querySelector('.audio-btn-label');
+            if (recording) {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-dark');
+                if (label) label.textContent = 'Dayandır';
+            } else {
+                btn.classList.add('btn-primary');
+                btn.classList.remove('btn-dark');
+                if (label) label.textContent = 'Mikrofonla yaz';
+            }
+        }
+
+        function finishRecording() {
+            if (!audioRecorder || audioRecorder.state === 'inactive') return;
+            audioRecorder.stop();
+        }
+
+        function startRecording() {
+            if (!providerProfiles[0]) {
+                toast('warning', 'Əvvəl xidmətçi profilini yaradın / saxlayın');
+                return;
+            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                toast('error', 'Bu brauzerdə mikrofon dəstəklənmir');
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+                audioStream = stream;
+                audioChunks = [];
+                var mime = '';
+                if (window.MediaRecorder) {
+                    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                        mime = 'audio/webm;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                        mime = 'audio/webm';
+                    } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                        mime = 'audio/ogg;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        mime = 'audio/mp4';
+                    }
+                }
+                try {
+                    audioRecorder = mime
+                        ? new MediaRecorder(stream, { mimeType: mime })
+                        : new MediaRecorder(stream);
+                } catch (err) {
+                    stopAudioTracks();
+                    toast('error', 'Yazma başladıla bilmədi');
                     return;
                 }
-                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-                    toast('warning', 'Audio fayl seçin (maks. ~20 san)');
-                    return;
-                }
-                var fd = new FormData();
-                fd.append('audio', fileInput.files[0]);
-                uploadAudio.disabled = true;
-                api('/provider-profiles/' + providerProfiles[0].id + '/audio-intro', {
-                    method: 'POST',
-                    body: fd,
-                }).then(function (profile) {
-                    providerProfiles[0] = profile;
+                audioRecorder.ondataavailable = function (ev) {
+                    if (ev.data && ev.data.size > 0) audioChunks.push(ev.data);
+                };
+                audioRecorder.onstop = function () {
+                    clearAudioTimer();
+                    setRecordButton(false);
+                    stopAudioTracks();
+                    var type = (audioRecorder && audioRecorder.mimeType) || mime || 'audio/webm';
+                    var blob = new Blob(audioChunks, { type: type });
+                    audioRecorder = null;
+                    audioChunks = [];
+                    if (!blob.size) {
+                        toast('warning', 'Boş yazı — yenidən cəhd edin');
+                        return;
+                    }
+                    var ext = type.indexOf('ogg') >= 0 ? 'ogg'
+                        : (type.indexOf('mp4') >= 0 || type.indexOf('m4a') >= 0) ? 'm4a'
+                        : 'webm';
+                    var file = new File([blob], 'intro.' + ext, { type: type });
                     var player = el('provider-audio-player');
-                    if (player && profile.audio_intro_url) {
-                        player.src = profile.audio_intro_url;
+                    if (player) {
+                        player.src = URL.createObjectURL(blob);
                         player.hidden = false;
                     }
-                    toast('success', 'Audio yükləndi');
-                }).catch(function (e) {
-                    toast('error', 'Audio yüklənmədi: ' + e.message);
-                }).finally(function () {
-                    uploadAudio.disabled = false;
-                });
+                    uploadAudioBlob(file, 'Yazı göndərilir');
+                };
+                audioRecorder.start(250);
+                setRecordButton(true);
+                setAudioStatus('Yazılır… danışın');
+                var timerEl = el('audio-intro-timer');
+                if (timerEl) {
+                    timerEl.hidden = false;
+                    timerEl.classList.add('is-recording');
+                    timerEl.textContent = '00:00';
+                }
+                audioElapsed = 0;
+                audioTimer = setInterval(function () {
+                    audioElapsed += 1;
+                    if (timerEl) timerEl.textContent = formatAudioClock(audioElapsed);
+                    if (audioElapsed >= audioMaxSec) {
+                        finishRecording();
+                    }
+                }, 1000);
+            }).catch(function () {
+                toast('error', 'Mikrofon icazəsi lazımdır');
+                setAudioStatus('Mikrofon icazəsi verilmədi');
+            });
+        }
+
+        var recordBtn = el('audio-record-btn');
+        if (recordBtn) {
+            recordBtn.addEventListener('click', function () {
+                if (audioRecorder && audioRecorder.state === 'recording') {
+                    finishRecording();
+                    return;
+                }
+                startRecording();
+            });
+        }
+
+        var pickBtn = el('audio-pick-btn');
+        var audioFile = el('provider-audio-file');
+        if (pickBtn && audioFile) {
+            pickBtn.addEventListener('click', function () {
+                if (!providerProfiles[0]) {
+                    toast('warning', 'Əvvəl xidmətçi profilini yaradın / saxlayın');
+                    return;
+                }
+                audioFile.click();
+            });
+            audioFile.addEventListener('change', function () {
+                if (audioFile.files && audioFile.files[0]) {
+                    uploadAudioBlob(audioFile.files[0], 'Fayl göndərilir');
+                }
             });
         }
 

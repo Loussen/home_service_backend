@@ -75,11 +75,23 @@
                 <div id="provider-map" class="map"></div>
                 <input id="provider-lat" type="hidden" value="40.4093">
                 <input id="provider-lng" type="hidden" value="49.8671">
-                <div>
-                    <p class="muted">Audio intro (maks. 20 saniyə)</p>
-                    <input id="provider-audio-file" type="file" accept="audio/*,.m4a,.mp3,.wav">
-                    <audio id="provider-audio-player" class="mt" controls hidden></audio>
-                    <button type="button" id="upload-provider-audio" class="btn btn-outline btn-inline mt">Audio yüklə</button>
+                <div class="audio-intro">
+                    <div class="audio-intro-head">
+                        <div>
+                            <p class="audio-intro-title">Audio intro</p>
+                            <p class="audio-intro-hint muted">Qısa tanıtım — maks. 20 saniyə. Admin təsdiqinə kömək edir.</p>
+                        </div>
+                        <span id="audio-intro-timer" class="audio-intro-timer" hidden>00:00</span>
+                    </div>
+                    <audio id="provider-audio-player" class="audio-intro-player" controls hidden></audio>
+                    <p id="audio-intro-status" class="audio-intro-status muted">Hələ audio yoxdur</p>
+                    <div class="audio-intro-actions">
+                        <button type="button" id="audio-record-btn" class="btn btn-primary btn-inline">
+                            <span class="audio-btn-label">Mikrofonla yaz</span>
+                        </button>
+                        <button type="button" id="audio-pick-btn" class="btn btn-outline btn-inline">Fayl seç</button>
+                    </div>
+                    <input id="provider-audio-file" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg" hidden>
                 </div>
                 <button type="button" id="save-provider-profile" class="btn btn-dark">Profili yarat / yenilə</button>
             </div>

@@ -94,6 +94,51 @@
         @apply cursor-wait opacity-60 no-underline;
     }
 
+    .audio-intro {
+        @apply rounded-2xl border border-line bg-parchment/60 p-4;
+    }
+
+    .audio-intro-head {
+        @apply mb-3 flex items-start justify-between gap-3;
+    }
+
+    .audio-intro-title {
+        @apply m-0 text-[15px] font-semibold text-ink;
+    }
+
+    .audio-intro-hint {
+        @apply mt-0.5 mb-0 text-[13px];
+    }
+
+    .audio-intro-timer {
+        @apply shrink-0 rounded-full bg-brand px-2.5 py-1 text-[12px] font-bold tabular-nums text-white;
+    }
+
+    .audio-intro-timer.is-recording {
+        animation: audio-pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes audio-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.55; }
+    }
+
+    .audio-intro-player {
+        @apply mb-3 w-full;
+    }
+
+    .audio-intro-status {
+        @apply mb-3 mt-0 text-[13px];
+    }
+
+    .audio-intro-actions {
+        @apply flex flex-wrap gap-2.5;
+    }
+
+    .audio-intro-actions .btn-inline {
+        @apply w-auto min-w-[140px] px-4 py-2.5 text-[0.85rem];
+    }
+
     .card-hero#provider-pending-banner {
         @apply mb-6 border-brand/30 bg-brand-peach/40;
     }
