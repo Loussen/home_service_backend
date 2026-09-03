@@ -106,6 +106,11 @@ class User extends Authenticatable
         return $this->hasMany(DeviceToken::class);
     }
 
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class);
+    }
+
     public function verificationDocuments(): HasMany
     {
         return $this->hasMany(VerificationDocument::class);

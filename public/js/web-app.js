@@ -231,6 +231,7 @@
     function headers(isMultipart) {
         var h = {
             Accept: 'application/json',
+            'X-Client': 'web',
         };
         if (!isMultipart) {
             h['Content-Type'] = 'application/json';

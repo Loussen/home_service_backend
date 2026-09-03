@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->api(append: [
+            App\Http\Middleware\LogUserActivity::class,
+        ]);
         $middleware->alias([
             'role' => App\Http\Middleware\EnsureRole::class,
             'role.chosen' => App\Http\Middleware\EnsureRoleChosen::class,

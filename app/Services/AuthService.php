@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\NewProviderPendingApproval;
 use App\Repositories\OtpRepository;
 use App\Repositories\UserRepository;
+use App\Services\ActivityLogger;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -194,24 +195,44 @@ class AuthService
     {
         abort_unless($user->isProvider(), 422, 'Yalnız icraçı təsdiqlənə bilər');
 
-        return $this->userRepository->update($user, [
+        $user = $this->userRepository->update($user, [
             'provider_approval_status' => 'approved',
             'provider_approved_at' => now(),
             'provider_approved_by' => $admin?->id,
             'provider_rejection_note' => null,
         ]);
+
+        app(ActivityLogger::class)->record(
+            $user,
+            'admin.provider_approve',
+            'İcraçı təsdiqləndi',
+            ['admin_id' => $admin?->id],
+            'admin',
+        );
+
+        return $user;
     }
 
     public function rejectProvider(User $user, ?string $note = null, ?Admin $admin = null): User
     {
         abort_unless($user->isProvider(), 422, 'Yalnız icraçı rədd edilə bilər');
 
-        return $this->userRepository->update($user, [
+        $user = $this->userRepository->update($user, [
             'provider_approval_status' => 'rejected',
             'provider_approved_at' => null,
             'provider_approved_by' => $admin?->id,
             'provider_rejection_note' => $note,
         ]);
+
+        app(ActivityLogger::class)->record(
+            $user,
+            'admin.provider_reject',
+            'İcraçı rədd edildi',
+            ['admin_id' => $admin?->id, 'note' => $note],
+            'admin',
+        );
+
+        return $user;
     }
 
     private function notifyAdminsOfPendingProvider(User $provider): void
