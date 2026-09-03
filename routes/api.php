@@ -42,6 +42,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/me', [AuthController::class, 'me']);
             Route::post('/role', [AuthController::class, 'setRole']);
             Route::patch('/profile', [AuthController::class, 'updateProfile']);
+            Route::post('/avatar', [AuthController::class, 'uploadAvatar']);
         });
 
         Route::post('device-tokens', [DeviceTokenController::class, 'store']);
@@ -59,12 +60,16 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('provider-profiles', ProviderProfileController::class)
                 ->only(['index', 'store', 'show', 'update', 'destroy']);
             Route::post('provider-profiles/{id}/audio-intro', [ProviderProfileController::class, 'uploadAudio']);
-            Route::post('provider-profiles/{id}/bump', [ProviderProfileController::class, 'bump']);
-            Route::post('provider-profiles/{id}/vip', [ProviderProfileController::class, 'vip']);
+            Route::post('provider-profiles/{id}/bump', [ProviderProfileController::class, 'bump'])
+                ->middleware('provider.approved');
+            Route::post('provider-profiles/{id}/vip', [ProviderProfileController::class, 'vip'])
+                ->middleware('provider.approved');
             Route::get('verification-documents', [VerificationDocumentController::class, 'index']);
             Route::post('verification-documents', [VerificationDocumentController::class, 'store']);
-            Route::get('jobs', [IncomingJobController::class, 'index']);
-            Route::post('conversations/reply', [ConversationController::class, 'reply']);
+            Route::get('jobs', [IncomingJobController::class, 'index'])
+                ->middleware('provider.approved');
+            Route::post('conversations/reply', [ConversationController::class, 'reply'])
+                ->middleware('provider.approved');
         });
 
         Route::middleware('role:client')->group(function () {

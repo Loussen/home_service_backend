@@ -108,6 +108,7 @@ class ConversationService
             ->find($providerProfileId);
 
         abort_if(! $profile || ! $profile->is_active, 404, 'Provider not found');
+        abort_if(! $profile->user || ! $profile->user->isProviderApproved(), 404, 'Provider not found');
         abort_if($profile->user_id === $client->id, 422, 'Cannot connect to your own profile');
         $this->moderation->assertNotBlocked($client, $profile->user);
 

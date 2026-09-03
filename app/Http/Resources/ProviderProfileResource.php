@@ -26,6 +26,17 @@ class ProviderProfileResource extends JsonResource
             'title' => $this->title,
             'bio' => $this->bio,
             'user_name' => $this->whenLoaded('user', fn () => $this->user?->name),
+            'user_avatar_url' => $this->whenLoaded('user', function () {
+                $avatar = $this->user?->avatar_url;
+                if (! $avatar) {
+                    return null;
+                }
+                if (str_starts_with($avatar, 'http')) {
+                    return $avatar;
+                }
+
+                return Storage::disk('public')->url($avatar);
+            }),
             'user_phone' => $this->when(
                 $this->relationLoaded('user') && $request->user()?->id === $this->user_id,
                 fn () => $this->user?->phone,

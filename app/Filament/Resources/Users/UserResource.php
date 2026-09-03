@@ -28,6 +28,21 @@ class UserResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
 
+    public static function getNavigationBadge(): ?string
+    {
+        $count = User::query()
+            ->where('active_role', 'provider')
+            ->where('provider_approval_status', 'pending')
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): string|array|null
+    {
+        return 'warning';
+    }
+
     public static function form(Schema $schema): Schema
     {
         return UserForm::configure($schema);

@@ -2,11 +2,20 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Models\User;
+use App\Services\AuthService;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Storage;
 
 class UsersTable
 {
@@ -14,6 +23,20 @@ class UsersTable
     {
         return $table
             ->columns([
+                ImageColumn::make('avatar_url')
+                    ->label('Şəkil')
+                    ->circular()
+                    ->getStateUsing(function (User $record): ?string {
+                        $avatar = $record->avatar_url;
+                        if (! $avatar) {
+                            return null;
+                        }
+                        if (str_starts_with($avatar, 'http')) {
+                            return $avatar;
+                        }
+
+                        return Storage::disk('public')->url($avatar);
+                    }),
                 TextColumn::make('phone')
                     ->label('Telefon')
                     ->searchable(),
@@ -23,10 +46,25 @@ class UsersTable
                 TextColumn::make('active_role')
                     ->label('Rol')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'client' => 'Müştəri',
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'client' => 'Ailə',
                         'provider' => 'İcraçı',
-                        default => $state,
+                        default => $state ?? '—',
+                    }),
+                TextColumn::make('provider_approval_status')
+                    ->label('Təsdiq')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'approved' => 'success',
+                        'pending' => 'warning',
+                        'rejected' => 'danger',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'approved' => 'Təsdiqli',
+                        'pending' => 'Gözləyir',
+                        'rejected' => 'Rədd',
+                        default => '—',
                     }),
                 TextColumn::make('balance')
                     ->label('Balans')
@@ -46,16 +84,60 @@ class UsersTable
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->label('Yenilənib')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('created_at', 'desc')
             ->filters([
-                //
-            ])
+                SelectFilter::make('active_role')
+                    ->label('Rol')
+                    ->options([
+                        'client' => 'Ailə',
+                        'provider' => 'İcraçı',
+                    ]),
+                SelectFilter::make('provider_approval_status')
+                    ->label('İcraçı təsdiqi')
+                    ->options([
+                        'pending' => 'Gözləyir',
+                        'approved' => 'Təsdiqli',
+                        'rejected' => 'Rədd',
+                    ]),
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->options([
+                        'active' => 'Aktiv',
+                        'blocked' => 'Bloklanıb',
+                    ]),
+            ], layout: FiltersLayout::AboveContentCollapsible)
             ->recordActions([
+                Action::make('approve')
+                    ->label('Təsdiqlə')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->visible(fn (User $record): bool => $record->isProviderPending()
+                        || $record->provider_approval_status === 'rejected')
+                    ->requiresConfirmation()
+                    ->action(function (User $record): void {
+                        app(AuthService::class)->approveProvider($record, auth('admin')->user());
+                        Notification::make()->title('İcraçı təsdiqləndi')->success()->send();
+                    }),
+                Action::make('reject')
+                    ->label('Rədd et')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn (User $record): bool => $record->isProvider()
+                        && $record->provider_approval_status !== 'rejected')
+                    ->form([
+                        Textarea::make('note')
+                            ->label('Səbəb (istəyə bağlı)')
+                            ->rows(3),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        app(AuthService::class)->rejectProvider(
+                            $record,
+                            $data['note'] ?? null,
+                            auth('admin')->user()
+                        );
+                        Notification::make()->title('İcraçı rədd edildi')->warning()->send();
+                    }),
                 EditAction::make(),
             ])
             ->toolbarActions([

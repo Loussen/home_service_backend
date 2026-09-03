@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Admin;
 use App\Models\User;
+use App\Notifications\NewProviderPendingApproval;
 use App\Repositories\OtpRepository;
 use App\Repositories\UserRepository;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
@@ -132,14 +136,32 @@ class AuthService
             return $user;
         }
 
-        $user = $this->userRepository->update($user, [
+        $payload = [
             'active_role' => $role,
             'role_chosen_at' => now(),
-        ]);
+        ];
+
+        if ($role === 'provider') {
+            $payload['provider_approval_status'] = 'pending';
+            $payload['provider_approved_at'] = null;
+            $payload['provider_approved_by'] = null;
+            $payload['provider_rejection_note'] = null;
+        } else {
+            $payload['provider_approval_status'] = null;
+            $payload['provider_approved_at'] = null;
+            $payload['provider_approved_by'] = null;
+            $payload['provider_rejection_note'] = null;
+        }
+
+        $user = $this->userRepository->update($user, $payload);
 
         if ($role === 'provider' && ! $user->welcome_bonus_granted) {
             $this->walletService->grantWelcomeBonus($user);
             $user = $user->fresh();
+        }
+
+        if ($role === 'provider') {
+            $this->notifyAdminsOfPendingProvider($user);
         }
 
         return $user;
@@ -151,5 +173,59 @@ class AuthService
             'name' => $data['name'] ?? null,
             'avatar_url' => $data['avatar_url'] ?? null,
         ], fn ($v) => $v !== null));
+    }
+
+    public function uploadAvatar(User $user, UploadedFile $avatar): User
+    {
+        if ($user->avatar_url && ! str_starts_with($user->avatar_url, 'http')) {
+            if (Storage::disk('public')->exists($user->avatar_url)) {
+                Storage::disk('public')->delete($user->avatar_url);
+            }
+        }
+
+        $path = $avatar->store("avatars/{$user->id}", 'public');
+
+        return $this->userRepository->update($user, [
+            'avatar_url' => $path,
+        ]);
+    }
+
+    public function approveProvider(User $user, ?Admin $admin = null): User
+    {
+        abort_unless($user->isProvider(), 422, 'Yalnız icraçı təsdiqlənə bilər');
+
+        return $this->userRepository->update($user, [
+            'provider_approval_status' => 'approved',
+            'provider_approved_at' => now(),
+            'provider_approved_by' => $admin?->id,
+            'provider_rejection_note' => null,
+        ]);
+    }
+
+    public function rejectProvider(User $user, ?string $note = null, ?Admin $admin = null): User
+    {
+        abort_unless($user->isProvider(), 422, 'Yalnız icraçı rədd edilə bilər');
+
+        return $this->userRepository->update($user, [
+            'provider_approval_status' => 'rejected',
+            'provider_approved_at' => null,
+            'provider_approved_by' => $admin?->id,
+            'provider_rejection_note' => $note,
+        ]);
+    }
+
+    private function notifyAdminsOfPendingProvider(User $provider): void
+    {
+        try {
+            Admin::query()
+                ->where('is_active', true)
+                ->get()
+                ->each(fn (Admin $admin) => $admin->notify(new NewProviderPendingApproval($provider)));
+        } catch (\Throwable $e) {
+            Log::warning('Provider pending notification failed', [
+                'provider_id' => $provider->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

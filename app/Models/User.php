@@ -18,6 +18,10 @@ class User extends Authenticatable
         'avatar_url',
         'active_role',
         'role_chosen_at',
+        'provider_approval_status',
+        'provider_approved_at',
+        'provider_approved_by',
+        'provider_rejection_note',
         'balance',
         'status',
         'welcome_bonus_granted',
@@ -35,12 +39,31 @@ class User extends Authenticatable
             'welcome_bonus_granted' => 'boolean',
             'phone_verified_at' => 'datetime',
             'role_chosen_at' => 'datetime',
+            'provider_approved_at' => 'datetime',
         ];
     }
 
     public function needsRole(): bool
     {
         return $this->role_chosen_at === null;
+    }
+
+    public function needsProviderApproval(): bool
+    {
+        return $this->isProvider()
+            && $this->provider_approval_status !== 'approved';
+    }
+
+    public function isProviderApproved(): bool
+    {
+        return $this->isProvider()
+            && $this->provider_approval_status === 'approved';
+    }
+
+    public function isProviderPending(): bool
+    {
+        return $this->isProvider()
+            && $this->provider_approval_status === 'pending';
     }
 
     public function isBlocked(): bool
@@ -56,6 +79,11 @@ class User extends Authenticatable
     public function isClient(): bool
     {
         return $this->active_role === 'client';
+    }
+
+    public function approvedByAdmin(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'provider_approved_by');
     }
 
     public function providerProfiles(): HasMany

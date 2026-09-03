@@ -14,7 +14,14 @@ class UploadAudioIntroRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'audio' => ['required', 'file', 'max:15360'],
+            'audio' => ['required', 'file', 'mimes:m4a,mp3,wav,aac,mpeg,mp4,x-m4a', 'max:5120'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'audio.max' => 'Audio maksimum ~20 saniyə / 5MB ola bilər.',
         ];
     }
 }

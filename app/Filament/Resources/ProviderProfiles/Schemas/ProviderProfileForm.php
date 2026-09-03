@@ -7,12 +7,15 @@ use App\Models\Category;
 use App\Models\City;
 use App\Models\District;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 
 class ProviderProfileForm
 {
@@ -21,6 +24,29 @@ class ProviderProfileForm
         return $schema
             ->components([
                 FormComponents::userSelect(),
+                Placeholder::make('user_avatar')
+                    ->label('İstifadəçi şəkli')
+                    ->content(function ($record): HtmlString|string {
+                        $avatar = $record?->user?->avatar_url;
+                        if (! $avatar) {
+                            return 'Şəkil yoxdur';
+                        }
+                        $url = str_starts_with($avatar, 'http')
+                            ? $avatar
+                            : Storage::disk('public')->url($avatar);
+
+                        return new HtmlString(
+                            '<img src="'.e($url).'" alt="" style="width:96px;height:96px;border-radius:999px;object-fit:cover;" />'
+                        );
+                    }),
+                Placeholder::make('user_approval')
+                    ->label('Hesab təsdiqi')
+                    ->content(fn ($record) => match ($record?->user?->provider_approval_status) {
+                        'approved' => 'Təsdiqli',
+                        'pending' => 'Gözləyir',
+                        'rejected' => 'Rədd edilib',
+                        default => '—',
+                    }),
                 Select::make('category_ids')
                     ->label('Kateqoriyalar (maks. 3)')
                     ->multiple()
@@ -35,9 +61,22 @@ class ProviderProfileForm
                 Textarea::make('bio')
                     ->label('Haqqında')
                     ->columnSpanFull(),
+                Placeholder::make('audio_player')
+                    ->label('Audio intro (~20 san)')
+                    ->content(function ($record): HtmlString|string {
+                        if (! $record?->audio_intro_url) {
+                            return 'Audio yoxdur';
+                        }
+                        $url = Storage::disk('public')->url($record->audio_intro_url);
+
+                        return new HtmlString(
+                            '<audio controls src="'.e($url).'" style="width:100%;max-width:420px;"></audio>'
+                        );
+                    }),
                 TextInput::make('audio_intro_url')
-                    ->label('Audio intro')
-                    ->url(),
+                    ->label('Audio path')
+                    ->disabled()
+                    ->dehydrated(false),
                 Toggle::make('is_verified')
                     ->label('Təsdiqlənib'),
                 Toggle::make('is_vip')

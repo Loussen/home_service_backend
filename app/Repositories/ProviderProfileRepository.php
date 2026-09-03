@@ -36,6 +36,10 @@ class ProviderProfileRepository
         return ProviderProfile::with(['user', 'category', 'categories', 'schedules'])
             ->where('id', $profileId)
             ->where('is_active', true)
+            ->whereHas('user', function ($q) {
+                $q->where('provider_approval_status', 'approved')
+                    ->where('status', 'active');
+            })
             ->first();
     }
 
@@ -66,6 +70,10 @@ class ProviderProfileRepository
         $query = ProviderProfile::query()
             ->with(['user', 'category', 'categories', 'schedules'])
             ->where('is_active', true)
+            ->whereHas('user', function ($q) {
+                $q->where('provider_approval_status', 'approved')
+                    ->where('status', 'active');
+            })
             ->where(function ($q) {
                 $q->whereNull('full_until')
                     ->orWhere('full_until', '<=', now());

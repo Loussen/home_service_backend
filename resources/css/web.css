@@ -24,12 +24,16 @@
         @apply min-h-[110px] resize-y;
     }
 
-    .field {
-        @apply grid gap-1.5 text-left;
+    .avatar-upload {
+        @apply flex flex-wrap items-center gap-3;
     }
 
-    .field > span {
-        @apply text-sm font-semibold text-mute;
+    .avatar-preview {
+        @apply h-16 w-16 rounded-full border border-line object-cover;
+    }
+
+    .card-hero#provider-pending-banner {
+        @apply border-brand/30 bg-brand-peach/40;
     }
 
     /* Tailwind preflight + Google Maps: tiles break with max-width:100% on img */
@@ -670,7 +674,11 @@
     }
 
     .provider-preview-avatar {
-        @apply flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-peach font-brand text-xl font-semibold text-brand;
+        @apply flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-peach font-brand text-xl font-semibold text-brand;
+    }
+
+    .provider-preview-avatar.has-photo img {
+        @apply h-full w-full object-cover;
     }
 
     .provider-preview-head-text {

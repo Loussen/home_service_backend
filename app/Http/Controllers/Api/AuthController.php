@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendOtpRequest;
 use App\Http\Requests\Auth\SetRoleRequest;
 use App\Http\Requests\Auth\UpdateUserRequest;
+use App\Http\Requests\Auth\UploadAvatarRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\UserResource;
 use App\Services\AuthService;
@@ -65,6 +66,16 @@ class AuthController extends Controller
         );
 
         return $this->success(new UserResource($user), 'Profile updated');
+    }
+
+    public function uploadAvatar(UploadAvatarRequest $request): JsonResponse
+    {
+        $user = $this->authService->uploadAvatar(
+            $request->user(),
+            $request->file('avatar')
+        );
+
+        return $this->success(new UserResource($user), 'Avatar updated');
     }
 
     public function logout(Request $request): JsonResponse

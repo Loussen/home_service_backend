@@ -228,11 +228,13 @@
         return selected;
     }
 
-    function headers() {
+    function headers(isMultipart) {
         var h = {
             Accept: 'application/json',
-            'Content-Type': 'application/json',
         };
+        if (!isMultipart) {
+            h['Content-Type'] = 'application/json';
+        }
         var token = getToken();
         if (token) {
             h.Authorization = 'Bearer ' + token;
@@ -242,9 +244,10 @@
 
     function api(path, options) {
         options = options || {};
+        var isMultipart = typeof FormData !== 'undefined' && options.body instanceof FormData;
         return fetch(API + path, {
             method: options.method || 'GET',
-            headers: Object.assign(headers(), options.headers || {}),
+            headers: Object.assign(headers(isMultipart), options.headers || {}),
             body: options.body,
         }).then(function (res) {
             return res.json().catch(function () {
@@ -1499,7 +1502,15 @@
         api('/providers/' + profileId).then(function (provider) {
             var name = provider.user_name || provider.title || 'İcraçı';
             titleEl.textContent = name;
-            if (avatarEl) avatarEl.textContent = providerInitial(provider);
+            if (avatarEl) {
+                if (provider.user_avatar_url) {
+                    avatarEl.innerHTML = '<img src="' + esc(provider.user_avatar_url) + '" alt="">';
+                    avatarEl.classList.add('has-photo');
+                } else {
+                    avatarEl.textContent = providerInitial(provider);
+                    avatarEl.classList.remove('has-photo');
+                }
+            }
             if (subEl) {
                 if (provider.title && provider.title !== name) {
                     subEl.hidden = false;
@@ -1905,9 +1916,15 @@
                     });
                 });
             }).then(function () {
+                if (chosenRole === 'provider') {
+                    toast('success', 'Qeydiyyat qəbul olundu — təsdiq gözlənilir');
+                    log('Onboarding tamamlandı (pending)', { role: chosenRole });
+                    go('/profile');
+                    return;
+                }
                 toast('success', 'Onboarding tamamlandı');
                 log('Onboarding tamamlandı', { role: chosenRole });
-                go(chosenRole === 'provider' ? '/jobs' : '/request');
+                go('/request');
             }).catch(function (e) {
                 toast('error', 'Onboarding xətası');
                 log('Onboarding xətası: ' + e.message);
@@ -1940,13 +1957,45 @@
         function paintUserCard(me) {
             if (!me) return;
             var nameEl = el('profile-name');
-            var avatarEl = el('profile-avatar');
             var roleEl = el('profile-role-label');
             var balEl = el('profile-balance');
+            var img = el('profile-avatar-img');
+            var approval = el('profile-approval-label');
+            var pendingBanner = el('provider-pending-banner');
+            var pendingText = el('provider-pending-text');
             if (nameEl) nameEl.value = me.name || '';
-            if (avatarEl) avatarEl.value = me.avatar_url || '';
             if (roleEl) roleEl.textContent = roleLabel(me.active_role);
             if (balEl) balEl.textContent = (Number(me.balance || 0)).toFixed(0) + ' AZN';
+            if (img) {
+                if (me.avatar_url) {
+                    img.src = me.avatar_url;
+                    img.hidden = false;
+                } else {
+                    img.hidden = true;
+                    img.removeAttribute('src');
+                }
+            }
+            if (approval) {
+                if (me.active_role === 'provider' && me.provider_approval_status) {
+                    approval.hidden = false;
+                    var map = {
+                        pending: 'Təsdiq: gözləyir',
+                        approved: 'Təsdiq: təsdiqlənib',
+                        rejected: 'Təsdiq: rədd edilib',
+                    };
+                    approval.textContent = map[me.provider_approval_status] || me.provider_approval_status;
+                } else {
+                    approval.hidden = true;
+                }
+            }
+            if (pendingBanner) {
+                var needs = me.needs_provider_approval === true
+                    || (me.active_role === 'provider' && me.provider_approval_status !== 'approved');
+                pendingBanner.hidden = !needs;
+                if (pendingText && me.provider_approval_message) {
+                    pendingText.textContent = me.provider_approval_message;
+                }
+            }
             applyRoleUi();
         }
 
@@ -1998,6 +2047,16 @@
                     if (d) d.value = providerProfiles[0].district || '';
                     if (lat) lat.value = providerProfiles[0].latitude || '40.4093';
                     if (lng) lng.value = providerProfiles[0].longitude || '49.8671';
+                    var audioPlayer = el('provider-audio-player');
+                    if (audioPlayer) {
+                        if (providerProfiles[0].audio_intro_url) {
+                            audioPlayer.src = providerProfiles[0].audio_intro_url;
+                            audioPlayer.hidden = false;
+                        } else {
+                            audioPlayer.hidden = true;
+                            audioPlayer.removeAttribute('src');
+                        }
+                    }
                     var handle = pickerMaps['provider-map'];
                     if (handle && lat && lng) {
                         handle.apply(Number(lat.value), Number(lng.value));
@@ -2015,7 +2074,6 @@
                     method: 'PATCH',
                     body: JSON.stringify({
                         name: el('profile-name').value.trim(),
-                        avatar_url: el('profile-avatar').value.trim() || null,
                     }),
                 }).then(function (me) {
                     meCache = unwrapMe(me) || meCache;
@@ -2026,6 +2084,64 @@
                 }).catch(function (e) {
                     toast('error', 'Profil yenilənmədi');
                     log('Profil yenilənmədi: ' + e.message);
+                });
+            });
+        }
+
+        var uploadAvatar = el('upload-avatar');
+        if (uploadAvatar) {
+            uploadAvatar.addEventListener('click', function () {
+                var fileInput = el('profile-avatar-file');
+                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                    toast('warning', 'Əvvəl şəkil seçin');
+                    return;
+                }
+                var fd = new FormData();
+                fd.append('avatar', fileInput.files[0]);
+                uploadAvatar.disabled = true;
+                api('/auth/avatar', { method: 'POST', body: fd }).then(function (me) {
+                    meCache = unwrapMe(me) || meCache;
+                    paintUserCard(meCache);
+                    toast('success', 'Şəkil yükləndi');
+                    return setAuthStatus();
+                }).catch(function (e) {
+                    toast('error', 'Şəkil yüklənmədi: ' + e.message);
+                }).finally(function () {
+                    uploadAvatar.disabled = false;
+                });
+            });
+        }
+
+        var uploadAudio = el('upload-provider-audio');
+        if (uploadAudio) {
+            uploadAudio.addEventListener('click', function () {
+                var fileInput = el('provider-audio-file');
+                if (!providerProfiles[0]) {
+                    toast('warning', 'Əvvəl xidmətçi profilini yaradın');
+                    return;
+                }
+                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                    toast('warning', 'Audio fayl seçin (maks. ~20 san)');
+                    return;
+                }
+                var fd = new FormData();
+                fd.append('audio', fileInput.files[0]);
+                uploadAudio.disabled = true;
+                api('/provider-profiles/' + providerProfiles[0].id + '/audio-intro', {
+                    method: 'POST',
+                    body: fd,
+                }).then(function (profile) {
+                    providerProfiles[0] = profile;
+                    var player = el('provider-audio-player');
+                    if (player && profile.audio_intro_url) {
+                        player.src = profile.audio_intro_url;
+                        player.hidden = false;
+                    }
+                    toast('success', 'Audio yükləndi');
+                }).catch(function (e) {
+                    toast('error', 'Audio yüklənmədi: ' + e.message);
+                }).finally(function () {
+                    uploadAudio.disabled = false;
                 });
             });
         }
@@ -2657,6 +2773,17 @@
                         box.textContent = currentRole()
                             ? 'Bu səhifə yalnız icraçı üçündür.'
                             : 'Giriş lazımdır';
+                    }
+                    return null;
+                }
+                if (meCache && (
+                    meCache.needs_provider_approval === true
+                    || meCache.provider_approval_status === 'pending'
+                    || meCache.provider_approval_status === 'rejected'
+                )) {
+                    if (box) {
+                        box.textContent = meCache.provider_approval_message
+                            || 'Sorğunuz 1 saat ərzində baxılacaq. Təsdiqləndikdən sonra iş sorğuları gələcək.';
                     }
                     return null;
                 }
