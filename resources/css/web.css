@@ -28,13 +28,18 @@
         @apply flex items-center gap-4;
     }
 
-    .avatar-frame {
-        @apply relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-full border-2 border-white bg-brand-peach shadow-[0_0_0_1px_theme(colors.line)] transition;
-        padding: 0;
-        cursor: pointer;
+    .avatar-shell {
+        @apply relative h-[88px] w-[88px] shrink-0;
     }
 
-    .avatar-frame:hover {
+    .avatar-frame {
+        @apply relative h-full w-full overflow-hidden rounded-full border-2 border-white bg-brand-peach shadow-[0_0_0_1px_theme(colors.line)] transition;
+        padding: 0;
+        cursor: pointer;
+        display: block;
+    }
+
+    .avatar-shell:hover .avatar-frame {
         box-shadow: 0 0 0 2px #C24E2D;
     }
 
@@ -43,16 +48,25 @@
     }
 
     .avatar-preview {
-        @apply absolute inset-0 h-full w-full object-cover;
+        @apply absolute inset-0 z-[1] h-full w-full object-cover;
+    }
+
+    .avatar-preview[hidden] {
+        display: none !important;
     }
 
     .avatar-fallback {
-        @apply absolute inset-0 flex items-center justify-center font-brand text-2xl font-semibold text-brand;
+        @apply absolute inset-0 z-0 flex items-center justify-center font-brand text-2xl font-semibold text-brand;
+    }
+
+    .avatar-fallback[hidden] {
+        display: none !important;
     }
 
     .avatar-camera {
-        @apply absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white shadow-md;
-        transform: translate(4%, 4%);
+        @apply pointer-events-none absolute z-[2] flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white shadow-md;
+        right: -2px;
+        bottom: -2px;
     }
 
     .avatar-upload-meta {
@@ -81,7 +95,15 @@
     }
 
     .card-hero#provider-pending-banner {
-        @apply border-brand/30 bg-brand-peach/40;
+        @apply mb-6 border-brand/30 bg-brand-peach/40;
+    }
+
+    .card-hero#provider-pending-banner h2 {
+        @apply mb-2;
+    }
+
+    .card-hero#provider-pending-banner p {
+        @apply mb-0;
     }
 
     /* Tailwind preflight + Google Maps: tiles break with max-width:100% on img */
@@ -487,7 +509,7 @@
     }
 
     .grid-main {
-        @apply grid gap-5;
+        @apply mt-1 grid gap-5;
     }
 
     @media (min-width: 900px) {

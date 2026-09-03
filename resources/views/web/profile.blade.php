@@ -23,16 +23,18 @@
             <h2>İstifadəçi</h2>
             <div class="stack">
                 <div class="avatar-upload">
-                    <button type="button" id="avatar-pick" class="avatar-frame" aria-label="Profil şəkli seç">
-                        <img id="profile-avatar-img" class="avatar-preview" alt="" hidden>
-                        <span id="profile-avatar-fallback" class="avatar-fallback" aria-hidden="true">?</span>
+                    <div class="avatar-shell">
+                        <button type="button" id="avatar-pick" class="avatar-frame" aria-label="Profil şəkli seç">
+                            <img id="profile-avatar-img" class="avatar-preview" alt="" hidden>
+                            <span id="profile-avatar-fallback" class="avatar-fallback" aria-hidden="true">?</span>
+                        </button>
                         <span class="avatar-camera" aria-hidden="true">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                                 <circle cx="12" cy="13" r="4"/>
                             </svg>
                         </span>
-                    </button>
+                    </div>
                     <div class="avatar-upload-meta">
                         <p class="avatar-upload-title">Profil şəkli</p>
                         <p class="avatar-upload-hint muted">JPG, PNG və ya WebP · maks. 5 MB</p>
