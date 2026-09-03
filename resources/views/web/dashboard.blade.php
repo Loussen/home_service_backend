@@ -44,7 +44,7 @@
             <strong id="dash-balance">—</strong>
         </article>
         <article class="dash-stat">
-            <span class="dash-stat-label">CONNECT qalıq</span>
+            <span class="dash-stat-label" id="dash-connect-label">CONNECT</span>
             <strong id="dash-connect">—</strong>
         </article>
         <article class="dash-stat">

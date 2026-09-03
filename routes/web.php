@@ -12,6 +12,9 @@ Route::get('/request', [WebAppController::class, 'request'])->name('web.request'
 Route::get('/chat', [WebAppController::class, 'chat'])->name('web.chat');
 Route::get('/chat/{id}', [WebAppController::class, 'chatShow'])->whereNumber('id')->name('web.chat.show');
 Route::get('/jobs', [WebAppController::class, 'jobs'])->name('web.jobs');
+Route::get('/providers/{id}', [WebAppController::class, 'providerShow'])
+    ->whereNumber('id')
+    ->name('web.providers.show');
 
 // Legacy /web/* → root (köhnə bookmark / deploy)
 Route::redirect('/web', '/', 301);

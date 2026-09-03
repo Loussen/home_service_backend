@@ -23,6 +23,64 @@
         });
     }
 
+    var MATCH_REASON_AZ = {
+        'match.reason.distance': '{km} km',
+        'match.reason.schedule_ok': 'Cədvəl uyğun',
+        'match.reason.schedule_miss': 'Cədvəl uyğun deyil',
+        'match.reason.category': '{name}',
+        'match.reason.repeat_client': 'Əvvəl işlədiyiniz provayder',
+        'match.reason.bump': 'Vurğulanıb · {hours} saat',
+    };
+
+    function formatMatchReason(reason) {
+        if (!reason) return '';
+        if (reason.label) return String(reason.label);
+        var tpl = MATCH_REASON_AZ[reason.key] || reason.key || '';
+        var params = reason.params || {};
+        return String(tpl).replace(/\{(\w+)\}/g, function (_, key) {
+            return params[key] != null ? String(params[key]) : '';
+        });
+    }
+
+    function formatMatchReasons(list) {
+        return (list || [])
+            .map(formatMatchReason)
+            .filter(Boolean)
+            .join(' · ');
+    }
+
+    function formatConnectHint(me) {
+        if (!me || me.active_role !== 'client') return '';
+        var q = me.connect_quota || {};
+        var daily = q.daily_remaining != null ? q.daily_remaining : 0;
+        if (q.in_free_window) {
+            var left = q.free_remaining != null
+                ? q.free_remaining
+                : Math.max(0, (q.free_quota || 5) - (q.free_used || 0));
+            var quota = q.free_quota != null ? q.free_quota : 5;
+            if (left > 0) {
+                return 'Pulsuz CONNECT: ' + left + '/' + quota + ' qalıb · bu gün ' + daily;
+            }
+            return 'CONNECT pulsuzdur · bu gün ' + daily + ' qalıb';
+        }
+        var fee = Number(q.fee || 0);
+        var feeText = Number.isInteger(fee) ? String(fee) : fee.toFixed(1);
+        return 'CONNECT · ' + feeText + ' AZN · bu gün ' + daily + ' qalıb';
+    }
+
+    function paintConnectHint(me) {
+        var hint = el('connect-hint');
+        if (!hint) return;
+        var text = formatConnectHint(me || meCache);
+        if (!text) {
+            hint.hidden = true;
+            hint.textContent = '';
+            return;
+        }
+        hint.hidden = false;
+        hint.textContent = text;
+    }
+
     function log(msg, data) {
         var box = el('log');
         if (!box) return;
@@ -251,6 +309,7 @@
             }));
         } catch (e) {}
         applyRoleUi();
+        paintConnectHint(me);
     }
 
     function setAuthStatus() {
@@ -764,6 +823,7 @@
         badge.textContent = matches.length + ' nəticə';
         box.innerHTML = '';
         selectedMatchId = null;
+        paintConnectHint(meCache);
 
         var handle = pickerMaps.map;
         matchMarkers.forEach(function (m) { m.setMap(null); });
@@ -848,9 +908,7 @@
             var card = document.createElement('article');
             card.className = 'match-card';
             if (id) card.setAttribute('data-provider-id', String(id));
-            var reasons = (m.reasons || []).map(function (r) {
-                return r.label || r.key;
-            }).join(' · ');
+            var reasons = formatMatchReasons(m.reasons);
             card.innerHTML =
                 '<h3>' + esc(provider.user_name || provider.title || 'İcraçı') +
                 (provider.is_vip ? ' <span class="pill pill-gold">VIP</span>' : '') + '</h3>' +
@@ -914,6 +972,118 @@
         });
     }
 
+    var DAY_LABELS = {
+        1: 'B.e',
+        2: 'Ç.a',
+        3: 'Ç',
+        4: 'C.a',
+        5: 'C',
+        6: 'Ş',
+        7: 'B',
+    };
+    var SLOT_LABELS = {
+        morning: 'Səhər',
+        afternoon: 'Günorta',
+        evening: 'Axşam',
+        night: 'Gecə',
+    };
+
+    function scheduleChipLabel(day, slot) {
+        return (DAY_LABELS[day] || day) + ' · ' + (SLOT_LABELS[slot] || slot);
+    }
+
+    function providerInitial(provider) {
+        var raw = ((provider && (provider.user_name || provider.title)) || '?').trim();
+        return raw ? raw.charAt(0).toUpperCase() : '?';
+    }
+
+    function renderProviderProfileHtml(provider, opts) {
+        opts = opts || {};
+        var name = provider.user_name || provider.title || 'İcraçı';
+        var title = provider.title && provider.title !== name ? provider.title : '';
+        var place = [provider.district, provider.city].filter(Boolean).join(', ');
+        var cats = (provider.categories || []).map(function (c) {
+            return c.name_az || c.name || '';
+        }).filter(Boolean);
+        if (!cats.length && provider.category) {
+            var one = provider.category.name_az || provider.category.name;
+            if (one) cats = [one];
+        }
+        var slots = (provider.schedules || []).filter(function (s) {
+            return s.is_available !== false;
+        });
+        var html = '';
+        if (opts.withHero) {
+            html +=
+                '<div class="provider-public-hero">' +
+                '<div class="provider-preview-avatar" aria-hidden="true">' + esc(providerInitial(provider)) + '</div>' +
+                '<div class="provider-preview-head-text">' +
+                '<h2 class="m-0 font-brand text-2xl text-brand">' + esc(name) + '</h2>' +
+                (title ? '<p class="provider-preview-title">' + esc(title) + '</p>' : '') +
+                '</div></div>';
+        } else if (title) {
+            html += '<p class="provider-preview-title">' + esc(title) + '</p>';
+        }
+
+        html += '<div class="provider-meta-row">';
+        if (provider.is_verified) {
+            html += '<span class="provider-badge provider-badge-verified">Verified</span>';
+        }
+        if (provider.is_vip) {
+            html += '<span class="provider-badge provider-badge-vip">VIP</span>';
+        }
+        if (provider.rating_count > 0) {
+            html +=
+                '<span class="provider-badge provider-badge-rating">★ ' +
+                Number(provider.rating_avg || 0).toFixed(1) +
+                ' · ' +
+                esc(provider.rating_count) +
+                '</span>';
+        }
+        if (place) html += '<span>' + esc(place) + '</span>';
+        html += '</div>';
+
+        if (cats.length) {
+            html +=
+                '<div class="provider-chips">' +
+                cats.map(function (c) {
+                    return '<span class="provider-chip">' + esc(c) + '</span>';
+                }).join('') +
+                '</div>';
+        }
+
+        if (provider.bio) {
+            html += '<p class="provider-bio">' + esc(provider.bio) + '</p>';
+        }
+
+        if (provider.audio_intro_url) {
+            html +=
+                '<div><p class="provider-section-label">Audio intro</p>' +
+                '<audio controls class="w-full" src="' +
+                esc(provider.audio_intro_url) +
+                '"></audio></div>';
+        }
+
+        if (slots.length) {
+            html +=
+                '<div><p class="provider-section-label">Cədvəl</p>' +
+                '<div class="provider-schedule-grid">' +
+                slots
+                    .slice(0, opts.maxSlots || 21)
+                    .map(function (s) {
+                        return (
+                            '<span class="provider-schedule-chip">' +
+                            esc(scheduleChipLabel(s.day_of_week, s.time_slot)) +
+                            '</span>'
+                        );
+                    })
+                    .join('') +
+                '</div></div>';
+        }
+
+        return html || '<p class="muted">Əlavə məlumat yoxdur</p>';
+    }
+
     function ensureProviderModal() {
         var modal = document.getElementById('provider-modal');
         if (modal) return modal;
@@ -922,11 +1092,17 @@
         modal.className = 'modal';
         modal.hidden = true;
         modal.innerHTML =
-            '<div class="modal-card">' +
+            '<div class="modal-card provider-preview">' +
+            '<div class="provider-preview-head">' +
+            '<div class="provider-preview-avatar" id="provider-modal-avatar">?</div>' +
+            '<div class="provider-preview-head-text">' +
             '<h3 id="provider-modal-title">Xidmətçi</h3>' +
-            '<div id="provider-modal-body" class="provider-modal-body"></div>' +
-            '<div class="modal-actions">' +
+            '<p class="provider-preview-title" id="provider-modal-sub" hidden></p>' +
+            '</div></div>' +
+            '<div id="provider-modal-body" class="provider-preview-body"></div>' +
+            '<div class="provider-preview-actions">' +
             '<button type="button" class="btn btn-outline" id="provider-modal-close">Bağla</button>' +
+            '<a class="btn btn-outline" id="provider-modal-detail" href="#">Ətraflı profil</a>' +
             '<button type="button" class="btn btn-primary" id="provider-modal-connect">CONNECT</button>' +
             '</div></div>';
         document.body.appendChild(modal);
@@ -942,53 +1118,46 @@
     function openProviderProfile(profileId, request) {
         var modal = ensureProviderModal();
         var titleEl = document.getElementById('provider-modal-title');
+        var subEl = document.getElementById('provider-modal-sub');
+        var avatarEl = document.getElementById('provider-modal-avatar');
         var bodyEl = document.getElementById('provider-modal-body');
         var connectBtn = document.getElementById('provider-modal-connect');
+        var detailLink = document.getElementById('provider-modal-detail');
         titleEl.textContent = 'Xidmətçi';
-        bodyEl.innerHTML = '<p class="meta">Yüklənir…</p>';
+        if (subEl) {
+            subEl.hidden = true;
+            subEl.textContent = '';
+        }
+        if (avatarEl) avatarEl.textContent = '?';
+        bodyEl.innerHTML = '<p class="muted">Yüklənir…</p>';
         connectBtn.disabled = true;
         connectBtn.onclick = null;
+        var detailHref = '/providers/' + profileId;
+        if (request && request.id) {
+            detailHref += '?requestId=' + encodeURIComponent(request.id);
+        }
+        detailLink.href = detailHref;
         modal.hidden = false;
 
         api('/providers/' + profileId).then(function (provider) {
             var name = provider.user_name || provider.title || 'İcraçı';
             titleEl.textContent = name;
-            var cats = (provider.categories || []).map(function (c) {
-                return c.name_az || c.name || '';
-            }).filter(Boolean).join(' · ');
-            var place = [provider.district, provider.city].filter(Boolean).join(', ');
-            var scheduleBits = (provider.schedules || []).filter(function (s) {
-                return s.is_available !== false;
-            }).slice(0, 12).map(function (s) {
-                return (s.day_of_week || '') + '/' + (s.time_slot || '');
-            });
-            var html = '';
-            if (provider.title && provider.title !== name) {
-                html += '<p class="meta">' + esc(provider.title) + '</p>';
+            if (avatarEl) avatarEl.textContent = providerInitial(provider);
+            if (subEl) {
+                if (provider.title && provider.title !== name) {
+                    subEl.hidden = false;
+                    subEl.textContent = provider.title;
+                } else {
+                    subEl.hidden = true;
+                }
             }
-            if (cats) html += '<p class="meta">' + esc(cats) + '</p>';
-            if (place) html += '<p class="meta">' + esc(place) + '</p>';
-            if (provider.is_verified) html += '<p class="meta">Verified</p>';
-            if (provider.is_vip) html += '<p class="meta">VIP</p>';
-            if (provider.rating_count > 0) {
-                html += '<p class="meta">★ ' + Number(provider.rating_avg || 0).toFixed(1) +
-                    ' (' + provider.rating_count + ')</p>';
-            }
-            if (provider.bio) {
-                html += '<p style="margin-top:12px;white-space:pre-wrap">' + esc(provider.bio) + '</p>';
-            }
-            if (provider.audio_intro_url) {
-                html += '<p style="margin-top:12px"><audio controls src="' +
-                    esc(provider.audio_intro_url) + '"></audio></p>';
-            }
-            if (scheduleBits.length) {
-                html += '<p class="meta" style="margin-top:12px">Cədvəl: ' +
-                    esc(scheduleBits.join(' · ')) + '</p>';
-            }
-            bodyEl.innerHTML = html || '<p class="meta">Əlavə məlumat yoxdur</p>';
+            bodyEl.innerHTML = renderProviderProfileHtml(provider, { maxSlots: 12 });
             connectBtn.disabled = false;
             connectBtn.onclick = function () {
-                if (!request) return;
+                if (!request) {
+                    toast('warning', 'CONNECT üçün əvvəl sorğu yaradın');
+                    return;
+                }
                 requireRole('client').then(function () {
                     return api('/conversations', {
                         method: 'POST',
@@ -1006,13 +1175,92 @@
                 });
             };
         }).catch(function (e) {
-            bodyEl.innerHTML = '<p class="meta">Profil açılmadı: ' + esc(e.message) + '</p>';
+            bodyEl.innerHTML = '<p class="muted">Profil açılmadı: ' + esc(e.message) + '</p>';
         });
+    }
+
+    function bindProviderPublicPage() {
+        var profileId = Number(document.body.getAttribute('data-provider-id') || 0);
+        if (!profileId) return;
+        var params = new URLSearchParams(window.location.search);
+        var requestId = Number(params.get('requestId') || 0) || null;
+        var body = el('pp-body');
+        var nameEl = el('pp-name');
+        var subEl = el('pp-subtitle');
+        var actions = el('pp-actions');
+        var connectBtn = el('pp-connect');
+        var back = el('pp-back');
+
+        if (back) {
+            back.href = requestId ? '/request' : '/';
+        }
+
+        api('/providers/' + profileId).then(function (provider) {
+            var name = provider.user_name || provider.title || 'İcraçı';
+            if (nameEl) nameEl.textContent = name;
+            if (subEl) {
+                subEl.textContent = [provider.district, provider.city].filter(Boolean).join(', ') ||
+                    'Ətraflı məlumat, cədvəl və CONNECT.';
+            }
+            if (body) {
+                body.innerHTML = renderProviderProfileHtml(provider, {
+                    withHero: true,
+                    maxSlots: 28,
+                });
+            }
+            if (actions) actions.hidden = false;
+            if (connectBtn && meCache && meCache.active_role === 'client' && requestId) {
+                connectBtn.hidden = false;
+                connectBtn.onclick = function () {
+                    requireRole('client').then(function () {
+                        return api('/conversations', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                provider_profile_id: profileId,
+                                service_request_id: requestId,
+                            }),
+                        });
+                    }).then(function (conversation) {
+                        toast('success', 'CONNECT uğurlu');
+                        go('/chat/' + conversation.id);
+                    }).catch(function (e) {
+                        toast('error', 'CONNECT xətası: ' + e.message);
+                    });
+                };
+            } else if (connectBtn && meCache && meCache.active_role === 'client') {
+                connectBtn.hidden = false;
+                connectBtn.textContent = 'Sorğuya keç';
+                connectBtn.onclick = function () {
+                    go('/request');
+                };
+            }
+            log('İcraçı profili açıldı', { id: profileId, name: name });
+        }).catch(function (e) {
+            if (nameEl) nameEl.textContent = 'Profil tapılmadı';
+            if (body) body.innerHTML = '<p class="muted">' + esc(e.message) + '</p>';
+            if (actions) actions.hidden = false;
+            log('Profil xətası: ' + e.message);
+        });
+    }
+
+    function clearRequestId() {
+        localStorage.removeItem(requestKey);
+    }
+
+    function resetRequestResultsUi() {
+        if (el('request-info')) {
+            el('request-info').textContent = 'Yeni sorğu yazın — əvvəlki nəticələr göstərilmir';
+        }
+        renderMatches(null);
+        paintConnectHint(meCache);
     }
 
     function refreshRequest() {
         var id = getRequestId();
-        if (!id) return Promise.resolve();
+        if (!id) {
+            toast('info', 'Hələ aktiv sorğu yoxdur — əvvəl sorğu yaradın');
+            return Promise.resolve();
+        }
         return api('/service-requests/' + id).then(function (req) {
             if (el('request-info')) {
                 el('request-info').textContent = 'Sorğu #' + req.id + ' · ' + req.status;
@@ -1401,6 +1649,10 @@
     }
 
     function bindRequestPage() {
+        // Səhifəyə hər girişdə təmiz forma — son sorğunun nəticələrini avtomatik göstərmə
+        clearRequestId();
+        resetRequestResultsUi();
+
         initPickerMap({
             mapId: 'map',
             latId: 'lat',
@@ -1994,14 +2246,30 @@
             }
             var bal = el('dash-balance');
             var conn = el('dash-connect');
+            var connLabel = el('dash-connect-label');
             var role = el('dash-role');
             if (bal) {
                 bal.textContent = (Number(me.balance || 0)).toFixed(0) + ' AZN';
             }
             if (conn) {
                 var q = me.connect_quota || {};
-                var left = q.daily_remaining != null ? q.daily_remaining : (q.remaining != null ? q.remaining : '—');
-                conn.textContent = String(left);
+                if (me.active_role === 'client') {
+                    if (q.in_free_window) {
+                        var left = q.free_remaining != null
+                            ? q.free_remaining
+                            : Math.max(0, (q.free_quota || 5) - (q.free_used || 0));
+                        conn.textContent = left + '/' + (q.free_quota || 5) + ' pulsuz';
+                        if (connLabel) connLabel.textContent = 'Pulsuz CONNECT';
+                    } else {
+                        var fee = Number(q.fee || 0);
+                        var feeText = Number.isInteger(fee) ? String(fee) : fee.toFixed(1);
+                        conn.textContent = feeText + ' AZN · ' + (q.daily_remaining != null ? q.daily_remaining : '—');
+                        if (connLabel) connLabel.textContent = 'CONNECT';
+                    }
+                } else {
+                    conn.textContent = '—';
+                    if (connLabel) connLabel.textContent = 'CONNECT';
+                }
             }
             if (role) role.textContent = roleLabel(me.active_role);
             applyRoleUi();
@@ -2032,6 +2300,7 @@
         if (page === 'categories') bindCategoriesPage();
         if (page === 'profile') bindProfilePage();
         if (page === 'request') bindRequestPage();
+        if (page === 'provider-public') bindProviderPublicPage();
         if (page === 'chat') bindChatPage();
         if (page === 'chat-thread') bindChatThreadPage();
         if (page === 'jobs') bindJobsPage();
@@ -2055,9 +2324,6 @@
             }
             if (page === 'jobs' && typeof window.__reloadJobs === 'function') {
                 window.__reloadJobs();
-            }
-            if (page === 'request' && getRequestId()) {
-                refreshRequest();
             }
         });
     });

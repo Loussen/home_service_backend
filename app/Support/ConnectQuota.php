@@ -37,16 +37,19 @@ class ConnectQuota
             || ($user->created_at !== null && $user->created_at->gte(now()->subDays($freeDays)));
 
         $dailyRemaining = max(0, $dailyLimit - $today);
+        $effectiveFee = $inFreeWindow ? 0.0 : $fee;
+        $canAfford = $effectiveFee <= 0 || (float) $user->balance >= $effectiveFee;
 
         return [
             'in_free_window' => $inFreeWindow,
             'free_quota' => $freeQuota,
             'free_used' => min($lifetime, $freeQuota),
+            'free_remaining' => max(0, $freeQuota - $lifetime),
             'daily_limit' => $dailyLimit,
             'daily_used' => $today,
             'daily_remaining' => $dailyRemaining,
-            'fee' => $inFreeWindow ? 0.0 : $fee,
-            'can_connect' => $dailyRemaining > 0,
+            'fee' => $effectiveFee,
+            'can_connect' => $dailyRemaining > 0 && $canAfford,
         ];
     }
 
@@ -55,12 +58,24 @@ class ConnectQuota
      */
     public static function assertCanOpen(array $snapshot): void
     {
-        if ($snapshot['can_connect']) {
+        if (($snapshot['daily_remaining'] ?? 0) <= 0) {
+            throw ValidationException::withMessages([
+                'connect' => ['Bu gün CONNECT limitiniz bitib. Sabah yenidən cəhd edin.'],
+            ]);
+        }
+
+        if ((float) ($snapshot['fee'] ?? 0) > 0 && ! ($snapshot['can_connect'] ?? false)) {
+            throw ValidationException::withMessages([
+                'balance' => ['Balansınız kifayət etmir. CONNECT üçün balans artırın.'],
+            ]);
+        }
+
+        if ($snapshot['can_connect'] ?? false) {
             return;
         }
 
         throw ValidationException::withMessages([
-            'connect' => ['Bu gün CONNECT limitiniz bitib. Sabah yenidən cəhd edin.'],
+            'connect' => ['CONNECT mümkün deyil.'],
         ]);
     }
 }

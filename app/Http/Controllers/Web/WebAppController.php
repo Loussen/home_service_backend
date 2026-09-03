@@ -51,5 +51,10 @@ class WebAppController extends Controller
     {
         return view('web.jobs');
     }
+
+    public function providerShow(int $id): View
+    {
+        return view('web.provider-public', ['providerId' => $id]);
+    }
 }
 

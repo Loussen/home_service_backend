@@ -32,6 +32,7 @@
     data-maps-key="{{ config('homeservice.google_maps_browser_key') }}"
     data-maps-js="{{ filled(config('homeservice.google_maps_browser_key')) ? '1' : '0' }}"
     data-conversation-id="@yield('conversation_id', '')"
+    data-provider-id="{{ $providerId ?? '' }}"
     class="font-sans"
 >
 <a class="skip-link" href="#main">Məzmuna keç</a>

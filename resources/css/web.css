@@ -518,7 +518,95 @@
     }
 
     .modal-actions {
-        @apply mt-5 flex justify-end gap-2;
+        @apply mt-5 flex flex-wrap justify-end gap-2;
+    }
+
+    .modal-card.provider-preview {
+        @apply max-w-[480px] p-0 overflow-hidden;
+    }
+
+    .provider-preview-head {
+        @apply flex items-start gap-3.5 border-b border-line bg-parchment/80 px-5 py-4;
+    }
+
+    .provider-preview-avatar {
+        @apply flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-peach font-brand text-xl font-semibold text-brand;
+    }
+
+    .provider-preview-head-text {
+        @apply min-w-0 flex-1;
+    }
+
+    .provider-preview-head-text h3 {
+        @apply m-0 font-brand text-[1.35rem] font-semibold leading-tight text-brand;
+    }
+
+    .provider-preview-title {
+        @apply mt-1 text-[0.95rem] font-semibold text-ink;
+    }
+
+    .provider-preview-body {
+        @apply grid gap-3.5 px-5 py-4;
+    }
+
+    .provider-meta-row {
+        @apply flex flex-wrap items-center gap-2 text-sm text-mute;
+    }
+
+    .provider-badge {
+        @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold;
+    }
+
+    .provider-badge-verified {
+        @apply bg-sage text-[#3d6b48];
+    }
+
+    .provider-badge-vip {
+        @apply bg-[#F7E8C8] text-[#8A6A22];
+    }
+
+    .provider-badge-rating {
+        @apply bg-dusk-soft text-dusk;
+    }
+
+    .provider-chips {
+        @apply flex flex-wrap gap-1.5;
+    }
+
+    .provider-chip {
+        @apply rounded-full bg-parchment px-2.5 py-1 text-xs font-bold text-ink;
+    }
+
+    .provider-bio {
+        @apply m-0 whitespace-pre-wrap text-[0.95rem] leading-relaxed text-ink;
+    }
+
+    .provider-section-label {
+        @apply mb-2 text-xs font-extrabold uppercase tracking-wide text-mute;
+    }
+
+    .provider-schedule-grid {
+        @apply grid grid-cols-2 gap-1.5 sm:grid-cols-3;
+    }
+
+    .provider-schedule-chip {
+        @apply rounded-xl border border-line bg-canvas px-2.5 py-2 text-center text-[0.72rem] font-bold leading-snug text-ink;
+    }
+
+    .provider-preview-actions {
+        @apply flex flex-wrap gap-2 border-t border-line bg-canvas/60 px-5 py-4;
+    }
+
+    .provider-preview-actions .btn {
+        @apply flex-1 min-w-[7.5rem];
+    }
+
+    .provider-public-hero {
+        @apply mb-4 flex items-start gap-4;
+    }
+
+    .provider-public-hero .provider-preview-avatar {
+        @apply h-16 w-16 text-2xl;
     }
 
     .composer {

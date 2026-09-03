@@ -54,6 +54,7 @@
             <h2>Nəticələr</h2>
             <span id="match-count" class="pill">0 nəticə</span>
         </div>
+        <p id="connect-hint" class="muted" hidden></p>
         <div id="matches" class="matches"></div>
     </section>
 
