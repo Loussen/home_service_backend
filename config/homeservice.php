@@ -22,7 +22,7 @@ return [
     'otp_ttl_minutes' => (int) env('OTP_TTL_MINUTES', 5),
     'otp_max_attempts' => (int) env('OTP_MAX_ATTEMPTS', 5),
     'otp_send_max' => (int) env('OTP_SEND_MAX', 3),
-    'otp_send_window_minutes' => (int) env('OTP_SEND_WINDOW_MINUTES', 15),
+    'otp_send_window_minutes' => (int) env('OTP_SEND_WINDOW_MINUTES', 5),
     'otp_resend_seconds' => (int) env('OTP_RESEND_SECONDS', 30),
     // Local: 123456. Production always random. Set false to test random codes locally.
     'otp_allow_debug_code' => filter_var(env('OTP_ALLOW_DEBUG_CODE', true), FILTER_VALIDATE_BOOL),

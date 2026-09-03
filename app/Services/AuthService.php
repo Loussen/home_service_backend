@@ -30,7 +30,7 @@ class AuthService
             ]);
         }
 
-        $window = (int) config('homeservice.otp_send_window_minutes', 15);
+        $window = (int) config('homeservice.otp_send_window_minutes', 5);
         $maxSends = (int) config('homeservice.otp_send_max', 3);
         $resendAfter = (int) config('homeservice.otp_resend_seconds', 30);
 
