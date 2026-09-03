@@ -1,2 +1,4 @@
 User-agent: *
-Disallow:
+Disallow: /
+
+# Indexing closed until launch. Remove Disallow and meta noindex when ready.
