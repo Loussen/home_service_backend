@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Support\MatchReasons;
+use App\Support\RequestLocale;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,6 +13,7 @@ class IncomingJobResource extends JsonResource
     public function toArray(Request $request): array
     {
         $sr = $this->serviceRequest;
+        $locale = RequestLocale::from($request);
 
         return [
             'match_id' => $this->id,
@@ -30,6 +32,7 @@ class IncomingJobResource extends JsonResource
                 'longitude' => $sr->longitude,
                 'category' => $sr->category ? [
                     'id' => $sr->category->id,
+                    'name' => $sr->category->nameFor($locale),
                     'name_az' => $sr->category->name_az,
                 ] : null,
                 'created_at' => $sr->created_at?->toIso8601String(),

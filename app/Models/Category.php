@@ -15,6 +15,7 @@ class Category extends Model
         'slug',
         'name_az',
         'name_en',
+        'name_ru',
         'icon',
         'is_active',
         'sort_order',
@@ -25,6 +26,30 @@ class Category extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function nameFor(?string $locale = null): string
+    {
+        $default = (string) config('app_locales.default', 'az');
+        $locale = strtolower(trim((string) $locale));
+        if ($locale === '') {
+            $locale = $default;
+        }
+        if (str_contains($locale, ',')) {
+            $locale = explode(',', $locale)[0];
+        }
+        if (str_contains($locale, '-')) {
+            $locale = explode('-', $locale)[0];
+        }
+
+        foreach (array_values(array_unique(array_filter([$locale, $default, 'az']))) as $code) {
+            $value = $this->getAttribute("name_{$code}");
+            if (is_string($value) && trim($value) !== '') {
+                return $value;
+            }
+        }
+
+        return (string) $this->name_az;
     }
 
     public function parent(): BelongsTo

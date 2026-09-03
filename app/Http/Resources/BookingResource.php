@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\RequestLocale;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,7 +13,7 @@ class BookingResource extends JsonResource
     {
         $me = $request->user();
         $other = $me && $this->client_id === $me->id ? $this->provider : $this->client;
-        $profile = $this->whenLoaded('providerProfile');
+        $locale = RequestLocale::from($request);
 
         return [
             'id' => $this->id,
@@ -33,7 +34,7 @@ class BookingResource extends JsonResource
                 ? $this->providerProfile?->title
                 : null,
             'category_name' => $this->relationLoaded('providerProfile')
-                ? ($this->providerProfile?->category?->name_az ?? null)
+                ? ($this->providerProfile?->category?->nameFor($locale) ?? null)
                 : null,
         ];
     }

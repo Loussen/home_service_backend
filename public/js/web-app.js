@@ -142,7 +142,7 @@
     function formatMatchReason(reason) {
         if (!reason) return '';
         if (reason.label) return String(reason.label);
-        var tpl = MATCH_REASON_AZ[reason.key] || reason.key || '';
+        var tpl = t(reason.key, MATCH_REASON_AZ[reason.key] || reason.key || '');
         var params = reason.params || {};
         return String(tpl).replace(/\{(\w+)\}/g, function (_, key) {
             return params[key] != null ? String(params[key]) : '';
@@ -151,7 +151,10 @@
 
     function formatMatchReasonHint(reason) {
         if (!reason) return '';
-        var tpl = MATCH_REASON_HINT_AZ[reason.key];
+        var tpl = t(reason.key + '_hint', MATCH_REASON_HINT_AZ[reason.key] || '');
+        if (!tpl || tpl === reason.key + '_hint') {
+            tpl = MATCH_REASON_HINT_AZ[reason.key];
+        }
         if (!tpl) return formatMatchReason(reason);
         var params = reason.params || {};
         return String(tpl).replace(/\{(\w+)\}/g, function (_, key) {
@@ -401,6 +404,7 @@
     function headers(isMultipart) {
         var h = {
             Accept: 'application/json',
+            'Accept-Language': getStoredLocale(),
             'X-Client': 'web',
         };
         if (!isMultipart) {
@@ -411,6 +415,15 @@
             h.Authorization = 'Bearer ' + token;
         }
         return h;
+    }
+
+    function categoryLabel(node) {
+        if (!node) return '';
+        if (node.name) return String(node.name);
+        var locale = getStoredLocale();
+        if (locale === 'en' && node.name_en) return String(node.name_en);
+        if (locale === 'ru' && node.name_ru) return String(node.name_ru);
+        return String(node.name_az || node.name_en || node.name_ru || node.slug || '');
     }
 
     function api(path, options) {
@@ -1217,7 +1230,7 @@
 
         function walk(nodes, parentLabel) {
             (nodes || []).forEach(function (node) {
-                var label = node.name_az || node.name_en || node.slug || ('#' + node.id);
+                var label = categoryLabel(node) || ('#' + node.id);
                 if (node.children && node.children.length) {
                     walk(node.children, label);
                     return;
@@ -1417,7 +1430,7 @@
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'chip' + (selected.indexOf(id) !== -1 ? ' selected' : '');
-            btn.textContent = c.name_az || c.name_en || c.slug;
+            btn.textContent = categoryLabel(c);
             btn.addEventListener('click', function () {
                 var idx = selected.indexOf(id);
                 if (idx !== -1) {
@@ -1461,7 +1474,7 @@
             }
             if (!leaves.length) return;
 
-            var groupName = group.name_az || group.name_en || group.slug || 'Kateqoriya';
+            var groupName = categoryLabel(group) || t('web.nav.categories', 'Kateqoriya');
             var selectedInGroup = leaves.filter(function (c) {
                 return selected.indexOf(Number(c.id)) !== -1;
             }).length;
@@ -1486,7 +1499,7 @@
                 var btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'chip' + (selected.indexOf(id) !== -1 ? ' selected' : '');
-                btn.textContent = c.name_az || c.name_en || c.slug;
+                btn.textContent = categoryLabel(c);
                 btn.addEventListener('click', function () {
                     var idx = selected.indexOf(id);
                     if (idx !== -1) {
@@ -1811,10 +1824,10 @@
         var title = provider.title && provider.title !== name ? provider.title : '';
         var place = [provider.district, provider.city].filter(Boolean).join(', ');
         var cats = (provider.categories || []).map(function (c) {
-            return c.name_az || c.name || '';
+            return categoryLabel(c);
         }).filter(Boolean);
         if (!cats.length && provider.category) {
-            var one = provider.category.name_az || provider.category.name;
+            var one = categoryLabel(provider.category);
             if (one) cats = [one];
         }
         var slots = (provider.schedules || []).filter(function (s) {
@@ -2094,7 +2107,7 @@
             el('lng').value = String(req.longitude);
         }
         if (el('request-info')) {
-            var catName = req.category && (req.category.name_az || req.category.name);
+            var catName = req.category && categoryLabel(req.category);
             el('request-info').textContent =
                 'Sorğu #' + req.id +
                 (catName ? (' · ' + catName) : '') +
@@ -3729,7 +3742,7 @@
                 }
                 box.innerHTML = '';
                 rows.forEach(function (req) {
-                    var cat = (req.category && (req.category.name_az || req.category.name)) || '';
+                    var cat = (req.category && categoryLabel(req.category)) || '';
                     var text = (req.transcribed_text || req.address || '').trim();
                     var count = req.matches_count != null ? req.matches_count : 0;
                     var title = cat || (text ? text.slice(0, 48) : ('Sorğu #' + req.id));

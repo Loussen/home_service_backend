@@ -51,6 +51,8 @@ class CategoryResource extends Resource
                     ->required(),
                 TextInput::make('name_en')
                     ->label('Ad (EN)'),
+                TextInput::make('name_ru')
+                    ->label('Ad (RU)'),
                 TextInput::make('icon')
                     ->label('İkon'),
                 Toggle::make('is_active')
@@ -80,7 +82,12 @@ class CategoryResource extends Resource
                     ->description(fn (Category $record) => Category::treeLabelMap()[$record->id] ?? null),
                 TextColumn::make('name_en')
                     ->label('Ad (EN)')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(),
+                TextColumn::make('name_ru')
+                    ->label('Ad (RU)')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('icon')
                     ->label('İkon')
                     ->searchable(),
