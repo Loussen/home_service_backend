@@ -1966,13 +1966,20 @@
             if (nameEl) nameEl.value = me.name || '';
             if (roleEl) roleEl.textContent = roleLabel(me.active_role);
             if (balEl) balEl.textContent = (Number(me.balance || 0)).toFixed(0) + ' AZN';
+            var fallback = el('profile-avatar-fallback');
             if (img) {
                 if (me.avatar_url) {
                     img.src = me.avatar_url;
                     img.hidden = false;
+                    if (fallback) fallback.hidden = true;
                 } else {
                     img.hidden = true;
                     img.removeAttribute('src');
+                    if (fallback) {
+                        fallback.hidden = false;
+                        var n = (me.name || me.phone || '?').trim();
+                        fallback.textContent = n.charAt(0).toUpperCase();
+                    }
                 }
             }
             if (approval) {
@@ -2088,27 +2095,52 @@
             });
         }
 
-        var uploadAvatar = el('upload-avatar');
-        if (uploadAvatar) {
-            uploadAvatar.addEventListener('click', function () {
+        function openAvatarPicker() {
+            var fileInput = el('profile-avatar-file');
+            if (fileInput) fileInput.click();
+        }
+
+        function uploadAvatarFile(file) {
+            if (!file) return;
+            var btn = el('upload-avatar');
+            var pick = el('avatar-pick');
+            var fd = new FormData();
+            fd.append('avatar', file);
+            if (btn) btn.disabled = true;
+            if (pick) pick.disabled = true;
+            var img = el('profile-avatar-img');
+            var fallback = el('profile-avatar-fallback');
+            if (img && file.type.indexOf('image/') === 0) {
+                img.src = URL.createObjectURL(file);
+                img.hidden = false;
+                if (fallback) fallback.hidden = true;
+            }
+            api('/auth/avatar', { method: 'POST', body: fd }).then(function (me) {
+                meCache = unwrapMe(me) || meCache;
+                paintUserCard(meCache);
+                toast('success', 'Şəkil yükləndi');
+                return setAuthStatus();
+            }).catch(function (e) {
+                toast('error', 'Şəkil yüklənmədi: ' + e.message);
+                paintUserCard(meCache);
+            }).finally(function () {
+                if (btn) btn.disabled = false;
+                if (pick) pick.disabled = false;
                 var fileInput = el('profile-avatar-file');
-                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-                    toast('warning', 'Əvvəl şəkil seçin');
-                    return;
+                if (fileInput) fileInput.value = '';
+            });
+        }
+
+        var uploadAvatar = el('upload-avatar');
+        var avatarPick = el('avatar-pick');
+        var avatarFile = el('profile-avatar-file');
+        if (uploadAvatar) uploadAvatar.addEventListener('click', openAvatarPicker);
+        if (avatarPick) avatarPick.addEventListener('click', openAvatarPicker);
+        if (avatarFile) {
+            avatarFile.addEventListener('change', function () {
+                if (avatarFile.files && avatarFile.files[0]) {
+                    uploadAvatarFile(avatarFile.files[0]);
                 }
-                var fd = new FormData();
-                fd.append('avatar', fileInput.files[0]);
-                uploadAvatar.disabled = true;
-                api('/auth/avatar', { method: 'POST', body: fd }).then(function (me) {
-                    meCache = unwrapMe(me) || meCache;
-                    paintUserCard(meCache);
-                    toast('success', 'Şəkil yükləndi');
-                    return setAuthStatus();
-                }).catch(function (e) {
-                    toast('error', 'Şəkil yüklənmədi: ' + e.message);
-                }).finally(function () {
-                    uploadAvatar.disabled = false;
-                });
             });
         }
 

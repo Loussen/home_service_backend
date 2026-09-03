@@ -23,9 +23,22 @@
             <h2>İstifadəçi</h2>
             <div class="stack">
                 <div class="avatar-upload">
-                    <img id="profile-avatar-img" class="avatar-preview" alt="" hidden>
-                    <input id="profile-avatar-file" type="file" accept="image/jpeg,image/png,image/webp">
-                    <button type="button" id="upload-avatar" class="btn btn-outline btn-inline">Şəkil yüklə</button>
+                    <button type="button" id="avatar-pick" class="avatar-frame" aria-label="Profil şəkli seç">
+                        <img id="profile-avatar-img" class="avatar-preview" alt="" hidden>
+                        <span id="profile-avatar-fallback" class="avatar-fallback" aria-hidden="true">?</span>
+                        <span class="avatar-camera" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                <circle cx="12" cy="13" r="4"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="avatar-upload-meta">
+                        <p class="avatar-upload-title">Profil şəkli</p>
+                        <p class="avatar-upload-hint muted">JPG, PNG və ya WebP · maks. 5 MB</p>
+                        <button type="button" id="upload-avatar" class="btn-link-brand">Şəkil seç / dəyiş</button>
+                    </div>
+                    <input id="profile-avatar-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>
                 </div>
                 <input id="profile-name" type="text" placeholder="Ad Soyad">
                 <p class="muted">Rol: <b id="profile-role-label">—</b> · Balans: <b id="profile-balance">—</b></p>
