@@ -2153,7 +2153,9 @@
         }
 
         el('create-request').addEventListener('click', function () {
-            if (el('create-request').disabled || el('create-request').hidden) return;
+            var createBtn = el('create-request');
+            if (!createBtn || createBtn.disabled || createBtn.hidden) return;
+            if (createBtn.dataset.loading === '1') return;
             var categoryId = getRequestCategoryId();
             if (!categoryId) {
                 toast('warning', 'Əvvəl kateqoriya seçin');
@@ -2164,6 +2166,18 @@
             var note = el('text').value.trim();
             var catLabel = getRequestCategoryLabel();
             var text = note || catLabel || 'Sorğu';
+            var idleLabel = createBtn.textContent;
+
+            function setCreating(on) {
+                createBtn.dataset.loading = on ? '1' : '';
+                createBtn.disabled = !!on;
+                createBtn.setAttribute('aria-busy', on ? 'true' : 'false');
+                createBtn.textContent = on ? 'Yaradılır…' : idleLabel;
+                if (on) showPageLoader();
+                else hidePageLoader();
+            }
+
+            setCreating(true);
             requireRole('client').then(function () {
                 return api('/service-requests/text', {
                     method: 'POST',
@@ -2184,15 +2198,22 @@
                 el('request-info').textContent = 'Sorğu #' + data.id + ' yaradıldı · ' + data.status;
                 toast('success', 'Sorğu yaradıldı');
                 log('Sorğu yaradıldı', { id: data.id, status: data.status, category_id: categoryId });
-                setTimeout(function () {
-                    refreshRequest().then(function () {
-                        setRequestViewMode(true);
-                    });
-                }, 1000);
+                createBtn.textContent = 'Nəticələr yüklənir…';
+                return refreshRequest().then(function () {
+                    setRequestViewMode(true);
+                });
             }).catch(function (e) {
                 if (e && /yalnız ailə/i.test(e.message || '')) return;
                 toast('error', 'Sorğu yaradılmadı');
                 log('Sorğu yaradılmadı: ' + e.message);
+            }).finally(function () {
+                if (createBtn.hidden) {
+                    hidePageLoader();
+                    createBtn.dataset.loading = '';
+                    createBtn.textContent = idleLabel;
+                    return;
+                }
+                setCreating(false);
             });
         });
 
