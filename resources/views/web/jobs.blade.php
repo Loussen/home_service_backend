@@ -12,10 +12,10 @@
 
     <section id="role-gate-provider" class="card card-hero" hidden>
         <h2>Bu səhifə icraçı üçündür</h2>
-        <p class="muted">Ailə gələn işlərə baxmır. Sorğu yaratmaq üçün ailə rolunda olun.</p>
+        <p class="muted">Ailə gələn işlərə baxmır. Sorğu yaratmaq üçün ailə hesabı lazımdır.</p>
         <div class="actions mt">
             <a href="{{ route('web.request') }}" class="btn btn-primary btn-inline">Sorğu yarat</a>
-            <button type="button" id="switch-to-provider" class="btn btn-outline btn-inline">İcraçı roluna keç</button>
+            <a href="{{ route('web.app') }}" class="btn btn-outline btn-inline">Ana səhifə</a>
         </div>
     </section>
 

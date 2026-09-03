@@ -27,7 +27,11 @@ class UserForm
                     ->label('Rol')
                     ->options(['client' => 'Müştəri', 'provider' => 'İcraçı'])
                     ->default('client')
-                    ->required(),
+                    ->required()
+                    ->helperText('İstifadəçi özü rolunu dəyişə bilməz. Yalnız admin dəyişə bilər.'),
+                DateTimePicker::make('role_chosen_at')
+                    ->label('Rol seçilib')
+                    ->default(now()),
                 TextInput::make('balance')
                     ->label('Balans')
                     ->required()

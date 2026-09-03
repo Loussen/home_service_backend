@@ -24,6 +24,7 @@
                     <option value="client">Ailə (client)</option>
                     <option value="provider">Xidmət göstərən (provider)</option>
                 </select>
+                <p class="muted">Rol birdəfəlikdir — eyni nömrə yalnız ailə və ya yalnız icraçı ola bilər.</p>
             </div>
         </div>
 

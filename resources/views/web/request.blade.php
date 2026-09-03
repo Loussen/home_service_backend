@@ -12,23 +12,19 @@
 
     <section id="role-gate-client" class="card card-hero" hidden>
         <h2>Bu səhifə ailə üçündür</h2>
-        <p class="muted">İcraçı sorğu yarada bilməz. Gələn işlərə baxın və ya ailə roluna keçin.</p>
+        <p class="muted">İcraçı sorğu yarada bilməz. Gələn işlərə baxın.</p>
         <div class="actions mt">
             <a href="{{ route('web.jobs') }}" class="btn btn-primary btn-inline">Gələn işlər</a>
-            <button type="button" id="switch-to-client" class="btn btn-outline btn-inline">Ailə roluna keç</button>
+            <a href="{{ route('web.app') }}" class="btn btn-outline btn-inline">Ana səhifə</a>
         </div>
     </section>
 
     <div id="request-form" class="grid-main">
         <section class="card">
             <h2>Hesab</h2>
-            <p class="muted">Aktiv rolu buradan dəyişə bilərsiniz.</p>
+            <p class="muted">Rol qeydiyyatda seçilir və dəyişdirilmir.</p>
             <div class="stack">
-                <select id="role">
-                    <option value="client">Ailə (client)</option>
-                    <option value="provider">Xidmət göstərən (provider)</option>
-                </select>
-                <button type="button" id="set-role" class="btn btn-outline">Rolu seç</button>
+                <p class="muted">Aktiv rol: <b id="request-role-label">—</b></p>
                 <button type="button" id="logout" class="btn btn-danger">Çıxış</button>
             </div>
         </section>

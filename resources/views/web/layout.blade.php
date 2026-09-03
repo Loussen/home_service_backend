@@ -69,8 +69,6 @@
                         <a href="{{ route('web.categories') }}" class="user-menu-item {{ $path === 'categories' ? 'active' : '' }}" data-role="provider" role="menuitem">Kateqoriyalar</a>
                         <a href="{{ route('web.onboarding') }}" class="user-menu-item {{ $path === 'onboarding' ? 'active' : '' }}" data-role="any" role="menuitem">Onboarding</a>
                         <div class="user-menu-divider" data-role="any"></div>
-                        <button type="button" id="menu-switch-client" class="user-menu-item" data-role="provider" role="menuitem">Ailə roluna keç</button>
-                        <button type="button" id="menu-switch-provider" class="user-menu-item" data-role="client" role="menuitem">İcraçı roluna keç</button>
                         <button type="button" id="header-logout" class="user-menu-item user-menu-danger" data-role="any" role="menuitem">Çıxış</button>
                     </div>
                 </div>

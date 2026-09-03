@@ -17,6 +17,7 @@ class User extends Authenticatable
         'name',
         'avatar_url',
         'active_role',
+        'role_chosen_at',
         'balance',
         'status',
         'welcome_bonus_granted',
@@ -33,7 +34,13 @@ class User extends Authenticatable
             'balance' => 'decimal:2',
             'welcome_bonus_granted' => 'boolean',
             'phone_verified_at' => 'datetime',
+            'role_chosen_at' => 'datetime',
         ];
+    }
+
+    public function needsRole(): bool
+    {
+        return $this->role_chosen_at === null;
     }
 
     public function isBlocked(): bool

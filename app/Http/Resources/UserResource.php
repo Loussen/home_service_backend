@@ -20,6 +20,7 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'avatar_url' => $this->avatar_url,
             'active_role' => $this->active_role,
+            'needs_role' => $this->needsRole(),
             'balance' => (float) $this->balance,
             'status' => $this->status,
             'welcome_bonus_granted' => $this->welcome_bonus_granted,

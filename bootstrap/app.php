@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role' => App\Http\Middleware\EnsureRole::class,
+            'role.chosen' => App\Http\Middleware\EnsureRoleChosen::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

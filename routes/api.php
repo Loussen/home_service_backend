@@ -44,6 +44,10 @@ Route::prefix('v1')->group(function () {
             Route::patch('/profile', [AuthController::class, 'updateProfile']);
         });
 
+        Route::post('device-tokens', [DeviceTokenController::class, 'store']);
+        Route::delete('device-tokens', [DeviceTokenController::class, 'destroy']);
+
+        Route::middleware('role.chosen')->group(function () {
         Route::get('places/autocomplete', [PlacesController::class, 'autocomplete']);
         Route::get('places/reverse', [PlacesController::class, 'reverse']);
         Route::get('places/{placeId}', [PlacesController::class, 'details']);
@@ -77,9 +81,6 @@ Route::prefix('v1')->group(function () {
         Route::get('wallet/transactions', [WalletController::class, 'transactions']);
         Route::post('wallet/top-up', [WalletController::class, 'topUp']);
 
-        Route::post('device-tokens', [DeviceTokenController::class, 'store']);
-        Route::delete('device-tokens', [DeviceTokenController::class, 'destroy']);
-
         Route::get('conversations', [ConversationController::class, 'index']);
         Route::get('conversations/{id}', [ConversationController::class, 'show']);
         Route::post('conversations/{id}/messages', [ConversationController::class, 'storeMessage']);
@@ -98,5 +99,6 @@ Route::prefix('v1')->group(function () {
 
         Route::get('bookings', [BookingController::class, 'index']);
         Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel']);
+        });
     });
 });

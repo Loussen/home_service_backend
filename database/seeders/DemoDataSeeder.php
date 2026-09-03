@@ -71,6 +71,7 @@ class DemoDataSeeder extends Seeder
                 [
                     'name' => $data['name'],
                     'active_role' => 'client',
+                    'role_chosen_at' => now(),
                     'balance' => $data['balance'],
                     'status' => 'active',
                     'welcome_bonus_granted' => true,
@@ -296,6 +297,7 @@ class DemoDataSeeder extends Seeder
                 [
                     'name' => $p['name'],
                     'active_role' => 'provider',
+                    'role_chosen_at' => now(),
                     'balance' => $p['balance'],
                     'status' => 'active',
                     'welcome_bonus_granted' => true,

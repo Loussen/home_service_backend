@@ -286,8 +286,8 @@
     function requireRole(role) {
         function fail() {
             var msg = role === 'client'
-                ? 'Bu əməliyyat yalnız ailə (client) üçündür. Menyudan rolunu dəyiş.'
-                : 'Bu əməliyyat yalnız icraçı (provider) üçündür. Menyudan rolunu dəyiş.';
+                ? 'Bu əməliyyat yalnız ailə (client) üçündür.'
+                : 'Bu əməliyyat yalnız icraçı (provider) üçündür.';
             toast('warning', msg);
             return Promise.reject(new Error(msg));
         }
@@ -301,19 +301,25 @@
         return Promise.resolve();
     }
 
-    function switchRole(role) {
+    function setRoleOnce(role) {
+        if (meCache && meCache.needs_role === false) {
+            if (meCache.active_role === role) return Promise.resolve();
+            var msg = 'Rol artıq seçilib və dəyişdirilə bilməz';
+            toast('warning', msg);
+            return Promise.reject(new Error(msg));
+        }
         return api('/auth/role', {
             method: 'POST',
             body: JSON.stringify({ role: role }),
         }).then(function () {
-            if (meCache) meCache.active_role = role;
+            if (meCache) {
+                meCache.active_role = role;
+                meCache.needs_role = false;
+            }
             toast('success', 'Rol: ' + roleLabel(role));
-            log('Rol dəyişdi', { role: role });
+            log('Rol seçildi', { role: role });
             return setAuthStatus().then(function () {
                 applyRoleUi();
-                if (page === 'jobs' && typeof window.__reloadJobs === 'function') {
-                    return window.__reloadJobs();
-                }
             });
         });
     }
@@ -1047,7 +1053,8 @@
                 toast('success', 'Daxil oldunuz');
                 log('Login uğurlu');
                 setTimeout(function () {
-                    if (data.is_new_user) {
+                    var user = data.user || {};
+                    if (data.is_new_user || user.needs_role) {
                         go('/onboarding');
                         return;
                     }
@@ -1102,6 +1109,15 @@
             log('Kateqoriyalar yüklənmədi: ' + e.message);
         });
 
+        api('/auth/me').then(function (me) {
+            meCache = unwrapMe(me);
+            var roleEl = el('onb-role');
+            if (roleEl && meCache && meCache.needs_role === false) {
+                roleEl.value = meCache.active_role || 'client';
+                roleEl.disabled = true;
+            }
+        }).catch(function () {});
+
         el('onb-back').addEventListener('click', function () {
             if (step === 0) {
                 go('/login');
@@ -1148,10 +1164,7 @@
                 method: 'PATCH',
                 body: JSON.stringify({ name: el('onb-name').value.trim() }),
             }).then(function () {
-                return api('/auth/role', {
-                    method: 'POST',
-                    body: JSON.stringify({ role: chosenRole }),
-                });
+                return setRoleOnce(chosenRole);
             }).then(function () {
                 if (chosenRole !== 'provider') {
                     return null;
@@ -1337,26 +1350,26 @@
             labelId: 'place-label',
         });
 
-        el('set-role').addEventListener('click', function () {
-            switchRole(el('role').value).catch(function (e) {
-                toast('error', 'Rol dəyişmədi');
-                log('Rol dəyişmədi: ' + e.message);
-            });
-        });
-
-        var switchClient = el('switch-to-client');
-        if (switchClient) {
-            switchClient.addEventListener('click', function () {
-                switchRole('client').catch(function (e) {
-                    toast('error', e.message || 'Rol dəyişmədi');
-                });
+        var logoutBtn = el('logout');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function () {
+                api('/auth/logout', { method: 'POST' }).catch(function () {});
+                logoutEverywhere();
             });
         }
 
-        el('logout').addEventListener('click', function () {
-            api('/auth/logout', { method: 'POST' }).catch(function () {});
-            logoutEverywhere();
-        });
+        function paintRequestRole() {
+            var label = el('request-role-label');
+            if (!label) return;
+            label.textContent = roleLabel(currentRole()) || '—';
+        }
+        if (meCache) paintRequestRole();
+        else if (getToken()) {
+            api('/auth/me').then(function (me) {
+                meCache = unwrapMe(me);
+                paintRequestRole();
+            }).catch(function () {});
+        }
 
         el('create-request').addEventListener('click', function () {
             requireRole('client').then(function () {
@@ -1750,18 +1763,6 @@
     }
 
     function bindJobsPage() {
-        var switchProvider = el('switch-to-provider');
-        if (switchProvider && switchProvider.dataset.bound !== '1') {
-            switchProvider.dataset.bound = '1';
-            switchProvider.addEventListener('click', function () {
-                switchRole('provider').then(function () {
-                    return loadJobs();
-                }).catch(function (e) {
-                    toast('error', e.message || 'Rol dəyişmədi');
-                });
-            });
-        }
-
         function ensureMe() {
             if (meCache) return Promise.resolve(meCache);
             if (!getToken()) return Promise.resolve(null);
@@ -1782,7 +1783,7 @@
                 if (currentRole() !== 'provider') {
                     if (box) {
                         box.textContent = currentRole()
-                            ? 'Bu səhifə icraçı üçündür — yuxarıdakı düymədən rolunu dəyiş.'
+                            ? 'Bu səhifə yalnız icraçı üçündür.'
                             : 'Giriş lazımdır';
                     }
                     return null;
@@ -1892,25 +1893,9 @@
         }
 
         var toClient = el('menu-switch-client');
-        if (toClient && toClient.dataset.bound !== '1') {
-            toClient.dataset.bound = '1';
-            toClient.addEventListener('click', function () {
-                closeMenu();
-                switchRole('client').catch(function (e) {
-                    toast('error', e.message || 'Rol dəyişmədi');
-                });
-            });
-        }
+        if (toClient) toClient.remove();
         var toProvider = el('menu-switch-provider');
-        if (toProvider && toProvider.dataset.bound !== '1') {
-            toProvider.dataset.bound = '1';
-            toProvider.addEventListener('click', function () {
-                closeMenu();
-                switchRole('provider').catch(function (e) {
-                    toast('error', e.message || 'Rol dəyişmədi');
-                });
-            });
-        }
+        if (toProvider) toProvider.remove();
     }
 
     function bindDashboardPage() {

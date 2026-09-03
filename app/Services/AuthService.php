@@ -100,6 +100,7 @@ class AuthService
                 'phone' => $phone,
                 'phone_verified_at' => now(),
                 'active_role' => 'client',
+                'role_chosen_at' => null,
             ]);
         } else {
             $this->userRepository->update($user, [
@@ -125,8 +126,15 @@ class AuthService
 
     public function setRole(User $user, string $role): User
     {
+        if ($user->role_chosen_at !== null) {
+            abort_if($user->active_role !== $role, 422, 'Rol artıq seçilib və dəyişdirilə bilməz');
+
+            return $user;
+        }
+
         $user = $this->userRepository->update($user, [
             'active_role' => $role,
+            'role_chosen_at' => now(),
         ]);
 
         if ($role === 'provider' && ! $user->welcome_bonus_granted) {

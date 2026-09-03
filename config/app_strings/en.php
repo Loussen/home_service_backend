@@ -19,7 +19,7 @@ return array (
   'otp.submitting' => 'Yoxlanır…',
   'role.subtitle' => 'MySancho-da necə iştirak etmək istəyirsiniz?',
   'role.title' => 'Rol seçin',
-  'role.hint' => 'Sonra hesabdan dəyişə bilərsiniz.',
+  'role.hint' => 'This choice is permanent — one number is either family or provider.',
   'role.client.title' => 'Ailə / Müştəri',
   'role.client.subtitle' => 'Dayə, təmizlik, baxıcı axtarın. Sorğu göndərin, chat edin.',
   'role.provider.title' => 'Xidmət göstərən',
