@@ -1077,11 +1077,29 @@
             return el('onb-role').value;
         }
 
+        function isProvider() {
+            return role() === 'provider';
+        }
+
         function maxStep() {
-            return role() === 'provider' ? 2 : 2;
+            return 2;
+        }
+
+        function paintStepper() {
+            var cat = document.querySelector('#onb-stepper [data-step="1"]');
+            var loc = document.querySelector('#onb-stepper [data-step="2"]');
+            if (cat) cat.hidden = !isProvider();
+            if (loc) loc.textContent = isProvider() ? '3. Məkan' : '2. Məkan';
+            var hero = el('onb-hero-sub');
+            if (hero) {
+                hero.textContent = isProvider()
+                    ? 'Hesab, kateqoriya, məkan — üç addım.'
+                    : 'Hesab və məkan — iki addım.';
+            }
         }
 
         function showStep() {
+            paintStepper();
             document.querySelectorAll('[data-step-panel]').forEach(function (panel) {
                 panel.classList.toggle('hidden', Number(panel.getAttribute('data-step-panel')) !== step);
             });
@@ -1116,7 +1134,16 @@
                 roleEl.value = meCache.active_role || 'client';
                 roleEl.disabled = true;
             }
+            showStep();
         }).catch(function () {});
+
+        var roleSelect = el('onb-role');
+        if (roleSelect) {
+            roleSelect.addEventListener('change', function () {
+                if (!isProvider() && step === 1) step = 0;
+                showStep();
+            });
+        }
 
         el('onb-back').addEventListener('click', function () {
             if (step === 0) {

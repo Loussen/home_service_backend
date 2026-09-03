@@ -7,14 +7,14 @@
     <header class="page-hero">
         <p class="eyebrow">Başlanğıc</p>
         <h1>Onboarding</h1>
-        <p>App-dəki kimi: hesab, kateqoriya, məkan — üç addım.</p>
+        <p id="onb-hero-sub">Hesab və məkan — iki addım.</p>
     </header>
 
     <section class="card card-narrow">
         <ol class="stepper" id="onb-stepper">
             <li class="active" data-step="0">1. Hesab</li>
-            <li data-step="1">2. Kateqoriya</li>
-            <li data-step="2">3. Məkan</li>
+            <li data-step="1" hidden>2. Kateqoriya</li>
+            <li data-step="2">2. Məkan</li>
         </ol>
 
         <div class="step-panel" data-step-panel="0">

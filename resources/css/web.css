@@ -400,6 +400,10 @@
         @apply bg-brand-peach text-brand shadow-soft;
     }
 
+    .stepper li[hidden] {
+        display: none !important;
+    }
+
     .step-panel.hidden {
         display: none;
     }
