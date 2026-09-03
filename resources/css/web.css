@@ -316,6 +316,31 @@
         @apply bg-brand-peach text-brand;
     }
 
+    .user-menu-status {
+        @apply mx-1 mb-1 mt-0.5 rounded-xl bg-parchment px-3.5 py-2.5;
+    }
+
+    .user-menu-status-label {
+        @apply block text-[0.68rem] font-bold uppercase tracking-wide text-mute;
+    }
+
+    .user-menu-status-value {
+        @apply mt-0.5 block text-sm font-extrabold text-ink;
+    }
+
+    .user-menu-status.is-approved .user-menu-status-value {
+        @apply text-[#5F9A6B];
+    }
+
+    .user-menu-status.is-rejected .user-menu-status-value,
+    .user-menu-status.is-blocked .user-menu-status-value {
+        @apply text-brand;
+    }
+
+    .user-menu-status.is-pending .user-menu-status-value {
+        @apply text-dusk;
+    }
+
     .user-menu-danger {
         @apply mt-1 border-t border-line text-red-700 hover:bg-red-50;
         border-top-left-radius: 0;

@@ -115,7 +115,7 @@ class AuthService
 
         if ($user->isBlocked()) {
             throw ValidationException::withMessages([
-                'phone' => ['This account is blocked.'],
+                'phone' => ['Sizin profiliniz admin tərəfindən bloklanıb.'],
             ]);
         }
 

@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => App\Http\Middleware\EnsureRole::class,
             'role.chosen' => App\Http\Middleware\EnsureRoleChosen::class,
             'provider.approved' => App\Http\Middleware\EnsureProviderApproved::class,
+            'user.not_blocked' => App\Http\Middleware\EnsureUserNotBlocked::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

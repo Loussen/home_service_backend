@@ -155,6 +155,7 @@
 
     function setToken(token) {
         localStorage.setItem(tokenKey, token);
+        window.__accountBlockedHandled = false;
     }
 
     function clearToken() {
@@ -254,12 +255,58 @@
             return res.json().catch(function () {
                 return {};
             }).then(function (json) {
+                if (res.status === 403 && json && json.code === 'ACCOUNT_BLOCKED') {
+                    handleAccountBlocked(json.message);
+                    throw new Error(json.message || 'Hesab bloklanıb');
+                }
                 if (!res.ok || json.success === false) {
                     throw new Error(json.message || 'HTTP ' + res.status);
                 }
                 return json.data !== undefined ? json.data : json;
             });
         });
+    }
+
+    function handleAccountBlocked(message) {
+        if (window.__accountBlockedHandled) return;
+        window.__accountBlockedHandled = true;
+        var msg = message || 'Sizin profiliniz admin tərəfindən bloklanıb.';
+        try {
+            window.alert(msg);
+        } catch (e) {}
+        clearToken();
+        meCache = null;
+        try {
+            localStorage.removeItem('mysancho_web_auth_snap');
+            localStorage.removeItem('mysancho_approval_status');
+        } catch (e2) {}
+        showGuestAuth();
+        applyRoleUi();
+        go('/login');
+    }
+
+    function paintProfileStatus(me) {
+        var row = el('menu-profile-status');
+        var val = el('menu-profile-status-value');
+        if (!row || !val) return;
+        if (!me || me.active_role !== 'provider') {
+            row.hidden = true;
+            return;
+        }
+        var status = me.profile_status || me.provider_approval_status || 'pending';
+        if (me.is_blocked || me.status === 'blocked') {
+            status = 'blocked';
+        }
+        var label = me.profile_status_label || ({
+            approved: 'Təsdiqli',
+            rejected: 'Rədd edilib',
+            blocked: 'Bloklanıb',
+            pending: 'Gözləyir',
+        })[status] || status;
+        val.textContent = label;
+        row.classList.remove('is-approved', 'is-rejected', 'is-blocked', 'is-pending');
+        row.classList.add('is-' + status);
+        row.hidden = false;
     }
 
     function showPageLoader() {
@@ -412,6 +459,7 @@
             }));
         } catch (e) {}
         applyRoleUi();
+        paintProfileStatus(me);
         paintConnectHint(me);
     }
 
@@ -437,12 +485,19 @@
         }
         return api('/auth/me').then(function (me) {
             meCache = unwrapMe(me);
+            if (meCache && (meCache.is_blocked || meCache.status === 'blocked')) {
+                handleAccountBlocked('Sizin profiliniz admin tərəfindən bloklanıb.');
+                return;
+            }
             showUserAuth(meCache);
             if (typeof window.__onAuthReady === 'function') {
                 window.__onAuthReady(meCache);
             }
             notifyApprovalChange(meCache);
-        }).catch(function () {
+        }).catch(function (e) {
+            if (e && e.message && e.message.indexOf('bloklanıb') >= 0) {
+                return;
+            }
             clearToken();
             meCache = null;
             showGuestAuth();
@@ -1822,8 +1877,12 @@
                     go('/');
                 }, 180);
             }).catch(function (e) {
-                toast('error', 'Login alınmadı');
-                log('Login alınmadı: ' + e.message);
+                var msg = (e && e.message) || 'Login alınmadı';
+                if (msg.indexOf('bloklanıb') >= 0 || msg.indexOf('bloklanib') >= 0) {
+                    try { window.alert(msg); } catch (err) {}
+                }
+                toast('error', msg);
+                log('Login alınmadı: ' + msg);
             });
         });
     }

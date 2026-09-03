@@ -124,6 +124,7 @@ return [
     'account.card.chats' => 'Чаты',
     'account.card.verify' => 'Verified документ',
     'account.menu.verify' => 'Verified документ',
+    'account.menu.profile_status' => 'Статус профиля',
     'account.menu.wallet' => 'Кошелёк · {balance} AZN',
     'account.menu.reviews' => 'Отзывы',
     'account.menu.favorites' => 'Избранное',

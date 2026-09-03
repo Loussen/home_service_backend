@@ -163,8 +163,9 @@ class UserForm
                     ->suffix('AZN')
                     ->default(0.0),
                 Select::make('status')
-                    ->label('Status')
+                    ->label('Hesab statusu')
                     ->options(['active' => 'Aktiv', 'blocked' => 'Bloklanıb'])
+                    ->helperText('Bloklanıbsa istifadəçi login ola bilməz; açıq sessiyada alert + çıxış olur.')
                     ->default('active')
                     ->required(),
                 Toggle::make('welcome_bonus_granted')

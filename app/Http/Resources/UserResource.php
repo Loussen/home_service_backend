@@ -34,6 +34,20 @@ class UserResource extends JsonResource
             };
         }
 
+        $profileStatus = null;
+        $profileStatusLabel = null;
+        if ($this->isBlocked()) {
+            $profileStatus = 'blocked';
+            $profileStatusLabel = 'Bloklanıb';
+        } elseif ($this->isProvider()) {
+            $profileStatus = $this->provider_approval_status ?: 'pending';
+            $profileStatusLabel = match ($profileStatus) {
+                'approved' => 'Təsdiqli',
+                'rejected' => 'Rədd edilib',
+                default => 'Gözləyir',
+            };
+        }
+
         return [
             'id' => $this->id,
             'phone' => $this->phone,
@@ -50,6 +64,9 @@ class UserResource extends JsonResource
             'provider_approval_message' => $approvalMessage,
             'balance' => (float) $this->balance,
             'status' => $this->status,
+            'is_blocked' => $this->isBlocked(),
+            'profile_status' => $profileStatus,
+            'profile_status_label' => $profileStatusLabel,
             'welcome_bonus_granted' => $this->welcome_bonus_granted,
             'provider_profiles_count' => $this->provider_profiles_count
                 ?? $this->providerProfiles()->count(),

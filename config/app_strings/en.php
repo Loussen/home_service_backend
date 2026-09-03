@@ -124,6 +124,7 @@ return array (
   'account.card.chats' => 'Chats',
   'account.card.verify' => 'Verified document',
   'account.menu.verify' => 'Verified document',
+  'account.menu.profile_status' => 'Profile status',
   'account.menu.wallet' => 'Pul kisəsi · {balance} AZN',
   'account.menu.reviews' => 'Rəylər',
   'account.menu.favorites' => 'Seçilmişlər',
