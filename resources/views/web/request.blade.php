@@ -6,9 +6,12 @@
 @section('content')
     <header class="page-hero">
         <p class="eyebrow">Ailə · Client</p>
-        <h1>Sorğu yarat</h1>
-        <p>Nə lazımdır, harada və nə vaxt — yaz, uyğun xidmətçiləri gör və CONNECT et.</p>
-        <p class="mt"><a href="{{ route('web.requests') }}" class="btn btn-outline btn-inline">Sorğularım</a></p>
+        <h1 id="request-page-title">Sorğu yarat</h1>
+        <p id="request-page-sub">Nə lazımdır, harada və nə vaxt — yaz, uyğun xidmətçiləri gör və CONNECT et.</p>
+        <p class="mt">
+            <a href="{{ route('web.requests') }}" class="btn btn-outline btn-inline">Sorğularım</a>
+            <a href="{{ route('web.request') }}" class="btn btn-primary btn-inline" id="request-new-link" hidden>Yeni sorğu</a>
+        </p>
     </header>
 
     <section id="role-gate-client" class="card card-hero" hidden>
@@ -30,9 +33,9 @@
             </div>
         </section>
 
-        <section class="card">
-            <h2>Yeni sorğu</h2>
-            <p class="muted">Mətn və ünvan — xəritədə dəqiq yer seçə bilərsiniz.</p>
+        <section class="card" id="request-editor">
+            <h2 id="request-form-title">Yeni sorğu</h2>
+            <p class="muted" id="request-form-hint">Mətn və ünvan — xəritədə dəqiq yer seçə bilərsiniz.</p>
             <div class="form-row form-row-2">
                 <input id="text" class="span-2" type="text" placeholder="Məs: Nərimanovda sabah 2 saatlıq it gəzdirmə lazımdır">
                 <div class="span-2 place-wrap">
@@ -42,7 +45,7 @@
                 <input id="lat" type="text" placeholder="Latitude" value="40.4093">
                 <input id="lng" type="text" placeholder="Longitude" value="49.8671">
                 <button type="button" id="create-request" class="btn btn-primary">Sorğu yarat</button>
-                <button type="button" id="refresh-request" class="btn btn-outline">Sorğunu yenilə</button>
+                <button type="button" id="refresh-request" class="btn btn-outline">Nəticələri yenilə</button>
             </div>
             <p id="request-info" class="muted mt">Sorğu yoxdur</p>
             <div id="map" class="map mt"></div>
@@ -57,10 +60,5 @@
         </div>
         <p id="connect-hint" class="muted" hidden></p>
         <div id="matches" class="matches"></div>
-    </section>
-
-    <section class="card card-log mt">
-        <h2>Log</h2>
-        <pre id="log"></pre>
     </section>
 @endsection

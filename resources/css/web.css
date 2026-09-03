@@ -298,8 +298,12 @@
         @apply mb-4;
     }
 
-    .card-log {
-        @apply border-dashed bg-parchment/40 shadow-none;
+    .card.is-view-only input:disabled {
+        @apply cursor-default border-line bg-parchment/60 text-ink opacity-100;
+    }
+
+    .card.is-view-only .map-locate {
+        display: none !important;
     }
 
     .card-log:hover {
@@ -745,6 +749,26 @@
 
     .match-card .reasons {
         @apply text-xs leading-relaxed text-mute;
+    }
+
+    .match-reasons {
+        @apply mb-1 flex flex-wrap items-center gap-1.5;
+    }
+
+    .match-reason-chip {
+        @apply rounded-full bg-parchment px-2.5 py-1 text-xs font-semibold text-mute;
+    }
+
+    .match-reason-bump {
+        @apply inline-flex cursor-help items-center gap-1 rounded-full border border-brand/20 bg-brand-peach px-2.5 py-1 text-xs font-extrabold text-brand;
+    }
+
+    .match-reason-bump-icon {
+        @apply text-[0.85rem] font-black leading-none;
+    }
+
+    .match-reason-bump-label {
+        @apply tracking-tight;
     }
 
     .match-card .meta {

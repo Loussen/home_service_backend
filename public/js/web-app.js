@@ -29,7 +29,12 @@
         'match.reason.schedule_miss': 'Cədvəl uyğun deyil',
         'match.reason.category': '{name}',
         'match.reason.repeat_client': 'Əvvəl işlədiyiniz provayder',
-        'match.reason.bump': 'Vurğulanıb · {hours} saat',
+        'match.reason.bump': 'Önə çıxıb',
+    };
+
+    var MATCH_REASON_HINT_AZ = {
+        'match.reason.bump':
+            'İcraçı profilini ödənişlə müvəqqəti yüksəldib — axtarışda daha görünəndir. Qalan: {hours} saat.',
     };
 
     function formatMatchReason(reason) {
@@ -42,11 +47,52 @@
         });
     }
 
+    function formatMatchReasonHint(reason) {
+        if (!reason) return '';
+        var tpl = MATCH_REASON_HINT_AZ[reason.key];
+        if (!tpl) return formatMatchReason(reason);
+        var params = reason.params || {};
+        return String(tpl).replace(/\{(\w+)\}/g, function (_, key) {
+            return params[key] != null ? String(params[key]) : '';
+        });
+    }
+
     function formatMatchReasons(list) {
         return (list || [])
             .map(formatMatchReason)
             .filter(Boolean)
             .join(' · ');
+    }
+
+    function renderMatchReasonsHtml(list) {
+        var items = list || [];
+        if (!items.length) return '';
+        return (
+            '<div class="match-reasons">' +
+            items
+                .map(function (reason) {
+                    if (!reason) return '';
+                    if (reason.key === 'match.reason.bump') {
+                        var hint = formatMatchReasonHint(reason);
+                        return (
+                            '<span class="match-reason-bump" title="' +
+                            esc(hint) +
+                            '" aria-label="' +
+                            esc(hint) +
+                            '">' +
+                            '<span class="match-reason-bump-icon" aria-hidden="true">↑</span>' +
+                            '<span class="match-reason-bump-label">Önə çıxıb</span>' +
+                            '</span>'
+                        );
+                    }
+                    var text = formatMatchReason(reason);
+                    return text
+                        ? '<span class="match-reason-chip">' + esc(text) + '</span>'
+                        : '';
+                })
+                .join('') +
+            '</div>'
+        );
     }
 
     function formatConnectHint(me) {
@@ -543,6 +589,8 @@
         btn.className = 'btn btn-dark map-locate';
         btn.textContent = 'Mənim yerim';
         btn.addEventListener('click', function () {
+            var handle = pickerMaps[opts.mapId];
+            if (handle && handle.readOnly) return;
             if (!navigator.geolocation) {
                 toast('warning', 'Brauzer geolocation dəstəkləmir');
                 return;
@@ -601,7 +649,9 @@
                 position: start,
                 draggable: true,
             });
-            function apply(lat, lng, label) {
+            function apply(lat, lng, label, force) {
+                var handle = pickerMaps[opts.mapId];
+                if (handle && handle.readOnly && !force) return;
                 setLatLng(opts.latId, opts.lngId, lat, lng);
                 marker.setPosition({ lat: lat, lng: lng });
                 map.panTo({ lat: lat, lng: lng });
@@ -610,12 +660,16 @@
                 }
             }
             map.addListener('click', function (event) {
+                var handle = pickerMaps[opts.mapId];
+                if (handle && handle.readOnly) return;
                 var lat = event.latLng.lat();
                 var lng = event.latLng.lng();
                 apply(lat, lng);
                 fillAddressFromCoords(opts, lat, lng, apply);
             });
             marker.addListener('dragend', function () {
+                var handle = pickerMaps[opts.mapId];
+                if (handle && handle.readOnly) return;
                 var pos = marker.getPosition();
                 var lat = pos.lat();
                 var lng = pos.lng();
@@ -624,7 +678,7 @@
             });
             addLocateButton(mapEl, apply, opts);
             bindPlaceSearch(opts);
-            pickerMaps[opts.mapId] = { map: map, marker: marker, apply: apply, mode: 'js' };
+            pickerMaps[opts.mapId] = { map: map, marker: marker, apply: apply, mode: 'js', readOnly: false };
             window.google.maps.event.trigger(map, 'resize');
             map.setCenter(start);
 
@@ -665,6 +719,8 @@
         if (!input || !box) return;
         var timer = null;
         input.addEventListener('input', function () {
+            var handle = pickerMaps[opts.mapId];
+            if (handle && handle.readOnly) return;
             clearTimeout(timer);
             var q = input.value.trim();
             if (q.length < 2) {
@@ -959,11 +1015,11 @@
             var card = document.createElement('article');
             card.className = 'match-card';
             if (id) card.setAttribute('data-provider-id', String(id));
-            var reasons = formatMatchReasons(m.reasons);
+            var reasons = renderMatchReasonsHtml(m.reasons);
             card.innerHTML =
                 '<h3>' + esc(provider.user_name || provider.title || 'İcraçı') +
                 (provider.is_vip ? ' <span class="pill pill-gold">VIP</span>' : '') + '</h3>' +
-                '<p class="reasons">' + esc(reasons) + '</p>' +
+                reasons +
                 '<p class="meta">Skor: <b>' + Math.round(m.match_score || 0) + '%</b> · ' +
                 esc(m.distance_km != null ? m.distance_km : '-') + ' km</p>' +
                 '<div class="match-actions">' +
@@ -1343,9 +1399,12 @@
                     lat: Number(req.latitude),
                     lng: Number(req.longitude),
                 };
-                handle.map.setCenter(pos);
-                if (handle.marker) handle.marker.setPosition(pos);
-                if (handle.apply) handle.apply(pos.lat, pos.lng, address || undefined);
+                if (typeof handle.apply === 'function') {
+                    handle.apply(pos.lat, pos.lng, address || undefined, true);
+                } else {
+                    handle.map.setCenter(pos);
+                    if (handle.marker) handle.marker.setPosition(pos);
+                }
             }
             updateMeMarkerInfo(address || '');
             return req;
@@ -1764,6 +1823,53 @@
         });
     }
 
+    function setRequestViewMode(on) {
+        ['text', 'place-search', 'lat', 'lng'].forEach(function (id) {
+            var node = el(id);
+            if (node) node.disabled = !!on;
+        });
+
+        var createBtn = el('create-request');
+        if (createBtn) {
+            createBtn.hidden = !!on;
+            createBtn.disabled = !!on;
+        }
+
+        var newLink = el('request-new-link');
+        if (newLink) newLink.hidden = !on;
+
+        if (el('request-page-title')) {
+            el('request-page-title').textContent = on ? 'Sorğuya bax' : 'Sorğu yarat';
+        }
+        if (el('request-page-sub')) {
+            el('request-page-sub').textContent = on
+                ? 'Bu sorğunun məlumatı və uyğun icraçılar — forma yalnız baxış üçündür.'
+                : 'Nə lazımdır, harada və nə vaxt — yaz, uyğun xidmətçiləri gör və CONNECT et.';
+        }
+        if (el('request-form-title')) {
+            el('request-form-title').textContent = on ? 'Sorğu detalları' : 'Yeni sorğu';
+        }
+        if (el('request-form-hint')) {
+            el('request-form-hint').textContent = on
+                ? 'Sahələr kilidlidir. Yeni sorğu üçün yuxarıdakı düymədən keçin.'
+                : 'Mətn və ünvan — xəritədə dəqiq yer seçə bilərsiniz.';
+        }
+
+        var editor = el('request-editor');
+        if (editor) editor.classList.toggle('is-view-only', !!on);
+
+        var handle = pickerMaps.map;
+        if (handle) {
+            handle.readOnly = !!on;
+            if (handle.marker && typeof handle.marker.setDraggable === 'function') {
+                handle.marker.setDraggable(!on);
+            }
+        }
+        var mapEl = el('map');
+        var locate = mapEl && mapEl.querySelector('.map-locate');
+        if (locate) locate.hidden = !!on;
+    }
+
     function bindRequestPage() {
         var restoreId = Number(
             new URLSearchParams(window.location.search).get('requestId') || 0
@@ -1776,30 +1882,32 @@
             searchId: 'place-search',
             suggestionsId: 'place-suggestions',
             labelId: 'place-label',
-        });
+        }).then(function () {
+            if (!restoreId) {
+                setRequestViewMode(false);
+                clearRequestId();
+                resetRequestResultsUi();
+                return;
+            }
 
-        if (restoreId) {
             setRequestId(restoreId);
+            setRequestViewMode(true);
             if (el('request-info')) {
                 el('request-info').textContent = 'Sorğu #' + restoreId + ' yüklənir…';
             }
             if (el('matches')) {
                 el('matches').innerHTML = '<p class="muted">Nəticələr yüklənir…</p>';
             }
-            refreshRequest()
-                .then(function () {
-                    var results = el('request-results');
-                    if (results && results.scrollIntoView) {
-                        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                })
-                .catch(function () {
-                    resetRequestResultsUi();
-                });
-        } else {
-            clearRequestId();
-            resetRequestResultsUi();
-        }
+            return refreshRequest().then(function () {
+                setRequestViewMode(true);
+                var results = el('request-results');
+                if (results && results.scrollIntoView) {
+                    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }).catch(function () {
+                resetRequestResultsUi();
+            });
+        });
 
         var logoutBtn = el('logout');
         if (logoutBtn) {
@@ -1823,6 +1931,7 @@
         }
 
         el('create-request').addEventListener('click', function () {
+            if (el('create-request').disabled || el('create-request').hidden) return;
             requireRole('client').then(function () {
                 return api('/service-requests/text', {
                     method: 'POST',
@@ -1849,7 +1958,7 @@
 
         el('refresh-request').addEventListener('click', function () {
             refreshRequest().then(function () {
-                toast('info', 'Sorğu yeniləndi');
+                toast('info', 'Nəticələr yeniləndi');
             }).catch(function () {});
         });
     }
