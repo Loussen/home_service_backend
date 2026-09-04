@@ -79,14 +79,25 @@ class ServiceRequestInfolist
                             ->columnSpanFull(),
                         TextEntry::make('parsed_criteria')
                             ->label('AI meyarlar')
-                            ->formatStateUsing(function ($state): string {
+                            ->getStateUsing(function ($record): string {
+                                $state = $record?->parsed_criteria;
                                 if (! is_array($state) || $state === []) {
-                                    return '{}';
+                                    return '—';
                                 }
 
-                                return json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?: '{}';
+                                $json = json_encode(
+                                    $state,
+                                    JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                                );
+
+                                return is_string($json) && $json !== '' ? $json : '—';
                             })
-                            ->fontFamily('mono')
+                            ->formatStateUsing(fn (?string $state): string => filled($state) && $state !== '—'
+                                ? '<pre class="fi-parsed-criteria" style="margin:0;white-space:pre-wrap;word-break:break-word;font-size:0.8125rem;line-height:1.45;">'
+                                    .e($state).
+                                  '</pre>'
+                                : '—')
+                            ->html()
                             ->columnSpanFull(),
                     ]),
             ]);
