@@ -20,6 +20,7 @@ class ServiceRequestResource extends JsonResource
             'category_id' => $this->category_id,
             'category' => new CategoryResource($this->whenLoaded('category')),
             'raw_audio_url' => $this->raw_audio_url,
+            'audio_url' => $this->audio_public_url,
             'transcribed_text' => $this->transcribed_text,
             'parsed_criteria' => $this->parsed_criteria,
             'is_urgent' => $this->is_urgent,

@@ -45,9 +45,16 @@ class ProcessServiceRequestService
                 }
             }
 
+            // Silence / gibberish / empty ASR — do not invent matches.
+            if ($this->looksLikeFailedTranscript((string) $text)) {
+                $transcriptionFailed = true;
+                $text = '';
+            }
+
             if ($transcriptionFailed && $text === '') {
                 return $this->requests->update($request, [
                     'transcribed_text' => null,
+                    'category_id' => null,
                     'parsed_criteria' => [
                         'transcription_failed' => true,
                         'raw_text' => '',
@@ -123,6 +130,38 @@ class ProcessServiceRequestService
                 'transcribed_text' => $request->transcribed_text ?? 'Processing failed',
             ]);
         }
+    }
+
+    /**
+     * Empty, too short, punctuation-only, or common Whisper silence hallucinations.
+     */
+    private function looksLikeFailedTranscript(string $text): bool
+    {
+        $t = mb_strtolower(trim($text));
+        if ($t === '' || mb_strlen($t) < 8) {
+            return true;
+        }
+        if (! preg_match('/\p{L}/u', $t)) {
+            return true;
+        }
+
+        $hallucinations = [
+            'thanks for watching',
+            'thank you for watching',
+            'thanks for listening',
+            'subscribe',
+            'подписывайтесь',
+            'продолжение следует',
+            'amara.org',
+            'www.youtube.com',
+        ];
+        foreach ($hallucinations as $bad) {
+            if ($t === $bad || str_contains($t, $bad)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

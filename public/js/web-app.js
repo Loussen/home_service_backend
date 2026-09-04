@@ -844,6 +844,8 @@
                 active_role: me.active_role || null,
                 initial: initial,
                 avatar_url: me.avatar_url || null,
+                balance: me.balance != null ? Number(me.balance) : null,
+                connect_quota: me.connect_quota || null,
             }));
         } catch (e) {}
         if (roleEl && me.active_role) {
@@ -2397,6 +2399,28 @@
                 }
             );
         }
+        var audioWrap = el('request-audio-wrap');
+        var audioEl = el('request-audio');
+        var audioFail = el('request-audio-fail');
+        var audioUrl = req.audio_url || null;
+        var transcriptFailed = !!(
+            req.parsed_criteria && req.parsed_criteria.transcription_failed
+        );
+        if (audioWrap && audioEl) {
+            if (audioUrl) {
+                audioWrap.hidden = false;
+                if (audioEl.getAttribute('src') !== audioUrl) {
+                    audioEl.setAttribute('src', audioUrl);
+                }
+            } else {
+                audioWrap.hidden = true;
+                audioEl.removeAttribute('src');
+                audioEl.load();
+            }
+        }
+        if (audioFail) {
+            audioFail.hidden = !transcriptFailed;
+        }
         paintSearchMeta(req);
 
         function applyAddress(address) {
@@ -3426,6 +3450,8 @@
                     current.parsed_criteria &&
                     current.parsed_criteria.transcription_failed
                 ) {
+                    current.matches = [];
+                    renderMatches(current);
                     toast(
                         'warning',
                         t(
@@ -3518,8 +3544,38 @@
         var voiceStream = null;
         var voiceTimer = null;
         var voiceElapsed = 0;
+        var voiceMinSec = 3;
         var voiceMaxSec = 60;
         var voiceBusy = false;
+        var voiceSampleAudio = null;
+
+        function stopVoiceSample() {
+            if (!voiceSampleAudio) return;
+            try {
+                voiceSampleAudio.pause();
+            } catch (e) {}
+            voiceSampleAudio = null;
+        }
+
+        function playVoiceSample() {
+            if (voiceBusy) return;
+            if (voiceRecorder && voiceRecorder.state !== 'inactive') return;
+            var locale = getStoredLocale() || 'az';
+            if (locale !== 'en' && locale !== 'ru') locale = 'az';
+            var url = '/audio/samples/request-' + locale + '.mp3';
+            stopVoiceSample();
+            voiceSampleAudio = new Audio(url);
+            voiceSampleAudio.play().catch(function () {
+                toast(
+                    'warning',
+                    t(
+                        'web.request.voice_sample_missing',
+                        'Nümunə səs hələ əlavə olunmayıb.'
+                    )
+                );
+                voiceSampleAudio = null;
+            });
+        }
 
         function setRequestMode(mode) {
             requestMode = mode === 'text' ? 'text' : 'voice';
@@ -3699,7 +3755,7 @@
                         }
                         setVoiceStatus(
                             'web.request.voice_idle',
-                            'Hazırsınızsa yazmağa başlayın (maks. 60 san). Dayandıranda sorğu göndərilir.'
+                            'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 60 san). Dayandıranda sorğu göndərilir.'
                         );
                         return req;
                     });
@@ -3712,7 +3768,7 @@
                     );
                     setVoiceStatus(
                         'web.request.voice_idle',
-                        'Hazırsınızsa yazmağa başlayın (maks. 60 san). Dayandıranda sorğu göndərilir.'
+                        'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 60 san). Dayandıranda sorğu göndərilir.'
                     );
                     log('Səsli sorğu xətası: ' + ((e && e.message) || e));
                 })
@@ -3724,6 +3780,7 @@
 
         function startVoiceRecording() {
             if (voiceBusy) return;
+            stopVoiceSample();
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 toast(
                     'error',
@@ -3753,6 +3810,7 @@
                         if (ev.data && ev.data.size > 0) voiceChunks.push(ev.data);
                     };
                     voiceRecorder.onstop = function () {
+                        var elapsed = voiceElapsed;
                         clearVoiceTimer();
                         setVoiceButton(false);
                         stopVoiceTracks();
@@ -3761,10 +3819,18 @@
                         var blob = new Blob(voiceChunks, { type: type });
                         voiceRecorder = null;
                         voiceChunks = [];
-                        if (!blob.size) {
+                        if (!blob.size || blob.size < 4000 || elapsed < voiceMinSec) {
                             toast(
                                 'warning',
-                                t('web.profile.record_empty', 'Boş yazı — yenidən cəhd edin')
+                                t(
+                                    'web.request.voice_too_short',
+                                    'Çox qısa və ya boş səs. Ən azı {sec} saniyə danışın.',
+                                    { sec: voiceMinSec }
+                                )
+                            );
+                            setVoiceStatus(
+                                'web.request.voice_idle',
+                                'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 60 san). Dayandıranda sorğu göndərilir.'
                             );
                             return;
                         }
@@ -3817,6 +3883,14 @@
                     return;
                 }
                 startVoiceRecording();
+            });
+        }
+
+        var voiceSampleBtn = el('request-voice-sample-btn');
+        if (voiceSampleBtn) {
+            voiceSampleBtn.addEventListener('click', function () {
+                if (el('request-editor').classList.contains('is-view-only')) return;
+                playVoiceSample();
             });
         }
 
@@ -4557,12 +4631,14 @@
             if (providerCta) providerCta.hidden = true;
             if (stats) stats.hidden = true;
             if (title) {
+                title.setAttribute('data-i18n', 'web.dashboard.guest_title');
                 title.textContent = t(
                     'web.dashboard.guest_title',
                     'Evdə lazım olanı tez tap'
                 );
             }
             if (subtitle) {
+                subtitle.setAttribute('data-i18n', 'web.dashboard.guest_subtitle');
                 subtitle.textContent = t(
                     'web.dashboard.guest_subtitle',
                     'Səs və ya mətnlə sorğu göndər — uyğun xidmətçilər çıxır, CONNECT ilə yazış.'
@@ -4583,11 +4659,14 @@
                 me.phone ||
                 t('web.dashboard.friend_fallback', 'dostum');
             if (title) {
+                // Dynamic greeting — do not let applyI18n restore guest_title.
+                title.removeAttribute('data-i18n');
                 title.textContent = t('web.dashboard.hello', 'Salam, {name}', {
                     name: name,
                 });
             }
             if (subtitle) {
+                subtitle.removeAttribute('data-i18n');
                 subtitle.textContent = isProvider
                     ? t(
                           'web.dashboard.provider_subtitle',
@@ -4662,6 +4741,20 @@
             paintUser(meCache);
             return;
         }
+        // Optimistic paint from snap so guest CTA never flashes while /auth/me loads.
+        try {
+            var snap = JSON.parse(
+                localStorage.getItem('mysancho_web_auth_snap') || 'null'
+            );
+            if (snap) {
+                paintUser({
+                    name: snap.name,
+                    active_role: snap.active_role,
+                    balance: snap.balance,
+                    connect_quota: snap.connect_quota,
+                });
+            }
+        } catch (e) {}
         api('/auth/me')
             .then(function (me) {
                 meCache = unwrapMe(me);
@@ -4704,17 +4797,41 @@
         // Avoid AZ→EN flash on hero before /auth/me returns.
         if (page === 'dashboard' && getToken()) {
             try {
-                var snap = JSON.parse(localStorage.getItem('mysancho_web_auth_snap') || 'null');
-                var title = el('dash-title');
-                var subtitle = el('dash-subtitle');
-                if (snap && title) {
-                    var name = snap.name || t('web.dashboard.friend_fallback', 'dostum');
-                    title.textContent = t('web.dashboard.hello', 'Salam, {name}', { name: name });
-                    if (subtitle) {
-                        var isProvider = snap.active_role === 'provider';
-                        subtitle.textContent = isProvider
-                            ? t('web.dashboard.provider_subtitle', 'Gələn işlərə bax, chat-də təklif göndər.')
-                            : t('web.dashboard.client_subtitle', 'Yeni sorğu yarat, match-lərdən CONNECT et.');
+                var snapEarly = JSON.parse(
+                    localStorage.getItem('mysancho_web_auth_snap') || 'null'
+                );
+                if (snapEarly) {
+                    var titleEl = el('dash-title');
+                    var subtitleEl = el('dash-subtitle');
+                    var guestCtaEl = el('dash-cta-guest');
+                    var clientCtaEl = el('dash-cta-client');
+                    var providerCtaEl = el('dash-cta-provider');
+                    var statsEl = el('dash-stats');
+                    var isProviderEarly = snapEarly.active_role === 'provider';
+                    if (guestCtaEl) guestCtaEl.hidden = true;
+                    if (clientCtaEl) clientCtaEl.hidden = isProviderEarly;
+                    if (providerCtaEl) providerCtaEl.hidden = !isProviderEarly;
+                    if (statsEl) statsEl.hidden = false;
+                    if (titleEl) {
+                        titleEl.removeAttribute('data-i18n');
+                        var nameEarly =
+                            snapEarly.name ||
+                            t('web.dashboard.friend_fallback', 'dostum');
+                        titleEl.textContent = t('web.dashboard.hello', 'Salam, {name}', {
+                            name: nameEarly,
+                        });
+                    }
+                    if (subtitleEl) {
+                        subtitleEl.removeAttribute('data-i18n');
+                        subtitleEl.textContent = isProviderEarly
+                            ? t(
+                                  'web.dashboard.provider_subtitle',
+                                  'Gələn işlərə bax, chat-də təklif göndər.'
+                              )
+                            : t(
+                                  'web.dashboard.client_subtitle',
+                                  'Yeni sorğu yarat, match-lərdən CONNECT et.'
+                              );
                     }
                 }
             } catch (e) {}

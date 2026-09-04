@@ -20,6 +20,20 @@ class AIService
      */
     public function transcribe(string $audioPathOrUrl, array $locationHints = []): string
     {
+        $localPath = $this->resolveLocalPath($audioPathOrUrl);
+
+        if (! is_file($localPath)) {
+            throw new \RuntimeException('Audio file missing');
+        }
+
+        $bytes = filesize($localPath);
+        // Near-empty clips (silence / accidental tap) — skip Whisper.
+        if ($bytes !== false && $bytes < 4000) {
+            Log::info('Audio too small to transcribe', ['bytes' => $bytes, 'path' => $localPath]);
+
+            return '';
+        }
+
         $apiKey = config('services.openai.key');
 
         if (! $apiKey) {
@@ -27,12 +41,19 @@ class AIService
                 throw new \RuntimeException('Audio transcription is not configured');
             }
 
+            // Local stub: short/silence clips must not invent a full demo request.
+            if ($bytes !== false && $bytes < 20000) {
+                Log::warning('OpenAI key missing — short audio treated as empty transcript', [
+                    'bytes' => $bytes,
+                ]);
+
+                return '';
+            }
+
             Log::warning('OpenAI key missing — returning stub transcript');
 
             return 'Nərimanovda saat 3-də it gəzdirən adam lazımdır 2 saatlıq';
         }
-
-        $localPath = $this->resolveLocalPath($audioPathOrUrl);
 
         // Never pass Whisper `prompt` — it frequently returns the prompt instead of the audio
         // (seen with both long RU samples and short vocab lists). Language auto-detects AZ/RU/EN.

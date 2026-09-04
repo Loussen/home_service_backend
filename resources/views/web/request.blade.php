@@ -50,6 +50,14 @@
                 <p class="muted request-voice-lead" data-i18n="web.request.voice_hint">
                     {{ wt('web.request.voice_hint', 'Nə lazımdır, harada və nə vaxt — qısa danışın. AI kateqoriya və detalları çıxarır.') }}
                 </p>
+                <div class="request-voice-sample">
+                    <p class="request-voice-sample-quote" id="request-voice-sample-text" data-i18n="web.request.voice_sample_text">
+                        {{ wt('web.request.voice_sample_text', 'Nərimanovda 2 saatlıq it gəzdirən adam lazımdır.') }}
+                    </p>
+                    <button type="button" id="request-voice-sample-btn" class="btn btn-outline btn-inline request-voice-sample-btn">
+                        <span data-i18n="web.request.voice_sample">{{ wt('web.request.voice_sample', 'Nümunə səs') }}</span>
+                    </button>
+                </div>
                 <div class="request-voice-box">
                     <button type="button" id="request-voice-btn" class="btn btn-primary btn-inline request-voice-btn">
                         <span class="request-voice-btn-label" data-i18n="web.request.voice_record">{{ wt('web.request.voice_record', 'Mikrofonla yaz') }}</span>
@@ -57,7 +65,7 @@
                     <span id="request-voice-timer" class="request-voice-timer" hidden>00:00</span>
                 </div>
                 <p id="request-voice-status" class="muted mt text-xs" data-i18n="web.request.voice_idle">
-                    {{ wt('web.request.voice_idle', 'Hazırsınızsa yazmağa başlayın (maks. 60 san). Dayandıranda sorğu göndərilir.') }}
+                    {{ wt('web.request.voice_idle', 'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 60 san). Dayandıranda sorğu göndərilir.') }}
                 </p>
             </div>
 
@@ -96,6 +104,13 @@
                 <button type="button" id="refresh-request" class="btn btn-outline" data-i18n="web.request.refresh">{{ wt('web.request.refresh', 'Nəticələri yenilə') }}</button>
             </div>
             <p id="request-info" class="muted mt" data-i18n="web.request.none">{{ wt('web.request.none', 'Sorğu yoxdur') }}</p>
+            <div id="request-audio-wrap" class="request-audio-wrap" hidden>
+                <p class="provider-section-label" data-i18n="web.request.your_audio">{{ wt('web.request.your_audio', 'Səsiniz') }}</p>
+                <audio id="request-audio" class="request-audio-player" controls preload="metadata"></audio>
+                <p id="request-audio-fail" class="muted text-xs mt" hidden data-i18n="search.transcript_failed">
+                    {{ wt('search.transcript_failed', 'Səs oxunmadı. Eyni mətni yazıb yenidən göndərin.') }}
+                </p>
+            </div>
             <div id="map" class="map mt"></div>
             <p id="place-label" class="muted mt" data-i18n="web.request.map_hint">{{ wt('web.request.map_hint', 'Google Map. Ünvan axtar və ya “Mənim yerim”.') }}</p>
         </section>

@@ -197,6 +197,49 @@
             if (role === 'client' || role === 'provider') {
                 document.documentElement.setAttribute('data-auth-role', role);
             }
+
+            // Dashboard hero: paint logged-in state before web-app.js / applyI18n.
+            if (document.body && document.body.getAttribute('data-page') === 'dashboard') {
+                var guestCta = document.getElementById('dash-cta-guest');
+                var clientCta = document.getElementById('dash-cta-client');
+                var providerCta = document.getElementById('dash-cta-provider');
+                var stats = document.getElementById('dash-stats');
+                var title = document.getElementById('dash-title');
+                var subtitle = document.getElementById('dash-subtitle');
+                var isProvider = role === 'provider';
+                if (guestCta) guestCta.hidden = true;
+                if (clientCta) clientCta.hidden = isProvider;
+                if (providerCta) providerCta.hidden = !isProvider;
+                if (stats) stats.hidden = false;
+                var locale = (document.documentElement.lang || 'az').toLowerCase();
+                var name = snap.name || '';
+                if (title && name) {
+                    title.removeAttribute('data-i18n');
+                    if (locale === 'en') title.textContent = 'Hello, ' + name;
+                    else if (locale === 'ru') title.textContent = 'Здравствуйте, ' + name;
+                    else title.textContent = 'Salam, ' + name;
+                }
+                if (subtitle) {
+                    subtitle.removeAttribute('data-i18n');
+                    if (isProvider) {
+                        if (locale === 'en') {
+                            subtitle.textContent = 'Review incoming jobs and send offers in chat.';
+                        } else if (locale === 'ru') {
+                            subtitle.textContent = 'Смотрите входящие заказы и отправляйте предложения в чате.';
+                        } else {
+                            subtitle.textContent = 'Gələn işlərə bax, chat-də təklif göndər.';
+                        }
+                    } else if (locale === 'en') {
+                        subtitle.textContent = 'Create a new request and CONNECT from matches.';
+                    } else if (locale === 'ru') {
+                        subtitle.textContent = 'Создайте новый запрос и CONNECT из совпадений.';
+                    } else {
+                        subtitle.textContent = 'Yeni sorğu yarat, match-lərdən CONNECT et.';
+                    }
+                }
+                var roleDash = document.getElementById('dash-role');
+                if (roleDash && snap.role) roleDash.textContent = snap.role;
+            }
         } catch (e) {}
     })();
 </script>
