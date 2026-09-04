@@ -1263,6 +1263,12 @@
         @apply hidden;
     }
 
+    /* Voice create: AI extracts category + place — hide manual pickers/map */
+    html[data-request-mode='voice'] #request-editor:not(.is-view-only) #request-manual-fields,
+    html[data-request-mode='voice'] #request-editor:not(.is-view-only) #request-map-block {
+        display: none !important;
+    }
+
     .composer input {
         @apply flex-1;
     }

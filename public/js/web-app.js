@@ -3379,7 +3379,7 @@
 
         var voicePanel = el('request-mode-voice');
         var textPanel = el('request-mode-text');
-        var mode = document.documentElement.getAttribute('data-request-mode') || 'voice';
+        var mode = document.documentElement.getAttribute('data-request-mode') || 'text';
         if (on) {
             if (voicePanel) voicePanel.hidden = true;
             if (textPanel) textPanel.hidden = false;
@@ -3555,7 +3555,7 @@
             }).catch(function () {});
         }
 
-        var requestMode = 'voice';
+        var requestMode = 'text';
         var voiceRecorder = null;
         var voiceChunks = [];
         var voiceStream = null;
@@ -3595,7 +3595,7 @@
         }
 
         function setRequestMode(mode) {
-            requestMode = mode === 'text' ? 'text' : 'voice';
+            requestMode = mode === 'voice' ? 'voice' : 'text';
             document.documentElement.setAttribute('data-request-mode', requestMode);
             var voicePanel = el('request-mode-voice');
             var textPanel = el('request-mode-text');
@@ -3612,20 +3612,44 @@
                 createBtn.hidden = requestMode !== 'text';
             }
             if (catLabel) {
-                if (requestMode === 'text') {
-                    catLabel.setAttribute('data-i18n', 'web.request.category');
-                    catLabel.textContent = t('web.request.category', 'Kateqoriya');
-                } else {
-                    catLabel.setAttribute('data-i18n', 'web.request.category_optional');
-                    catLabel.textContent = t(
-                        'web.request.category_optional',
-                        'Kateqoriya (istəyə bağlı)'
-                    );
-                }
+                catLabel.setAttribute('data-i18n', 'web.request.category');
+                catLabel.textContent = t('web.request.category', 'Kateqoriya');
             }
-            if (requestMode !== 'voice') {
+            if (requestMode === 'voice') {
+                // Voice path: AI-only category/place — clear manual picks so they aren't sent.
+                if (el('request-category')) el('request-category').value = '';
+                if (el('request-category-search')) el('request-category-search').value = '';
+                var picker = el('request-category-picker');
+                if (picker && typeof picker._setCategory === 'function') {
+                    picker._setCategory('', true);
+                }
+            } else {
                 stopVoiceRecording(true);
             }
+        }
+
+        function resolveVoiceCoords() {
+            var fallback = {
+                lat: Number((el('lat') && el('lat').value) || 40.4093),
+                lng: Number((el('lng') && el('lng').value) || 49.8671),
+            };
+            if (!navigator.geolocation) {
+                return Promise.resolve(fallback);
+            }
+            return new Promise(function (resolve) {
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        resolve({
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                        });
+                    },
+                    function () {
+                        resolve(fallback);
+                    },
+                    { enableHighAccuracy: false, timeout: 5000, maximumAge: 120000 }
+                );
+            });
         }
 
         function setVoiceStatus(key, fallback) {
@@ -3725,21 +3749,26 @@
                       ? 'm4a'
                       : 'webm';
             var file = new File([blob], 'request.' + ext, { type: type });
-            var fd = new FormData();
-            fd.append('audio', file);
-            fd.append('duration_seconds', String(Math.max(1, Math.round(durationSec || 0))));
-            fd.append('latitude', String(Number(el('lat').value || 0)));
-            fd.append('longitude', String(Number(el('lng').value || 0)));
-            var address = (el('place-search') && el('place-search').value.trim()) || '';
-            if (address) fd.append('address', address);
-            fd.append('is_urgent', '0');
-            var categoryId = getRequestCategoryId();
-            if (categoryId) fd.append('category_id', String(categoryId));
 
             setVoiceStatus('web.request.voice_uploading', 'Səs göndərilir…');
             showPageLoader();
             requireRole('client')
                 .then(function () {
+                    return resolveVoiceCoords();
+                })
+                .then(function (coords) {
+                    if (el('lat')) el('lat').value = String(coords.lat);
+                    if (el('lng')) el('lng').value = String(coords.lng);
+                    var fd = new FormData();
+                    fd.append('audio', file);
+                    fd.append(
+                        'duration_seconds',
+                        String(Math.max(1, Math.round(durationSec || 0)))
+                    );
+                    fd.append('latitude', String(coords.lat));
+                    fd.append('longitude', String(coords.lng));
+                    fd.append('is_urgent', '0');
+                    // No category_id / address — AI parses from voice only.
                     return api('/service-requests/audio', {
                         method: 'POST',
                         body: fd,
@@ -3894,7 +3923,7 @@
                 setRequestMode(btn.getAttribute('data-mode'));
             });
         });
-        setRequestMode('voice');
+        setRequestMode('text');
 
         var voiceBtn = el('request-voice-btn');
         if (voiceBtn) {
