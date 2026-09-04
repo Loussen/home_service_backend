@@ -11,13 +11,15 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -32,8 +34,8 @@ class AdminPanelProvider extends PanelProvider
             ->authGuard('admin')
             ->authPasswordBroker('admins')
             ->brandName('My Sancho')
-            ->brandLogo(asset('images/brand/logo-color.jpg'))
-            ->brandLogoHeight('2.25rem')
+            ->brandLogo(fn (): HtmlString => $this->brandLogoHtml())
+            ->brandLogoHeight('5.5rem')
             ->favicon(asset('images/brand/logo-light.jpg'))
             ->colors([
                 'primary' => Color::hex('#08215B'),
@@ -64,5 +66,59 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    public function boot(): void
+    {
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::STYLES_AFTER,
+            fn (): string => '<style>
+                .fi-logo { overflow: visible !important; }
+                .fi-simple-header .fi-logo { height: 7.25rem !important; }
+                .ms-admin-brand {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    height: 100%;
+                    max-width: 100%;
+                }
+                .ms-admin-brand img {
+                    height: 100%;
+                    width: auto;
+                    border-radius: 0.4rem;
+                    display: block;
+                }
+                .ms-admin-brand-label {
+                    color: #08215B;
+                    font-size: 0.95rem;
+                    font-weight: 700;
+                    line-height: 1.2;
+                    white-space: nowrap;
+                }
+                .fi-sidebar-header .ms-admin-brand-label {
+                    font-size: 0.88rem;
+                }
+                @media (max-width: 640px) {
+                    .fi-topbar .ms-admin-brand-label { display: none; }
+                }
+            </style>',
+        );
+    }
+
+    private function brandLogoHtml(): HtmlString
+    {
+        $src = e(asset('images/brand/logo-color.jpg'));
+        $isAuthPage = request()->routeIs('filament.admin.auth.*');
+
+        $label = $isAuthPage
+            ? ''
+            : '<span class="ms-admin-brand-label">My Sancho — Admin Panel</span>';
+
+        return new HtmlString(
+            '<span class="ms-admin-brand">'
+            .'<img src="'.$src.'" alt="My Sancho" />'
+            .$label
+            .'</span>'
+        );
     }
 }
