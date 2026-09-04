@@ -1530,28 +1530,31 @@
     }
 
     .app-download-actions {
-        @apply flex flex-wrap items-center justify-center gap-2.5;
+        @apply flex flex-wrap items-center justify-center gap-3;
     }
 
     .app-download--panel .app-download-actions {
         @apply mt-4 shrink-0 justify-start sm:mt-0;
     }
 
-    .app-store-btn {
-        @apply inline-flex min-h-[2.75rem] items-center justify-center gap-2 rounded-[0.95rem] border border-brand/30 bg-parchment px-4 py-2
-            text-sm font-bold text-brand no-underline transition hover:border-brand hover:bg-brand-peach/40;
+    .app-store-badge {
+        @apply relative inline-flex items-center no-underline transition opacity-100 hover:opacity-90;
     }
 
-    a.app-store-btn:hover {
-        @apply text-brand;
+    .app-store-badge img {
+        @apply h-[44px] w-auto max-w-[170px] object-contain;
     }
 
-    .app-store-btn.is-soon {
-        @apply cursor-default border-line bg-canvas text-mute opacity-90;
+    .app-store-badge.is-soon {
+        @apply cursor-default opacity-70;
+    }
+
+    .app-store-badge.is-soon img {
+        @apply grayscale;
     }
 
     .app-store-soon {
-        @apply rounded-md bg-white/80 px-1.5 py-0.5 text-[0.68rem] font-semibold uppercase tracking-wide text-mute;
+        @apply absolute -right-1 -top-2 rounded-md bg-brand px-1.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-white shadow-soft;
     }
 
     .static-page-shell {
