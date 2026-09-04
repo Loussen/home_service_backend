@@ -9,6 +9,6 @@ Generate one MP3 per locale in ElevenLabs (Speech Synthesis), then save here:
 | `request-ru.mp3` | ru | Нужен человек в Нариманове, чтобы погулять с собакой на 2 часа. |
 
 Tips:
-- Calm, clear adult voice; ~3–6 seconds; no music.
+- Calm, clear adult voice; about **5–20 seconds**; no music.
 - Export **MP3** (or convert to MP3).
 - Keep filenames exactly as above — the web “Nümunə səs” button loads `/audio/samples/request-{locale}.mp3`.

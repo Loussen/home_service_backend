@@ -89,6 +89,19 @@ class ProcessServiceRequestService
                 $categoryId = $category?->id;
             }
 
+            // Unclear voice / no usable category — do not dump every nearby provider.
+            if (! $categoryId) {
+                return $this->requests->update($request, [
+                    'transcribed_text' => $displayText !== '' ? $displayText : null,
+                    'category_id' => null,
+                    'parsed_criteria' => array_merge($parsed, [
+                        'transcription_failed' => true,
+                        'missing_category' => true,
+                    ]),
+                    'status' => 'active',
+                ]);
+            }
+
             $address = $request->address;
             if (! $address && ($resolved['district'] || $resolved['city'])) {
                 $address = trim(implode(', ', array_filter([
@@ -138,10 +151,14 @@ class ProcessServiceRequestService
     private function looksLikeFailedTranscript(string $text): bool
     {
         $t = mb_strtolower(trim($text));
-        if ($t === '' || mb_strlen($t) < 8) {
+        if ($t === '' || mb_strlen($t) < 12) {
             return true;
         }
         if (! preg_match('/\p{L}/u', $t)) {
+            return true;
+        }
+        // Silence often yields Hindi/CJK hallucinations — require AZ/RU/EN letters.
+        if (! preg_match('/[a-zа-яёəğıöüşç]/iu', $t)) {
             return true;
         }
 

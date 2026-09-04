@@ -195,7 +195,7 @@
         'match.reason.schedule_miss': 'Cədvəl uyğun deyil',
         'match.reason.category': '{name}',
         'match.reason.repeat_client': 'Əvvəl işlədiyiniz provayder',
-        'match.reason.bump': 'Önə çıxıb',
+        'match.reason.bump': 'Önə çıxıb · {hours} saat',
     };
 
     var MATCH_REASON_HINT_AZ = {
@@ -243,6 +243,11 @@
                     if (!reason) return '';
                     if (reason.key === 'match.reason.bump') {
                         var hint = formatMatchReasonHint(reason);
+                        var bumpLabel = t(
+                            'profiles.bump_remaining',
+                            'Önə çıxıb · {hours} saat',
+                            reason.params || {}
+                        );
                         return (
                             '<span class="match-reason-bump" title="' +
                             esc(hint) +
@@ -250,7 +255,9 @@
                             esc(hint) +
                             '">' +
                             '<span class="match-reason-bump-icon" aria-hidden="true">↑</span>' +
-                            '<span class="match-reason-bump-label">' + esc(t('match.reason.bump', 'Önə çıxıb')) + '</span>' +
+                            '<span class="match-reason-bump-label">' +
+                            esc(bumpLabel) +
+                            '</span>' +
                             '</span>'
                         );
                     }
@@ -506,7 +513,14 @@
                     throw new Error(json.message || 'Hesab bloklanıb');
                 }
                 if (!res.ok || json.success === false) {
-                    throw new Error(json.message || 'HTTP ' + res.status);
+                    var msg = json.message || 'HTTP ' + res.status;
+                    if (json.errors && typeof json.errors === 'object') {
+                        var keys = Object.keys(json.errors);
+                        if (keys.length && json.errors[keys[0]] && json.errors[keys[0]][0]) {
+                            msg = json.errors[keys[0]][0];
+                        }
+                    }
+                    throw new Error(msg);
                 }
                 return json.data !== undefined ? json.data : json;
             });
@@ -3448,15 +3462,16 @@
                 }
                 if (
                     current.parsed_criteria &&
-                    current.parsed_criteria.transcription_failed
+                    (current.parsed_criteria.transcription_failed ||
+                        current.parsed_criteria.missing_category)
                 ) {
                     current.matches = [];
                     renderMatches(current);
                     toast(
                         'warning',
                         t(
-                            'search.transcript_failed',
-                            'Səs oxunmadı. Eyni mətni yazıb yenidən göndərin.'
+                            'web.request.voice_unclear',
+                            'Səs oxunmadı və ya qeyri-müəyyəndir. Nümunəyə bənzər aydın səs göndərin (5–20 san).'
                         )
                     );
                 }
@@ -3544,8 +3559,8 @@
         var voiceStream = null;
         var voiceTimer = null;
         var voiceElapsed = 0;
-        var voiceMinSec = 3;
-        var voiceMaxSec = 60;
+        var voiceMinSec = 5;
+        var voiceMaxSec = 20;
         var voiceBusy = false;
         var voiceSampleAudio = null;
 
@@ -3697,7 +3712,7 @@
             return '';
         }
 
-        function submitVoiceBlob(blob, mime) {
+        function submitVoiceBlob(blob, mime, durationSec) {
             if (voiceBusy) return;
             voiceBusy = true;
             var type = mime || blob.type || 'audio/webm';
@@ -3710,6 +3725,7 @@
             var file = new File([blob], 'request.' + ext, { type: type });
             var fd = new FormData();
             fd.append('audio', file);
+            fd.append('duration_seconds', String(Math.max(1, Math.round(durationSec || 0))));
             fd.append('latitude', String(Number(el('lat').value || 0)));
             fd.append('longitude', String(Number(el('lng').value || 0)));
             var address = (el('place-search') && el('place-search').value.trim()) || '';
@@ -3755,7 +3771,7 @@
                         }
                         setVoiceStatus(
                             'web.request.voice_idle',
-                            'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 60 san). Dayandıranda sorğu göndərilir.'
+                            'Hazırsınızsa yazmağa başlayın (ən azı 5, maks. 20 san). Dayandıranda sorğu göndərilir.'
                         );
                         return req;
                     });
@@ -3764,11 +3780,15 @@
                     if (e && /yalnız ailə/i.test(e.message || '')) return;
                     toast(
                         'error',
-                        e.message || t('web.request.create_failed', 'Sorğu yaradılmadı')
+                        e.message ||
+                            t(
+                                'web.request.voice_rejected',
+                                'Səs qəbul olunmadı. Aydın və düzgün səs göndərin (5–20 san).'
+                            )
                     );
                     setVoiceStatus(
                         'web.request.voice_idle',
-                        'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 60 san). Dayandıranda sorğu göndərilir.'
+                        'Hazırsınızsa yazmağa başlayın (ən azı 5, maks. 20 san). Dayandıranda sorğu göndərilir.'
                     );
                     log('Səsli sorğu xətası: ' + ((e && e.message) || e));
                 })
@@ -3824,17 +3844,17 @@
                                 'warning',
                                 t(
                                     'web.request.voice_too_short',
-                                    'Çox qısa və ya boş səs. Ən azı {sec} saniyə danışın.',
+                                    'Səs çox qısa və ya qeyri-müəyyəndir. Ən azı {sec} saniyə aydın danışın.',
                                     { sec: voiceMinSec }
                                 )
                             );
                             setVoiceStatus(
                                 'web.request.voice_idle',
-                                'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 60 san). Dayandıranda sorğu göndərilir.'
+                                'Hazırsınızsa yazmağa başlayın (ən azı 5, maks. 20 san). Dayandıranda sorğu göndərilir.'
                             );
                             return;
                         }
-                        submitVoiceBlob(blob, type);
+                        submitVoiceBlob(blob, type, elapsed);
                     };
                     voiceRecorder.start(250);
                     setVoiceButton(true);

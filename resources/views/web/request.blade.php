@@ -65,7 +65,7 @@
                     <span id="request-voice-timer" class="request-voice-timer" hidden>00:00</span>
                 </div>
                 <p id="request-voice-status" class="muted mt text-xs" data-i18n="web.request.voice_idle">
-                    {{ wt('web.request.voice_idle', 'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 60 san). Dayandıranda sorğu göndərilir.') }}
+                    {{ wt('web.request.voice_idle', 'Hazırsınızsa yazmağa başlayın (ən azı 5, maks. 20 san). Dayandıranda sorğu göndərilir.') }}
                 </p>
             </div>
 

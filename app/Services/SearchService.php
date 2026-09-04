@@ -19,6 +19,25 @@ class SearchService
 
     public function matchRequest(ServiceRequest $request): Collection
     {
+        // Voice/text without a resolved category must not list every provider nearby.
+        if (! filled($request->category_id)) {
+            $criteria = $request->parsed_criteria ?? [];
+            $criteria['search_meta'] = [
+                'empty' => true,
+                'missing_category' => true,
+                'urgent' => (bool) $request->is_urgent,
+                'radius_km' => (float) config('homeservice.search_radius_km', 50),
+                'base_radius_km' => (float) config('homeservice.search_radius_km', 50),
+                'expanded' => false,
+                'dropped_category' => false,
+                'dropped_area' => false,
+                'dropped_schedule' => false,
+            ];
+            $request->forceFill(['parsed_criteria' => $criteria])->save();
+
+            return collect();
+        }
+
         $isUrgent = (bool) $request->is_urgent;
         $urgentRadius = (float) config('homeservice.urgent_radius_km', 5);
         $searchRadius = (float) config('homeservice.search_radius_km', 50);
