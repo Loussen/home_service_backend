@@ -651,6 +651,18 @@
         @apply mt-1 mb-0 text-sm;
     }
 
+    .request-filter-tabs {
+        @apply mb-4 inline-flex flex-wrap gap-1 rounded-full bg-parchment p-1;
+    }
+
+    .request-filter-tab {
+        @apply rounded-full border-0 bg-transparent px-3.5 py-2 text-sm font-semibold text-mute transition cursor-pointer;
+    }
+
+    .request-filter-tab.is-active {
+        @apply bg-white text-brand shadow-soft;
+    }
+
     .request-history {
         @apply grid gap-3;
     }

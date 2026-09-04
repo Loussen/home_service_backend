@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\ServiceRequest;
-use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -23,9 +22,10 @@ class UrgentQuota
     public static function snapshot(User $user): array
     {
         $dailyLimit = (int) config('homeservice.urgent_daily_limit', 3);
-        $today = Transaction::query()
+        // Only count urgents that still consume a slot (refunded/cleared requests don't).
+        $today = ServiceRequest::query()
             ->where('user_id', $user->id)
-            ->where('type', 'urgent_fee')
+            ->where('is_urgent', true)
             ->where('created_at', '>=', now()->startOfDay())
             ->count();
         $dailyRemaining = max(0, $dailyLimit - $today);

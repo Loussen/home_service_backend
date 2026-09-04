@@ -3467,13 +3467,18 @@
                 ) {
                     current.matches = [];
                     renderMatches(current);
-                    toast(
-                        'warning',
-                        t(
+                    showAppAlert({
+                        title: t(
+                            'web.request.voice_unclear_title',
+                            'Səs oxunmadı'
+                        ),
+                        message: t(
                             'web.request.voice_unclear',
                             'Səs oxunmadı və ya qeyri-müəyyəndir. Nümunəyə bənzər aydın səs göndərin (5–20 san).'
-                        )
-                    );
+                        ),
+                        tone: 'warning',
+                        confirmLabel: t('web.alert.ok', 'Başa düşdüm'),
+                    });
                 }
                 return current;
             });
@@ -4480,6 +4485,9 @@
     }
 
     function bindRequestsPage() {
+        var requestsCache = [];
+        var requestsFilter = 'all';
+
         function ensureMe() {
             if (meCache) return Promise.resolve(meCache);
             if (!getToken()) return Promise.resolve(null);
@@ -4493,6 +4501,110 @@
 
         function openRequest(id) {
             go('/request?requestId=' + encodeURIComponent(id));
+        }
+
+        function requestMatchCount(req) {
+            if (req.matches_count != null) return Number(req.matches_count) || 0;
+            if (req.matches && req.matches.length) return req.matches.length;
+            return 0;
+        }
+
+        function requestIsMatched(req) {
+            return requestMatchCount(req) > 0 || req.status === 'matched';
+        }
+
+        function setRequestsFilter(filter) {
+            requestsFilter = filter === 'matched' || filter === 'unmatched' ? filter : 'all';
+            document.querySelectorAll('#requests-filter .request-filter-tab').forEach(function (btn) {
+                var active = btn.getAttribute('data-filter') === requestsFilter;
+                btn.classList.toggle('is-active', active);
+                btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            renderRequestsList(requestsCache);
+        }
+
+        function renderRequestsList(rows) {
+            var box = el('requests-list');
+            if (!box) return;
+            var filtered = (rows || []).filter(function (req) {
+                if (requestsFilter === 'matched') return requestIsMatched(req);
+                if (requestsFilter === 'unmatched') return !requestIsMatched(req);
+                return true;
+            });
+            if (!(rows || []).length) {
+                box.innerHTML =
+                    '<div class="request-history-empty">' +
+                    '<p>' + esc(t('web.requests.empty', 'Hələ sorğu yoxdur.')) + '</p>' +
+                    '<a href="/request" class="btn btn-primary btn-inline">' +
+                    esc(t('web.requests.empty_cta', 'Yeni sorğu yaz')) +
+                    '</a>' +
+                    '</div>';
+                return;
+            }
+            if (!filtered.length) {
+                box.innerHTML =
+                    '<div class="request-history-empty">' +
+                    '<p>' +
+                    esc(
+                        t(
+                            'web.requests.filter_empty',
+                            'Bu filterə uyğun sorğu yoxdur.'
+                        )
+                    ) +
+                    '</p>' +
+                    '</div>';
+                return;
+            }
+            box.innerHTML = '';
+            filtered.forEach(function (req) {
+                var cat = (req.category && categoryLabel(req.category)) || '';
+                var text = (req.transcribed_text || req.address || '').trim();
+                var count = requestMatchCount(req);
+                var title = cat || (text ? text.slice(0, 48) : ('Sorğu #' + req.id));
+                var card = document.createElement('article');
+                card.className = 'request-history-item';
+                card.tabIndex = 0;
+                card.setAttribute('role', 'button');
+                card.innerHTML =
+                    '<div class="request-history-top">' +
+                    '<span class="request-history-id">#' + esc(req.id) + '</span>' +
+                    '<span class="request-status ' + requestStatusClass(req.status) + '">' +
+                    esc(requestStatusLabel(req.status)) +
+                    '</span>' +
+                    (req.is_urgent
+                        ? '<span class="request-status is-urgent">' +
+                          esc(t('web.requests.urgent', 'Təcili')) +
+                          '</span>'
+                        : '') +
+                    '</div>' +
+                    '<h3 class="request-history-title">' + esc(title) + '</h3>' +
+                    (text && text !== title
+                        ? '<p class="request-history-text">' + esc(text) + '</p>'
+                        : '') +
+                    '<div class="request-history-foot">' +
+                    '<span class="request-history-meta">' +
+                    esc(
+                        t('web.request.matches_count', '{count} uyğunluq', {
+                            count: count,
+                        })
+                    ) +
+                    (req.created_at ? ' · ' + esc(formatRequestWhen(req.created_at)) : '') +
+                    '</span>' +
+                    '<span class="request-history-cta">' +
+                    esc(t('web.requests.open_results', 'Nəticələrə bax →')) +
+                    '</span>' +
+                    '</div>';
+                card.addEventListener('click', function () {
+                    openRequest(req.id);
+                });
+                card.addEventListener('keydown', function (evt) {
+                    if (evt.key === 'Enter' || evt.key === ' ') {
+                        evt.preventDefault();
+                        openRequest(req.id);
+                    }
+                });
+                box.appendChild(card);
+            });
         }
 
         function loadRequests() {
@@ -4512,61 +4624,9 @@
                 return api('/service-requests');
             }).then(function (items) {
                 if (items == null) return;
-                if (!box) return;
-                var rows = Array.isArray(items) ? items : ((items && items.data) || []);
-                if (!rows.length) {
-                    box.innerHTML =
-                        '<div class="request-history-empty">' +
-                        '<p>' + esc(t('web.requests.empty', 'Hələ sorğu yoxdur.')) + '</p>' +
-                        '<a href="/request" class="btn btn-primary btn-inline">' + esc(t('web.requests.empty_cta', 'Yeni sorğu yaz')) + '</a>' +
-                        '</div>';
-                    return;
-                }
-                box.innerHTML = '';
-                rows.forEach(function (req) {
-                    var cat = (req.category && categoryLabel(req.category)) || '';
-                    var text = (req.transcribed_text || req.address || '').trim();
-                    var count = req.matches_count != null ? req.matches_count : 0;
-                    var title = cat || (text ? text.slice(0, 48) : ('Sorğu #' + req.id));
-                    var card = document.createElement('article');
-                    card.className = 'request-history-item';
-                    card.tabIndex = 0;
-                    card.setAttribute('role', 'button');
-                    card.innerHTML =
-                        '<div class="request-history-top">' +
-                        '<span class="request-history-id">#' + esc(req.id) + '</span>' +
-                        '<span class="request-status ' + requestStatusClass(req.status) + '">' +
-                        esc(requestStatusLabel(req.status)) +
-                        '</span>' +
-                        (req.is_urgent ? '<span class="request-status is-urgent">' + esc(t('web.requests.urgent', 'Təcili')) + '</span>' : '') +
-                        '</div>' +
-                        '<h3 class="request-history-title">' + esc(title) + '</h3>' +
-                        (text && text !== title
-                            ? '<p class="request-history-text">' + esc(text) + '</p>'
-                            : '') +
-                        '<div class="request-history-foot">' +
-                        '<span class="request-history-meta">' +
-                        esc(
-                            t('web.request.matches_count', '{count} uyğunluq', {
-                                count: count,
-                            })
-                        ) +
-                        (req.created_at ? ' · ' + esc(formatRequestWhen(req.created_at)) : '') +
-                        '</span>' +
-                        '<span class="request-history-cta">' + esc(t('web.requests.open_results', 'Nəticələrə bax →')) + '</span>' +
-                        '</div>';
-                    card.addEventListener('click', function () {
-                        openRequest(req.id);
-                    });
-                    card.addEventListener('keydown', function (evt) {
-                        if (evt.key === 'Enter' || evt.key === ' ') {
-                            evt.preventDefault();
-                            openRequest(req.id);
-                        }
-                    });
-                    box.appendChild(card);
-                });
-                log('Sorğular yükləndi', { count: rows.length });
+                requestsCache = Array.isArray(items) ? items : ((items && items.data) || []);
+                renderRequestsList(requestsCache);
+                log('Sorğular yükləndi', { count: requestsCache.length });
             }).catch(function (e) {
                 if (box) box.textContent = t('web.requests.load_error', 'Sorğular yüklənmədi');
                 toast('error', t('web.requests.load_error', 'Sorğular yüklənmədi'));
@@ -4581,6 +4641,17 @@
             refresh.dataset.bound = '1';
             refresh.addEventListener('click', loadRequests);
         }
+
+        var filterRoot = el('requests-filter');
+        if (filterRoot && filterRoot.dataset.bound !== '1') {
+            filterRoot.dataset.bound = '1';
+            filterRoot.querySelectorAll('.request-filter-tab').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    setRequestsFilter(btn.getAttribute('data-filter'));
+                });
+            });
+        }
+
         loadRequests();
     }
 

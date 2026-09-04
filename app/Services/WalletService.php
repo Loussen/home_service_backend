@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ProviderProfile;
 use App\Models\ServiceRequest;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\TransactionRepository;
 use App\Repositories\UserRepository;
@@ -130,6 +131,76 @@ class WalletService
             ]);
 
             return $user;
+        });
+    }
+
+    public function credit(
+        User $user,
+        float $amount,
+        string $type,
+        string $paymentMethod = 'wallet',
+        ?array $meta = null
+    ): User {
+        if ($amount <= 0) {
+            return $user;
+        }
+
+        return DB::transaction(function () use ($user, $amount, $type, $paymentMethod, $meta) {
+            $fresh = $this->userRepository->creditBalance($user, $amount);
+            $this->transactionRepository->create([
+                'user_id' => $user->id,
+                'amount' => $amount,
+                'type' => $type,
+                'payment_method' => $paymentMethod,
+                'status' => 'completed',
+                'meta' => $meta,
+            ]);
+
+            return $fresh;
+        });
+    }
+
+    /**
+     * No matches / failed parse — refund urgent fee and free the daily urgent slot.
+     */
+    public function refundUrgentIfNoResults(ServiceRequest $request): ServiceRequest
+    {
+        return DB::transaction(function () use ($request) {
+            $request = ServiceRequest::query()->lockForUpdate()->find($request->id) ?? $request;
+            if (! $request->is_urgent) {
+                return $request;
+            }
+
+            $feeTx = Transaction::query()
+                ->where('user_id', $request->user_id)
+                ->where('type', 'urgent_fee')
+                ->where('meta->service_request_id', $request->id)
+                ->orderByDesc('id')
+                ->first();
+
+            $alreadyRefunded = Transaction::query()
+                ->where('user_id', $request->user_id)
+                ->where('type', 'urgent_fee_refund')
+                ->where('meta->service_request_id', $request->id)
+                ->exists();
+
+            if ($feeTx && ! $alreadyRefunded) {
+                $amount = abs((float) $feeTx->amount);
+                $user = User::query()->lockForUpdate()->find($request->user_id);
+                if ($user && $amount > 0) {
+                    $this->credit($user, $amount, 'urgent_fee_refund', 'wallet', [
+                        'service_request_id' => $request->id,
+                        'refund_of' => $feeTx->id,
+                    ]);
+                }
+            }
+
+            $request->update([
+                'is_urgent' => false,
+                'urgent_until' => null,
+            ]);
+
+            return $request->fresh() ?? $request;
         });
     }
 

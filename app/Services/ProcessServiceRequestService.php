@@ -18,6 +18,7 @@ class ProcessServiceRequestService
         private readonly LocationRepository $locations,
         private readonly ServiceRequestRepository $requests,
         private readonly PushNotificationService $push,
+        private readonly WalletService $wallet,
     ) {}
 
     public function process(ServiceRequest $request, ?string $audioOverridePath = null): ServiceRequest
@@ -52,7 +53,7 @@ class ProcessServiceRequestService
             }
 
             if ($transcriptionFailed && $text === '') {
-                return $this->requests->update($request, [
+                $request = $this->requests->update($request, [
                     'transcribed_text' => null,
                     'category_id' => null,
                     'parsed_criteria' => [
@@ -61,6 +62,8 @@ class ProcessServiceRequestService
                     ],
                     'status' => 'active',
                 ]);
+
+                return $this->wallet->refundUrgentIfNoResults($request);
             }
 
             $catalog = $this->categories->leafCatalog();
@@ -91,7 +94,7 @@ class ProcessServiceRequestService
 
             // Unclear voice / no usable category — do not dump every nearby provider.
             if (! $categoryId) {
-                return $this->requests->update($request, [
+                $request = $this->requests->update($request, [
                     'transcribed_text' => $displayText !== '' ? $displayText : null,
                     'category_id' => null,
                     'parsed_criteria' => array_merge($parsed, [
@@ -100,6 +103,8 @@ class ProcessServiceRequestService
                     ]),
                     'status' => 'active',
                 ]);
+
+                return $this->wallet->refundUrgentIfNoResults($request);
             }
 
             $address = $request->address;
@@ -123,6 +128,9 @@ class ProcessServiceRequestService
             if ($results->isNotEmpty()) {
                 $request = $this->requests->update($request, ['status' => 'matched']);
                 $this->push->notifyNewMatches($request);
+            } else {
+                // No providers found — do not keep urgent fee / daily urgent slot.
+                $request = $this->wallet->refundUrgentIfNoResults($request);
             }
 
             Log::info('Service request processed', [
@@ -138,10 +146,12 @@ class ProcessServiceRequestService
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->requests->update($request, [
+            $request = $this->requests->update($request, [
                 'status' => 'active',
                 'transcribed_text' => $request->transcribed_text ?? 'Processing failed',
             ]);
+
+            return $this->wallet->refundUrgentIfNoResults($request);
         }
     }
 

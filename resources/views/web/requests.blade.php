@@ -30,6 +30,17 @@
                 <button type="button" id="refresh-requests" class="btn btn-outline btn-inline" data-i18n="web.common.refresh">Yenilə</button>
             </div>
         </div>
+        <div class="request-filter-tabs" id="requests-filter" role="tablist" aria-label="{{ wt('web.requests.filter_aria', 'Sorğu filteri') }}">
+            <button type="button" class="request-filter-tab is-active" data-filter="all" role="tab" aria-selected="true" data-i18n="web.requests.filter_all">
+                {{ wt('web.requests.filter_all', 'Hamısı') }}
+            </button>
+            <button type="button" class="request-filter-tab" data-filter="matched" role="tab" aria-selected="false" data-i18n="web.requests.filter_matched">
+                {{ wt('web.requests.filter_matched', 'Uyğunlaşan') }}
+            </button>
+            <button type="button" class="request-filter-tab" data-filter="unmatched" role="tab" aria-selected="false" data-i18n="web.requests.filter_unmatched">
+                {{ wt('web.requests.filter_unmatched', 'Uyğunlaşmayan') }}
+            </button>
+        </div>
         <div id="requests-list" class="request-history" data-i18n="web.loading">Yüklənir…</div>
     </section>
 @endsection
