@@ -584,7 +584,7 @@
     }
 
     .card-provider {
-        @apply mx-auto max-w-[760px] overflow-hidden p-0;
+        @apply w-full max-w-none overflow-hidden p-0;
     }
 
     .provider-public-body {
@@ -1035,7 +1035,7 @@
     }
 
     .modal-card.provider-preview {
-        @apply max-w-[480px] p-0 overflow-hidden;
+        @apply max-w-[700px] p-0 overflow-hidden;
     }
 
     .provider-preview-head {

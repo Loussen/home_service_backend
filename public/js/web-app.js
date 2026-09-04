@@ -1932,21 +1932,18 @@
         });
     }
 
-    var DAY_LABELS = {
-        1: 'B.e',
-        2: 'Ç.a',
-        3: 'Ç',
-        4: 'C.a',
-        5: 'C',
-        6: 'Ş',
-        7: 'B',
-    };
-    var SLOT_LABELS = {
-        morning: t('web.schedule.morning', 'Səhər'),
-            afternoon: t('web.schedule.afternoon', 'Günorta'),
-            evening: t('web.schedule.evening', 'Axşam'),
-            night: t('web.schedule.night', 'Gecə'),
-    };
+    function dayShortLabel(day) {
+        var n = Number(day);
+        return t('web.schedule.day_' + n, ({
+            1: 'B.e',
+            2: 'Ç.a',
+            3: 'Ç',
+            4: 'C.a',
+            5: 'C',
+            6: 'Ş',
+            7: 'B',
+        })[n] || String(day));
+    }
 
     function scheduleChipLabel(day, slot) {
         var slots = {
@@ -1955,7 +1952,7 @@
             evening: t('web.schedule.evening', 'Axşam'),
             night: t('web.schedule.night', 'Gecə'),
         };
-        return (DAY_LABELS[day] || day) + ' · ' + (slots[slot] || slot);
+        return dayShortLabel(day) + ' · ' + (slots[slot] || slot);
     }
 
     function providerInitial(provider) {
