@@ -152,6 +152,65 @@ class GooglePlacesService
         ];
     }
 
+    /**
+     * Forward-geocode a place name (e.g. "Nərimanov, Bakı") inside Azerbaijan.
+     *
+     * @return array{latitude: float, longitude: float, formatted_address: ?string, city: ?string, district: ?string}|null
+     */
+    public function geocode(string $query, string $language = 'az'): ?array
+    {
+        $query = trim($query);
+        if (! $this->isConfigured() || mb_strlen($query) < 2) {
+            return null;
+        }
+
+        $response = Http::timeout(12)->get(
+            'https://maps.googleapis.com/maps/api/geocode/json',
+            [
+                'address' => $query,
+                'key' => $this->apiKey(),
+                'language' => $language,
+                'components' => 'country:AZ',
+                'region' => 'az',
+            ],
+        );
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $status = $response->json('status');
+        if ($status !== 'OK') {
+            return null;
+        }
+
+        $results = $response->json('results', []);
+        if (! is_array($results) || $results === []) {
+            return null;
+        }
+
+        $parsed = $this->parseGoogleResult($results[0]);
+        if ($parsed === null) {
+            return null;
+        }
+
+        $lat = (float) ($parsed['latitude'] ?? 0);
+        $lng = (float) ($parsed['longitude'] ?? 0);
+        if ($lat === 0.0 && $lng === 0.0) {
+            return null;
+        }
+
+        return [
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'formatted_address' => isset($parsed['formatted_address'])
+                ? (string) $parsed['formatted_address']
+                : null,
+            'city' => $parsed['city'] ?? null,
+            'district' => $parsed['district'] ?? null,
+        ];
+    }
+
     /** @param  array<string, mixed>  $result
      * @return array<string, mixed>|null
      */

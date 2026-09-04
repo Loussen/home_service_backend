@@ -19,6 +19,7 @@ class ProcessServiceRequestService
         private readonly ServiceRequestRepository $requests,
         private readonly PushNotificationService $push,
         private readonly WalletService $wallet,
+        private readonly GooglePlacesService $places,
     ) {}
 
     public function process(ServiceRequest $request, ?string $audioOverridePath = null): ServiceRequest
@@ -107,19 +108,17 @@ class ProcessServiceRequestService
                 return $this->wallet->refundUrgentIfNoResults($request);
             }
 
-            $address = $request->address;
-            if (! $address && ($resolved['district'] || $resolved['city'])) {
-                $address = trim(implode(', ', array_filter([
-                    $resolved['district'],
-                    $resolved['city'],
-                ])));
-            }
+            // Prefer place spoken/written in the request; GPS is only a fallback pin.
+            $location = $this->resolveRequestLocation($request, $resolved, $parsed);
+            $parsed['location_source'] = $location['source'];
 
             $request = $this->requests->update($request, [
                 'transcribed_text' => $displayText,
                 'parsed_criteria' => $parsed,
                 'category_id' => $categoryId,
-                'address' => $address,
+                'address' => $location['address'],
+                'latitude' => $location['latitude'],
+                'longitude' => $location['longitude'],
                 'status' => 'active',
             ]);
 
@@ -153,6 +152,76 @@ class ProcessServiceRequestService
 
             return $this->wallet->refundUrgentIfNoResults($request);
         }
+    }
+
+    /**
+     * Voice/text place first; client GPS only when AI found no usable place.
+     *
+     * @param  array{city_id: ?int, district_id: ?int, city: ?string, district: ?string}  $resolved
+     * @param  array<string, mixed>  $parsed
+     * @return array{latitude: float, longitude: float, address: ?string, source: string}
+     */
+    private function resolveRequestLocation(
+        ServiceRequest $request,
+        array $resolved,
+        array $parsed,
+    ): array {
+        $fallbackLat = (float) $request->latitude;
+        $fallbackLng = (float) $request->longitude;
+        $fallbackAddress = $request->address;
+
+        $spokenParts = array_filter([
+            $resolved['district'] ?? null,
+            $resolved['city'] ?? null,
+        ]);
+        $spokenLabel = $spokenParts !== []
+            ? trim(implode(', ', $spokenParts))
+            : null;
+
+        // AI returned a place name — try to pin the map there.
+        if ($spokenLabel !== null) {
+            $query = $spokenLabel.', Azerbaijan';
+            $geo = $this->places->geocode($query);
+            if ($geo === null && ($resolved['district'] ?? null)) {
+                $geo = $this->places->geocode(
+                    ($resolved['district'] ?? '').', Bakı, Azerbaijan'
+                );
+            }
+
+            if ($geo !== null) {
+                return [
+                    'latitude' => (float) $geo['latitude'],
+                    'longitude' => (float) $geo['longitude'],
+                    'address' => $geo['formatted_address']
+                        ?: $spokenLabel
+                        ?: $fallbackAddress,
+                    'source' => 'ai_place',
+                ];
+            }
+
+            // Geocode unavailable — still prefer spoken label for display;
+            // keep GPS coords so matching has a pin (district_id still filters).
+            return [
+                'latitude' => $fallbackLat,
+                'longitude' => $fallbackLng,
+                'address' => $spokenLabel,
+                'source' => 'ai_place_unresolved',
+            ];
+        }
+
+        // No place in speech/text — use client GPS (and fill address if empty).
+        $address = $fallbackAddress;
+        if (! filled($address) && $this->places->isConfigured()) {
+            $rev = $this->places->reverseGeocode($fallbackLat, $fallbackLng);
+            $address = $rev['formatted_address'] ?? null;
+        }
+
+        return [
+            'latitude' => $fallbackLat,
+            'longitude' => $fallbackLng,
+            'address' => $address,
+            'source' => 'client_gps',
+        ];
     }
 
     /**
