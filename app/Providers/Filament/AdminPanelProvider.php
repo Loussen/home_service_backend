@@ -35,7 +35,7 @@ class AdminPanelProvider extends PanelProvider
             ->authPasswordBroker('admins')
             ->brandName('My Sancho')
             ->brandLogo(fn (): HtmlString => $this->brandLogoHtml())
-            ->brandLogoHeight('5.5rem')
+            ->brandLogoHeight('3.5rem')
             ->favicon(asset('images/brand/logo-light.jpg'))
             ->colors([
                 'primary' => Color::hex('#08215B'),
@@ -73,11 +73,20 @@ class AdminPanelProvider extends PanelProvider
         FilamentView::registerRenderHook(
             PanelsRenderHook::STYLES_AFTER,
             fn (): string => '<style>
-                .fi-logo { overflow: visible !important; }
+                .fi-logo {
+                    overflow: visible !important;
+                    display: flex !important;
+                    align-items: center !important;
+                }
+                .fi-sidebar-header,
+                .fi-topbar-start {
+                    align-items: center !important;
+                }
                 .fi-simple-header .fi-logo { height: 7.25rem !important; }
                 .ms-admin-brand {
                     display: inline-flex;
                     align-items: center;
+                    justify-content: flex-start;
                     gap: 0.75rem;
                     height: 100%;
                     max-width: 100%;
@@ -87,13 +96,19 @@ class AdminPanelProvider extends PanelProvider
                     width: auto;
                     border-radius: 0.4rem;
                     display: block;
+                    flex-shrink: 0;
                 }
                 .ms-admin-brand-label {
+                    display: inline-flex;
+                    align-items: center;
                     color: #08215B;
                     font-size: 0.95rem;
                     font-weight: 700;
-                    line-height: 1.2;
+                    line-height: 1.15;
                     white-space: nowrap;
+                    margin: 0;
+                    padding: 0;
+                    align-self: center;
                 }
                 .fi-sidebar-header .ms-admin-brand-label {
                     font-size: 0.88rem;
