@@ -666,6 +666,30 @@
         window.location.href = path;
     }
 
+    var publicPages = { login: 1, dashboard: 1, 'static-page': 1 };
+
+    function isPublicPath(pathname) {
+        if (!pathname || pathname === '/') return true;
+        if (pathname === '/login') return true;
+        if (pathname.indexOf('/p/') === 0) return true;
+        return false;
+    }
+
+    function safeNextPath(raw) {
+        if (!raw || typeof raw !== 'string') return '/';
+        if (raw.charAt(0) !== '/' || raw.indexOf('//') === 0) return '/';
+        if (raw === '/login' || raw.indexOf('/login?') === 0) return '/';
+        return raw;
+    }
+
+    function loginUrl(nextPath) {
+        var next = safeNextPath(
+            nextPath || window.location.pathname + window.location.search + window.location.hash
+        );
+        if (next === '/') return '/login';
+        return '/login?next=' + encodeURIComponent(next);
+    }
+
     function bindPageTransitions() {
         document.addEventListener('click', function (evt) {
             if (evt.defaultPrevented) return;
@@ -692,8 +716,13 @@
                 return;
             }
             evt.preventDefault();
+            var dest = url.pathname + url.search + url.hash;
+            if (!getToken() && !isPublicPath(url.pathname)) {
+                go(loginUrl(dest));
+                return;
+            }
             showPageLoader();
-            window.location.href = url.pathname + url.search + url.hash;
+            window.location.href = dest;
         });
 
         window.addEventListener('pageshow', function () {
@@ -2295,7 +2324,13 @@
                         go('/onboarding');
                         return;
                     }
-                    go('/');
+                    var next = '/';
+                    try {
+                        next = safeNextPath(
+                            new URLSearchParams(window.location.search).get('next')
+                        );
+                    } catch (e) {}
+                    go(next);
                 }, 180);
             }).catch(function (e) {
                 var msg = (e && e.message) || 'Login alınmadı';
@@ -4067,6 +4102,11 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         hidePageLoader();
+        // Guest on protected page → login immediately (no flash of target UI).
+        if (!publicPages[page] && !getToken()) {
+            go(loginUrl());
+            return;
+        }
         setStoredLocale(getStoredLocale());
         applyI18n();
         bindLangSwitcher();
@@ -4095,13 +4135,18 @@
         loadBootstrap().then(function () {
             return setAuthStatus();
         }).then(function () {
-            var publicPages = { login: 1, dashboard: 1, 'static-page': 1 };
             if (!publicPages[page] && !getToken()) {
-                go('/login');
+                go(loginUrl());
                 return;
             }
             if (page === 'login' && getToken()) {
-                go('/');
+                var next = '/';
+                try {
+                    next = safeNextPath(
+                        new URLSearchParams(window.location.search).get('next')
+                    );
+                } catch (e) {}
+                go(next);
                 return;
             }
             if (page === 'dashboard') {
