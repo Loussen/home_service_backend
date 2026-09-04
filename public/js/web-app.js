@@ -780,6 +780,22 @@
         return raw.charAt(0).toUpperCase();
     }
 
+    function paintAuthAvatar(avatarEl, meOrSnap) {
+        if (!avatarEl) return;
+        var url =
+            (meOrSnap && (meOrSnap.avatar_url || meOrSnap.avatarUrl)) || null;
+        var initial =
+            (meOrSnap && meOrSnap.initial) || userInitial(meOrSnap) || '?';
+        if (url) {
+            avatarEl.classList.add('has-photo');
+            avatarEl.innerHTML =
+                '<img src="' + esc(url) + '" alt="" width="36" height="36">';
+            return;
+        }
+        avatarEl.classList.remove('has-photo');
+        avatarEl.textContent = initial;
+    }
+
     function showGuestAuth() {
         var guest = el('auth-guest');
         var user = el('auth-user');
@@ -814,7 +830,12 @@
         var initial = userInitial(me);
         if (nameEl) nameEl.textContent = label;
         if (roleEl) roleEl.textContent = role;
-        if (avatar) avatar.textContent = initial;
+        paintAuthAvatar(avatar, {
+            avatar_url: me.avatar_url || null,
+            initial: initial,
+            name: label,
+            phone: me.phone,
+        });
         if (status) status.textContent = label + ' · ' + (me.active_role || '');
         try {
             localStorage.setItem('mysancho_web_auth_snap', JSON.stringify({
@@ -822,6 +843,7 @@
                 role: role,
                 active_role: me.active_role || null,
                 initial: initial,
+                avatar_url: me.avatar_url || null,
             }));
         } catch (e) {}
         if (roleEl && me.active_role) {
@@ -1911,12 +1933,38 @@
     };
 
     function scheduleChipLabel(day, slot) {
-        return (DAY_LABELS[day] || day) + ' · ' + (SLOT_LABELS[slot] || slot);
+        var slots = {
+            morning: t('web.schedule.morning', 'Səhər'),
+            afternoon: t('web.schedule.afternoon', 'Günorta'),
+            evening: t('web.schedule.evening', 'Axşam'),
+            night: t('web.schedule.night', 'Gecə'),
+        };
+        return (DAY_LABELS[day] || day) + ' · ' + (slots[slot] || slot);
     }
 
     function providerInitial(provider) {
         var raw = ((provider && (provider.user_name || provider.title)) || '?').trim();
         return raw ? raw.charAt(0).toUpperCase() : '?';
+    }
+
+    function renderProviderAvatarHtml(provider, extraClass) {
+        var cls = 'provider-preview-avatar' + (extraClass ? ' ' + extraClass : '');
+        if (provider.user_avatar_url) {
+            return (
+                '<div class="' +
+                cls +
+                ' has-photo" aria-hidden="true"><img src="' +
+                esc(provider.user_avatar_url) +
+                '" alt=""></div>'
+            );
+        }
+        return (
+            '<div class="' +
+            cls +
+            '" aria-hidden="true">' +
+            esc(providerInitial(provider)) +
+            '</div>'
+        );
     }
 
     function renderProviderProfileHtml(provider, opts) {
@@ -1934,61 +1982,159 @@
         var slots = (provider.schedules || []).filter(function (s) {
             return s.is_available !== false;
         });
+        var ratingCount = Number(provider.rating_count || 0);
+        var ratingAvg = Number(provider.rating_avg || 0);
         var html = '';
+
         if (opts.withHero) {
             html +=
                 '<div class="provider-public-hero">' +
-                '<div class="provider-preview-avatar" aria-hidden="true">' + esc(providerInitial(provider)) + '</div>' +
+                renderProviderAvatarHtml(provider, 'provider-public-avatar') +
                 '<div class="provider-preview-head-text">' +
-                '<h2 class="m-0 font-brand text-2xl text-brand">' + esc(name) + '</h2>' +
+                '<h2 class="provider-public-name">' +
+                esc(name) +
+                '</h2>' +
                 (title ? '<p class="provider-preview-title">' + esc(title) + '</p>' : '') +
+                (place
+                    ? '<p class="provider-public-place">' + esc(place) + '</p>'
+                    : '') +
                 '</div></div>';
         } else if (title) {
             html += '<p class="provider-preview-title">' + esc(title) + '</p>';
         }
 
-        html += '<div class="provider-meta-row">';
+        html += '<div class="provider-stats">';
+        html +=
+            '<div class="provider-stat">' +
+            '<span class="provider-stat-label">' +
+            esc(t('web.provider.stat_rating', 'Reytinq')) +
+            '</span>' +
+            '<span class="provider-stat-value">' +
+            (ratingCount > 0
+                ? '★ ' + ratingAvg.toFixed(1) + ' · ' + esc(ratingCount)
+                : esc(t('web.provider.no_reviews', 'Hələ rəy yoxdur'))) +
+            '</span></div>';
+        if (place) {
+            html +=
+                '<div class="provider-stat">' +
+                '<span class="provider-stat-label">' +
+                esc(t('web.provider.stat_location', 'Məkan')) +
+                '</span>' +
+                '<span class="provider-stat-value">' +
+                esc(place) +
+                '</span></div>';
+        }
+        html +=
+            '<div class="provider-stat">' +
+            '<span class="provider-stat-label">' +
+            esc(t('web.provider.stat_status', 'Status')) +
+            '</span>' +
+            '<span class="provider-stat-value provider-stat-badges">';
         if (provider.is_verified) {
-            html += '<span class="provider-badge provider-badge-verified">Verified</span>';
+            html +=
+                '<span class="provider-badge provider-badge-verified">' +
+                esc(t('web.provider.badge_verified', 'Təsdiqli')) +
+                '</span>';
         }
         if (provider.is_vip) {
             html += '<span class="provider-badge provider-badge-vip">VIP</span>';
         }
-        if (provider.rating_count > 0) {
+        if (provider.bump_active) {
             html +=
-                '<span class="provider-badge provider-badge-rating">★ ' +
-                Number(provider.rating_avg || 0).toFixed(1) +
-                ' · ' +
-                esc(provider.rating_count) +
+                '<span class="provider-badge provider-badge-bump">' +
+                esc(t('web.provider.badge_bump', 'Önə çıxıb')) +
                 '</span>';
         }
-        if (place) html += '<span>' + esc(place) + '</span>';
+        if (!provider.is_verified && !provider.is_vip && !provider.bump_active) {
+            html += esc(t('web.provider.status_standard', 'Standart'));
+        }
+        html += '</span></div>';
+        if (cats.length) {
+            html +=
+                '<div class="provider-stat">' +
+                '<span class="provider-stat-label">' +
+                esc(t('web.provider.stat_categories', 'Kateqoriyalar')) +
+                '</span>' +
+                '<span class="provider-stat-value">' +
+                esc(String(cats.length)) +
+                '</span></div>';
+        }
         html += '</div>';
+
+        if (!opts.withHero) {
+            html += '<div class="provider-meta-row">';
+            if (provider.is_verified) {
+                html +=
+                    '<span class="provider-badge provider-badge-verified">' +
+                    esc(t('web.provider.badge_verified', 'Təsdiqli')) +
+                    '</span>';
+            }
+            if (provider.is_vip) {
+                html += '<span class="provider-badge provider-badge-vip">VIP</span>';
+            }
+            if (ratingCount > 0) {
+                html +=
+                    '<span class="provider-badge provider-badge-rating">★ ' +
+                    ratingAvg.toFixed(1) +
+                    ' · ' +
+                    esc(ratingCount) +
+                    '</span>';
+            }
+            if (place) html += '<span>' + esc(place) + '</span>';
+            html += '</div>';
+        }
 
         if (cats.length) {
             html +=
+                '<div class="provider-block">' +
+                '<p class="provider-section-label">' +
+                esc(t('web.provider.stat_categories', 'Kateqoriyalar')) +
+                '</p>' +
                 '<div class="provider-chips">' +
-                cats.map(function (c) {
-                    return '<span class="provider-chip">' + esc(c) + '</span>';
-                }).join('') +
-                '</div>';
+                cats
+                    .map(function (c) {
+                        return '<span class="provider-chip">' + esc(c) + '</span>';
+                    })
+                    .join('') +
+                '</div></div>';
         }
 
         if (provider.bio) {
-            html += '<p class="provider-bio">' + esc(provider.bio) + '</p>';
+            html +=
+                '<div class="provider-block">' +
+                '<p class="provider-section-label">' +
+                esc(t('web.provider.about', 'Haqqında')) +
+                '</p>' +
+                '<p class="provider-bio">' +
+                esc(provider.bio) +
+                '</p></div>';
         }
 
         if (provider.audio_intro_url) {
             html +=
-                '<div><p class="provider-section-label">' + esc(t('web.provider.audio_intro', 'Audio intro')) + '</p>' +
-                '<audio controls class="w-full" src="' +
+                '<div class="provider-block provider-block-audio">' +
+                '<p class="provider-section-label">' +
+                esc(t('web.provider.audio_intro', 'Audio intro')) +
+                '</p>' +
+                '<audio controls class="provider-audio" src="' +
                 esc(provider.audio_intro_url) +
                 '"></audio></div>';
         }
 
         if (slots.length) {
             html +=
-                '<div><p class="provider-section-label">' + esc(t('web.provider.schedule', 'Cədvəl')) + '</p>' +
+                '<div class="provider-block">' +
+                '<div class="provider-section-head">' +
+                '<p class="provider-section-label m-0">' +
+                esc(t('web.provider.schedule', 'Cədvəl')) +
+                '</p>' +
+                '<span class="provider-section-meta">' +
+                esc(
+                    t('web.provider.slots_count', '{count} slot', {
+                        count: slots.length,
+                    })
+                ) +
+                '</span></div>' +
                 '<div class="provider-schedule-grid">' +
                 slots
                     .slice(0, opts.maxSlots || 21)
@@ -2001,6 +2147,20 @@
                     })
                     .join('') +
                 '</div></div>';
+        }
+
+        if (
+            !provider.bio &&
+            !cats.length &&
+            !slots.length &&
+            !provider.audio_intro_url &&
+            !opts.withHero
+        ) {
+            return (
+                '<p class="muted">' +
+                esc(t('web.provider.no_extra', 'Əlavə məlumat yoxdur')) +
+                '</p>'
+            );
         }
 
         return html || '<p class="muted">' + esc(t('web.provider.no_extra', 'Əlavə məlumat yoxdur')) + '</p>';
@@ -2130,14 +2290,20 @@
         api('/providers/' + profileId).then(function (provider) {
             var name = provider.user_name || provider.title || t('web.role.provider', 'İcraçı');
             if (nameEl) nameEl.textContent = name;
+            document.title = 'My Sancho · ' + name;
             if (subEl) {
-                subEl.textContent = [provider.district, provider.city].filter(Boolean).join(', ') ||
-                    t('web.provider.subtitle', 'Ətraflı məlumat, cədvəl və CONNECT.');
+                var place = [provider.district, provider.city].filter(Boolean).join(', ');
+                if (place) {
+                    subEl.hidden = false;
+                    subEl.textContent = place;
+                } else {
+                    subEl.hidden = true;
+                }
             }
             if (body) {
                 body.innerHTML = renderProviderProfileHtml(provider, {
                     withHero: true,
-                    maxSlots: 28,
+                    maxSlots: 42,
                 });
             }
             if (actions) actions.hidden = false;

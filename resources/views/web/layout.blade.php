@@ -184,7 +184,15 @@
                 roleEl.setAttribute('data-role-code', snap.active_role);
                 if (snap.role) roleEl.textContent = snap.role;
             }
-            if (avatar && snap.initial) avatar.textContent = snap.initial;
+            if (avatar) {
+                if (snap.avatar_url) {
+                    avatar.classList.add('has-photo');
+                    avatar.innerHTML = '<img src="' + String(snap.avatar_url).replace(/"/g, '&quot;') + '" alt="" width="36" height="36">';
+                } else if (snap.initial) {
+                    avatar.classList.remove('has-photo');
+                    avatar.textContent = snap.initial;
+                }
+            }
             var role = snap.active_role;
             if (role === 'client' || role === 'provider') {
                 document.documentElement.setAttribute('data-auth-role', role);
