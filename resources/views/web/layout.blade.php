@@ -271,6 +271,7 @@
     <div class="site-footer-inner">
         <p class="footer-brand">My Sancho</p>
         <p class="footer-copy" data-i18n="web.footer.tagline">{{ wt('web.footer.tagline', 'Ailə ilə xidmətçini birləşdirən marketplace') }}</p>
+        @include('web.partials.app-download', ['compact' => true])
         @if ($staticMenuPages->isNotEmpty())
             <nav class="footer-links" id="footer-links" aria-label="Info">
                 @foreach ($staticMenuPages as $item)

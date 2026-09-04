@@ -40,6 +40,9 @@ return [
     'google_maps_api_key' => env('GOOGLE_MAPS_API_KEY', ''),
     // Web Maps JavaScript API (HTTP referrer). Empty = Google Map iframe (mobile/server key JS-də işləmir).
     'google_maps_browser_key' => env('GOOGLE_MAPS_BROWSER_KEY', ''),
+    // Public store links for web “Get the app” (empty = show “Coming soon”).
+    'app_store_url' => env('APP_STORE_URL', ''),
+    'play_store_url' => env('PLAY_STORE_URL', ''),
     // Local/dev: send push inline (no queue worker). Production: false + queue:work
     'push_sync' => filter_var(env('HOMESERVICE_PUSH_SYNC', true), FILTER_VALIDATE_BOOL),
     'fcm' => [

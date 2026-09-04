@@ -109,4 +109,8 @@
             </article>
         </div>
     </section>
+
+    <section class="dash-section">
+        @include('web.partials.app-download', ['compact' => false])
+    </section>
 @endsection

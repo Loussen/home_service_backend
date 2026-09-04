@@ -1505,6 +1505,55 @@
         @apply text-sm font-semibold text-brand no-underline transition hover:text-gold;
     }
 
+    .app-download {
+        @apply mt-5;
+    }
+
+    .app-download--compact {
+        @apply mt-5;
+    }
+
+    .app-download--panel {
+        @apply rounded-[1.35rem] border border-line bg-white p-5 shadow-soft sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6;
+    }
+
+    .app-download-kicker {
+        @apply mb-3 mt-0 text-[0.72rem] font-bold uppercase tracking-[0.1em] text-dusk;
+    }
+
+    .app-download-title {
+        @apply m-0 font-brand text-xl font-semibold tracking-tight text-ink sm:text-2xl;
+    }
+
+    .app-download-body {
+        @apply mt-2 mb-0 max-w-xl text-sm leading-relaxed text-mute;
+    }
+
+    .app-download-actions {
+        @apply flex flex-wrap items-center justify-center gap-2.5;
+    }
+
+    .app-download--panel .app-download-actions {
+        @apply mt-4 shrink-0 justify-start sm:mt-0;
+    }
+
+    .app-store-btn {
+        @apply inline-flex min-h-[2.75rem] items-center justify-center gap-2 rounded-[0.95rem] border border-brand/30 bg-parchment px-4 py-2
+            text-sm font-bold text-brand no-underline transition hover:border-brand hover:bg-brand-peach/40;
+    }
+
+    a.app-store-btn:hover {
+        @apply text-brand;
+    }
+
+    .app-store-btn.is-soon {
+        @apply cursor-default border-line bg-canvas text-mute opacity-90;
+    }
+
+    .app-store-soon {
+        @apply rounded-md bg-white/80 px-1.5 py-0.5 text-[0.68rem] font-semibold uppercase tracking-wide text-mute;
+    }
+
     .static-page-shell {
         @apply mx-auto max-w-3xl px-1 py-6 sm:py-10;
     }
