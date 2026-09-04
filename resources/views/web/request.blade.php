@@ -36,9 +36,41 @@
         <section class="card" id="request-editor">
             <h2 id="request-form-title" data-i18n="web.dashboard.cta_new_request">{{ wt('web.dashboard.cta_new_request', 'Yeni sorğu') }}</h2>
             <p class="muted" id="request-form-hint" data-i18n="web.request.form_hint">{{ wt('web.request.form_hint', 'Əvvəl kateqoriya seçin — əlavə qeyd və ünvan dəqiqləşdirir.') }}</p>
-            <div class="form-row form-row-2">
+
+            <div class="request-mode-tabs" id="request-mode-tabs" role="tablist" aria-label="{{ wt('web.request.mode_aria', 'Sorğu yaratma üsulu') }}">
+                <button type="button" class="request-mode-tab is-active" role="tab" aria-selected="true" data-mode="voice" id="request-mode-voice-tab" data-i18n="web.request.mode_voice">
+                    {{ wt('web.request.mode_voice', 'Səsli') }}
+                </button>
+                <button type="button" class="request-mode-tab" role="tab" aria-selected="false" data-mode="text" id="request-mode-text-tab" data-i18n="web.request.mode_text">
+                    {{ wt('web.request.mode_text', 'Mətn') }}
+                </button>
+            </div>
+
+            <div id="request-mode-voice" class="request-mode-panel" role="tabpanel">
+                <p class="muted request-voice-lead" data-i18n="web.request.voice_hint">
+                    {{ wt('web.request.voice_hint', 'Nə lazımdır, harada və nə vaxt — qısa danışın. AI kateqoriya və detalları çıxarır.') }}
+                </p>
+                <div class="request-voice-box">
+                    <button type="button" id="request-voice-btn" class="btn btn-primary btn-inline request-voice-btn">
+                        <span class="request-voice-btn-label" data-i18n="web.request.voice_record">{{ wt('web.request.voice_record', 'Mikrofonla yaz') }}</span>
+                    </button>
+                    <span id="request-voice-timer" class="request-voice-timer" hidden>00:00</span>
+                </div>
+                <p id="request-voice-status" class="muted mt text-xs" data-i18n="web.request.voice_idle">
+                    {{ wt('web.request.voice_idle', 'Hazırsınızsa yazmağa başlayın (maks. 60 san). Dayandıranda sorğu göndərilir.') }}
+                </p>
+            </div>
+
+            <div id="request-mode-text" class="request-mode-panel" role="tabpanel" hidden>
+                <label class="field">
+                    <span data-i18n="web.request.note">{{ wt('web.request.note', 'Əlavə qeyd (istəyə bağlı)') }}</span>
+                    <input id="text" type="text" placeholder="{{ wt('web.request.note_ph', 'Məs: Nərimanovda sabah 2 saatlıq, təcrübəli olsun') }}" data-i18n-placeholder="web.request.note_ph">
+                </label>
+            </div>
+
+            <div class="form-row form-row-2 mt">
                 <div class="span-2 field">
-                    <span data-i18n="web.request.category">{{ wt('web.request.category', 'Kateqoriya') }}</span>
+                    <span id="request-category-label" data-i18n="web.request.category_optional">{{ wt('web.request.category_optional', 'Kateqoriya (istəyə bağlı)') }}</span>
                     <div class="cat-picker" id="request-category-picker">
                         <input type="hidden" id="request-category" value="">
                         <input
@@ -54,17 +86,13 @@
                         <div id="request-category-menu" class="cat-picker-menu" hidden role="listbox"></div>
                     </div>
                 </div>
-                <label class="span-2 field">
-                    <span data-i18n="web.request.note">{{ wt('web.request.note', 'Əlavə qeyd (istəyə bağlı)') }}</span>
-                    <input id="text" class="span-2" type="text" placeholder="{{ wt('web.request.note_ph', 'Məs: Nərimanovda sabah 2 saatlıq, təcrübəli olsun') }}" data-i18n-placeholder="web.request.note_ph">
-                </label>
                 <div class="span-2 place-wrap">
                     <input id="place-search" type="text" placeholder="{{ wt('web.request.place_ph', 'Ünvan axtar (Google Places)') }}" data-i18n-placeholder="web.request.place_ph">
                     <div id="place-suggestions" class="suggestions"></div>
                 </div>
                 <input id="lat" type="hidden" value="40.4093">
                 <input id="lng" type="hidden" value="49.8671">
-                <button type="button" id="create-request" class="btn btn-primary" data-i18n="web.request.create">{{ wt('web.request.create', 'Sorğu yarat') }}</button>
+                <button type="button" id="create-request" class="btn btn-primary" data-i18n="web.request.create" hidden>{{ wt('web.request.create', 'Sorğu yarat') }}</button>
                 <button type="button" id="refresh-request" class="btn btn-outline" data-i18n="web.request.refresh">{{ wt('web.request.refresh', 'Nəticələri yenilə') }}</button>
             </div>
             <p id="request-info" class="muted mt" data-i18n="web.request.none">{{ wt('web.request.none', 'Sorğu yoxdur') }}</p>

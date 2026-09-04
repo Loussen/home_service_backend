@@ -2466,12 +2466,27 @@
 
     function bindLoginPage() {
         el('send-otp').addEventListener('click', function () {
+            var btn = el('send-otp');
+            if (!btn || btn.dataset.loading === '1') return;
+            var phone = el('phone').value.trim();
+            if (!phone) {
+                toast('warning', t('login.phone_invalid', 'Tam nömrə daxil edin (məs. +994501111111)'));
+                el('phone').focus();
+                return;
+            }
+            var idleLabel = t('web.login.send_otp', 'Kod göndər');
+            btn.dataset.loading = '1';
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+            btn.textContent = t('web.login.sending', 'Göndərilir…');
             api('/auth/otp/send', {
                 method: 'POST',
-                body: JSON.stringify({ phone: el('phone').value.trim() }),
+                body: JSON.stringify({ phone: phone }),
             }).then(function () {
                 toast('success', t('web.login.otp_sent', 'OTP göndərildi'));
                 log('OTP göndərildi');
+                var otpInput = el('otp');
+                if (otpInput) otpInput.focus();
             }).catch(function (e) {
                 var msg = (e && e.message) || t('web.login.otp_failed', 'OTP göndərilmədi');
                 if (msg.indexOf('bloklanıb') >= 0 || msg.indexOf('bloklanib') >= 0) {
@@ -2485,6 +2500,12 @@
                     toast('error', msg);
                 }
                 log('OTP göndərilmədi: ' + msg);
+            }).finally(function () {
+                btn.dataset.loading = '';
+                btn.disabled = false;
+                btn.removeAttribute('aria-busy');
+                btn.textContent = idleLabel;
+                btn.setAttribute('data-i18n', 'web.login.send_otp');
             });
         });
 
@@ -3310,7 +3331,7 @@
     }
 
     function setRequestViewMode(on) {
-        ['text', 'place-search', 'lat', 'lng', 'request-category-search'].forEach(function (id) {
+        ['text', 'place-search', 'lat', 'lng', 'request-category-search', 'request-voice-btn'].forEach(function (id) {
             var node = el(id);
             if (node) node.disabled = !!on;
         });
@@ -3318,9 +3339,23 @@
         if (picker) picker.classList.toggle('is-disabled', !!on);
         if (el('request-category')) el('request-category').disabled = !!on;
 
+        var modeTabs = el('request-mode-tabs');
+        if (modeTabs) modeTabs.hidden = !!on;
+
+        var voicePanel = el('request-mode-voice');
+        var textPanel = el('request-mode-text');
+        var mode = document.documentElement.getAttribute('data-request-mode') || 'voice';
+        if (on) {
+            if (voicePanel) voicePanel.hidden = true;
+            if (textPanel) textPanel.hidden = false;
+        } else {
+            if (voicePanel) voicePanel.hidden = mode !== 'voice';
+            if (textPanel) textPanel.hidden = mode !== 'text';
+        }
+
         var createBtn = el('create-request');
         if (createBtn) {
-            createBtn.hidden = !!on;
+            createBtn.hidden = !!on || mode !== 'text';
             createBtn.disabled = !!on;
         }
 
@@ -3372,6 +3407,36 @@
         var mapEl = el('map');
         var locate = mapEl && mapEl.querySelector('.map-locate');
         if (locate) locate.hidden = !!on;
+    }
+
+    function pollRequestUntilReady(id, attempts) {
+        attempts = attempts || 0;
+        return api('/service-requests/' + id).then(function (req) {
+            return paintRequestForm(req).then(function (painted) {
+                var current = painted || req;
+                renderMatches(current);
+                if (current.status === 'processing' && attempts < 20) {
+                    return new Promise(function (resolve, reject) {
+                        setTimeout(function () {
+                            pollRequestUntilReady(id, attempts + 1).then(resolve).catch(reject);
+                        }, 2000);
+                    });
+                }
+                if (
+                    current.parsed_criteria &&
+                    current.parsed_criteria.transcription_failed
+                ) {
+                    toast(
+                        'warning',
+                        t(
+                            'search.transcript_failed',
+                            'Səs oxunmadı. Eyni mətni yazıb yenidən göndərin.'
+                        )
+                    );
+                }
+                return current;
+            });
+        });
     }
 
     function bindRequestPage() {
@@ -3445,6 +3510,314 @@
                 meCache = unwrapMe(me);
                 paintRequestRole();
             }).catch(function () {});
+        }
+
+        var requestMode = 'voice';
+        var voiceRecorder = null;
+        var voiceChunks = [];
+        var voiceStream = null;
+        var voiceTimer = null;
+        var voiceElapsed = 0;
+        var voiceMaxSec = 60;
+        var voiceBusy = false;
+
+        function setRequestMode(mode) {
+            requestMode = mode === 'text' ? 'text' : 'voice';
+            document.documentElement.setAttribute('data-request-mode', requestMode);
+            var voicePanel = el('request-mode-voice');
+            var textPanel = el('request-mode-text');
+            var createBtn = el('create-request');
+            var catLabel = el('request-category-label');
+            document.querySelectorAll('.request-mode-tab').forEach(function (btn) {
+                var active = btn.getAttribute('data-mode') === requestMode;
+                btn.classList.toggle('is-active', active);
+                btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            if (voicePanel) voicePanel.hidden = requestMode !== 'voice';
+            if (textPanel) textPanel.hidden = requestMode !== 'text';
+            if (createBtn && !el('request-editor').classList.contains('is-view-only')) {
+                createBtn.hidden = requestMode !== 'text';
+            }
+            if (catLabel) {
+                if (requestMode === 'text') {
+                    catLabel.setAttribute('data-i18n', 'web.request.category');
+                    catLabel.textContent = t('web.request.category', 'Kateqoriya');
+                } else {
+                    catLabel.setAttribute('data-i18n', 'web.request.category_optional');
+                    catLabel.textContent = t(
+                        'web.request.category_optional',
+                        'Kateqoriya (istəyə bağlı)'
+                    );
+                }
+            }
+            if (requestMode !== 'voice') {
+                stopVoiceRecording(true);
+            }
+        }
+
+        function setVoiceStatus(key, fallback) {
+            var status = el('request-voice-status');
+            if (!status) return;
+            status.setAttribute('data-i18n', key);
+            status.textContent = t(key, fallback);
+        }
+
+        function setVoiceButton(recording) {
+            var btn = el('request-voice-btn');
+            if (!btn) return;
+            var label = btn.querySelector('.request-voice-btn-label');
+            if (recording) {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-dark');
+                if (label) {
+                    label.setAttribute('data-i18n', 'web.request.voice_stop');
+                    label.textContent = t('web.request.voice_stop', 'Dayandır');
+                }
+            } else {
+                btn.classList.add('btn-primary');
+                btn.classList.remove('btn-dark');
+                if (label) {
+                    label.setAttribute('data-i18n', 'web.request.voice_record');
+                    label.textContent = t('web.request.voice_record', 'Mikrofonla yaz');
+                }
+            }
+        }
+
+        function clearVoiceTimer() {
+            if (voiceTimer) {
+                clearInterval(voiceTimer);
+                voiceTimer = null;
+            }
+            var timerEl = el('request-voice-timer');
+            if (timerEl) {
+                timerEl.hidden = true;
+                timerEl.classList.remove('is-recording');
+                timerEl.textContent = '00:00';
+            }
+            voiceElapsed = 0;
+        }
+
+        function stopVoiceTracks() {
+            if (voiceStream) {
+                voiceStream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+                voiceStream = null;
+            }
+        }
+
+        function stopVoiceRecording(discard) {
+            if (voiceRecorder && voiceRecorder.state !== 'inactive') {
+                if (discard) {
+                    voiceRecorder.ondataavailable = function () {};
+                    voiceRecorder.onstop = function () {
+                        clearVoiceTimer();
+                        setVoiceButton(false);
+                        stopVoiceTracks();
+                        voiceRecorder = null;
+                        voiceChunks = [];
+                    };
+                }
+                voiceRecorder.stop();
+                return;
+            }
+            clearVoiceTimer();
+            setVoiceButton(false);
+            stopVoiceTracks();
+            voiceRecorder = null;
+            voiceChunks = [];
+        }
+
+        function pickVoiceMime() {
+            if (!window.MediaRecorder) return '';
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                return 'audio/webm;codecs=opus';
+            }
+            if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                return 'audio/ogg;codecs=opus';
+            }
+            if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
+            return '';
+        }
+
+        function submitVoiceBlob(blob, mime) {
+            if (voiceBusy) return;
+            voiceBusy = true;
+            var type = mime || blob.type || 'audio/webm';
+            var ext =
+                type.indexOf('ogg') >= 0
+                    ? 'ogg'
+                    : type.indexOf('mp4') >= 0 || type.indexOf('m4a') >= 0
+                      ? 'm4a'
+                      : 'webm';
+            var file = new File([blob], 'request.' + ext, { type: type });
+            var fd = new FormData();
+            fd.append('audio', file);
+            fd.append('latitude', String(Number(el('lat').value || 0)));
+            fd.append('longitude', String(Number(el('lng').value || 0)));
+            var address = (el('place-search') && el('place-search').value.trim()) || '';
+            if (address) fd.append('address', address);
+            fd.append('is_urgent', '0');
+            var categoryId = getRequestCategoryId();
+            if (categoryId) fd.append('category_id', String(categoryId));
+
+            setVoiceStatus('web.request.voice_uploading', 'Səs göndərilir…');
+            showPageLoader();
+            requireRole('client')
+                .then(function () {
+                    return api('/service-requests/audio', {
+                        method: 'POST',
+                        body: fd,
+                    });
+                })
+                .then(function (data) {
+                    setRequestId(data.id);
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState(
+                            {},
+                            '',
+                            '/request?requestId=' + encodeURIComponent(data.id)
+                        );
+                    }
+                    el('request-info').textContent = t(
+                        'web.request.created_info',
+                        'Sorğu #{id} yaradıldı · {status}',
+                        { id: data.id, status: data.status || 'processing' }
+                    );
+                    toast('success', t('web.request.voice_sent', 'Səsli sorğu göndərildi'));
+                    setVoiceStatus(
+                        'web.request.voice_processing',
+                        'AI emal edir — nəticələr hazırlanır…'
+                    );
+                    setRequestViewMode(true);
+                    return pollRequestUntilReady(data.id).then(function (req) {
+                        setRequestViewMode(true);
+                        var results = el('request-results');
+                        if (results && results.scrollIntoView) {
+                            results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                        setVoiceStatus(
+                            'web.request.voice_idle',
+                            'Hazırsınızsa yazmağa başlayın (maks. 60 san). Dayandıranda sorğu göndərilir.'
+                        );
+                        return req;
+                    });
+                })
+                .catch(function (e) {
+                    if (e && /yalnız ailə/i.test(e.message || '')) return;
+                    toast(
+                        'error',
+                        e.message || t('web.request.create_failed', 'Sorğu yaradılmadı')
+                    );
+                    setVoiceStatus(
+                        'web.request.voice_idle',
+                        'Hazırsınızsa yazmağa başlayın (maks. 60 san). Dayandıranda sorğu göndərilir.'
+                    );
+                    log('Səsli sorğu xətası: ' + ((e && e.message) || e));
+                })
+                .finally(function () {
+                    voiceBusy = false;
+                    hidePageLoader();
+                });
+        }
+
+        function startVoiceRecording() {
+            if (voiceBusy) return;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                toast(
+                    'error',
+                    t('web.profile.mic_unsupported', 'Bu brauzerdə mikrofon dəstəklənmir')
+                );
+                return;
+            }
+            navigator.mediaDevices
+                .getUserMedia({ audio: true })
+                .then(function (stream) {
+                    voiceStream = stream;
+                    voiceChunks = [];
+                    var mime = pickVoiceMime();
+                    try {
+                        voiceRecorder = mime
+                            ? new MediaRecorder(stream, { mimeType: mime })
+                            : new MediaRecorder(stream);
+                    } catch (err) {
+                        stopVoiceTracks();
+                        toast(
+                            'error',
+                            t('web.profile.record_failed', 'Yazma başladıla bilmədi')
+                        );
+                        return;
+                    }
+                    voiceRecorder.ondataavailable = function (ev) {
+                        if (ev.data && ev.data.size > 0) voiceChunks.push(ev.data);
+                    };
+                    voiceRecorder.onstop = function () {
+                        clearVoiceTimer();
+                        setVoiceButton(false);
+                        stopVoiceTracks();
+                        var type =
+                            (voiceRecorder && voiceRecorder.mimeType) || mime || 'audio/webm';
+                        var blob = new Blob(voiceChunks, { type: type });
+                        voiceRecorder = null;
+                        voiceChunks = [];
+                        if (!blob.size) {
+                            toast(
+                                'warning',
+                                t('web.profile.record_empty', 'Boş yazı — yenidən cəhd edin')
+                            );
+                            return;
+                        }
+                        submitVoiceBlob(blob, type);
+                    };
+                    voiceRecorder.start(250);
+                    setVoiceButton(true);
+                    setVoiceStatus('web.request.voice_recording', 'Yazılır… danışın');
+                    var timerEl = el('request-voice-timer');
+                    if (timerEl) {
+                        timerEl.hidden = false;
+                        timerEl.classList.add('is-recording');
+                        timerEl.textContent = '00:00';
+                    }
+                    voiceElapsed = 0;
+                    voiceTimer = setInterval(function () {
+                        voiceElapsed += 1;
+                        if (timerEl) {
+                            var mm = String(Math.floor(voiceElapsed / 60)).padStart(2, '0');
+                            var ss = String(voiceElapsed % 60).padStart(2, '0');
+                            timerEl.textContent = mm + ':' + ss;
+                        }
+                        if (voiceElapsed >= voiceMaxSec) {
+                            stopVoiceRecording(false);
+                        }
+                    }, 1000);
+                })
+                .catch(function () {
+                    toast(
+                        'error',
+                        t('web.profile.mic_denied', 'Mikrofon icazəsi lazımdır')
+                    );
+                });
+        }
+
+        document.querySelectorAll('.request-mode-tab').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (el('request-editor').classList.contains('is-view-only')) return;
+                setRequestMode(btn.getAttribute('data-mode'));
+            });
+        });
+        setRequestMode('voice');
+
+        var voiceBtn = el('request-voice-btn');
+        if (voiceBtn) {
+            voiceBtn.addEventListener('click', function () {
+                if (el('request-editor').classList.contains('is-view-only')) return;
+                if (voiceRecorder && voiceRecorder.state !== 'inactive') {
+                    stopVoiceRecording(false);
+                    return;
+                }
+                startVoiceRecording();
+            });
         }
 
         el('create-request').addEventListener('click', function () {
