@@ -663,6 +663,18 @@
         @apply bg-white text-brand shadow-soft;
     }
 
+    .requests-pagination {
+        @apply mt-5 flex flex-wrap items-center justify-between gap-3;
+    }
+
+    .requests-pagination-info {
+        @apply m-0 text-sm text-mute;
+    }
+
+    .requests-pagination-actions {
+        @apply flex items-center gap-2;
+    }
+
     .request-history {
         @apply grid gap-3;
     }

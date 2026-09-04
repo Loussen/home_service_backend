@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Repositories\ServiceRequestRepository;
 use App\Support\RequestFilters;
 use App\Support\UrgentQuota;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 
 class ServiceRequestService
@@ -18,9 +19,13 @@ class ServiceRequestService
         private readonly ProcessServiceRequestService $processor,
     ) {}
 
-    public function list(User $user)
-    {
-        return $this->requests->listForUser($user->id);
+    public function list(
+        User $user,
+        int $page = 1,
+        int $perPage = 10,
+        string $filter = 'all',
+    ): LengthAwarePaginator {
+        return $this->requests->paginateForUser($user->id, $page, $perPage, $filter);
     }
 
     public function get(User $user, int $id): ServiceRequest

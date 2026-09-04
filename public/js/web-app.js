@@ -4485,8 +4485,10 @@
     }
 
     function bindRequestsPage() {
-        var requestsCache = [];
+        var requestsPage = 1;
+        var requestsPerPage = 10;
         var requestsFilter = 'all';
+        var requestsMeta = null;
 
         function ensureMe() {
             if (meCache) return Promise.resolve(meCache);
@@ -4509,54 +4511,96 @@
             return 0;
         }
 
-        function requestIsMatched(req) {
-            return requestMatchCount(req) > 0 || req.status === 'matched';
-        }
-
         function setRequestsFilter(filter) {
             requestsFilter = filter === 'matched' || filter === 'unmatched' ? filter : 'all';
+            requestsPage = 1;
             document.querySelectorAll('#requests-filter .request-filter-tab').forEach(function (btn) {
                 var active = btn.getAttribute('data-filter') === requestsFilter;
                 btn.classList.toggle('is-active', active);
                 btn.setAttribute('aria-selected', active ? 'true' : 'false');
             });
-            renderRequestsList(requestsCache);
+            loadRequests();
+        }
+
+        function renderPagination() {
+            var pager = el('requests-pagination');
+            if (!pager) return;
+            var meta = requestsMeta;
+            if (!meta || !meta.last_page || meta.last_page <= 1) {
+                pager.hidden = true;
+                pager.innerHTML = '';
+                return;
+            }
+            pager.hidden = false;
+            var page = meta.current_page || 1;
+            var last = meta.last_page || 1;
+            var total = meta.total != null ? meta.total : 0;
+            pager.innerHTML =
+                '<p class="requests-pagination-info">' +
+                esc(
+                    t('web.requests.page_info', 'Səhifə {page} / {last} · {total} sorğu', {
+                        page: page,
+                        last: last,
+                        total: total,
+                    })
+                ) +
+                '</p>' +
+                '<div class="requests-pagination-actions">' +
+                '<button type="button" class="btn btn-outline btn-inline" id="requests-page-prev"' +
+                (page <= 1 ? ' disabled' : '') +
+                '>' +
+                esc(t('web.requests.prev', 'Əvvəl')) +
+                '</button>' +
+                '<button type="button" class="btn btn-outline btn-inline" id="requests-page-next"' +
+                (page >= last ? ' disabled' : '') +
+                '>' +
+                esc(t('web.requests.next', 'Sonra')) +
+                '</button>' +
+                '</div>';
+            var prev = el('requests-page-prev');
+            var next = el('requests-page-next');
+            if (prev) {
+                prev.addEventListener('click', function () {
+                    if (requestsPage <= 1) return;
+                    requestsPage -= 1;
+                    loadRequests();
+                });
+            }
+            if (next) {
+                next.addEventListener('click', function () {
+                    if (!requestsMeta || requestsPage >= (requestsMeta.last_page || 1)) return;
+                    requestsPage += 1;
+                    loadRequests();
+                });
+            }
         }
 
         function renderRequestsList(rows) {
             var box = el('requests-list');
             if (!box) return;
-            var filtered = (rows || []).filter(function (req) {
-                if (requestsFilter === 'matched') return requestIsMatched(req);
-                if (requestsFilter === 'unmatched') return !requestIsMatched(req);
-                return true;
-            });
             if (!(rows || []).length) {
-                box.innerHTML =
-                    '<div class="request-history-empty">' +
-                    '<p>' + esc(t('web.requests.empty', 'Hələ sorğu yoxdur.')) + '</p>' +
-                    '<a href="/request" class="btn btn-primary btn-inline">' +
-                    esc(t('web.requests.empty_cta', 'Yeni sorğu yaz')) +
-                    '</a>' +
-                    '</div>';
-                return;
-            }
-            if (!filtered.length) {
                 box.innerHTML =
                     '<div class="request-history-empty">' +
                     '<p>' +
                     esc(
-                        t(
-                            'web.requests.filter_empty',
-                            'Bu filterə uyğun sorğu yoxdur.'
-                        )
+                        requestsFilter === 'all'
+                            ? t('web.requests.empty', 'Hələ sorğu yoxdur.')
+                            : t(
+                                  'web.requests.filter_empty',
+                                  'Bu filterə uyğun sorğu yoxdur.'
+                              )
                     ) +
                     '</p>' +
+                    (requestsFilter === 'all'
+                        ? '<a href="/request" class="btn btn-primary btn-inline">' +
+                          esc(t('web.requests.empty_cta', 'Yeni sorğu yaz')) +
+                          '</a>'
+                        : '') +
                     '</div>';
                 return;
             }
             box.innerHTML = '';
-            filtered.forEach(function (req) {
+            rows.forEach(function (req) {
                 var cat = (req.category && categoryLabel(req.category)) || '';
                 var text = (req.transcribed_text || req.address || '').trim();
                 var count = requestMatchCount(req);
@@ -4610,6 +4654,8 @@
         function loadRequests() {
             var box = el('requests-list');
             if (box) box.textContent = t('web.loading', 'Yüklənir…');
+            var pager = el('requests-pagination');
+            if (pager) pager.hidden = true;
 
             return ensureMe().then(function () {
                 applyRoleUi();
@@ -4621,12 +4667,34 @@
                     }
                     return null;
                 }
-                return api('/service-requests');
-            }).then(function (items) {
-                if (items == null) return;
-                requestsCache = Array.isArray(items) ? items : ((items && items.data) || []);
-                renderRequestsList(requestsCache);
-                log('Sorğular yükləndi', { count: requestsCache.length });
+                var qs =
+                    '?page=' +
+                    encodeURIComponent(requestsPage) +
+                    '&per_page=' +
+                    encodeURIComponent(requestsPerPage) +
+                    '&filter=' +
+                    encodeURIComponent(requestsFilter);
+                return api('/service-requests' + qs);
+            }).then(function (payload) {
+                if (payload == null) return;
+                var rows = [];
+                if (Array.isArray(payload)) {
+                    rows = payload;
+                    requestsMeta = null;
+                } else {
+                    rows = payload.items || payload.data || [];
+                    requestsMeta = payload.meta || null;
+                    if (requestsMeta && requestsMeta.current_page) {
+                        requestsPage = Number(requestsMeta.current_page) || requestsPage;
+                    }
+                }
+                renderRequestsList(rows);
+                renderPagination();
+                log('Sorğular yükləndi', {
+                    count: rows.length,
+                    page: requestsPage,
+                    filter: requestsFilter,
+                });
             }).catch(function (e) {
                 if (box) box.textContent = t('web.requests.load_error', 'Sorğular yüklənmədi');
                 toast('error', t('web.requests.load_error', 'Sorğular yüklənmədi'));
@@ -4634,12 +4702,18 @@
             });
         }
 
-        window.__reloadRequests = loadRequests;
+        window.__reloadRequests = function () {
+            requestsPage = 1;
+            return loadRequests();
+        };
 
         var refresh = el('refresh-requests');
         if (refresh && refresh.dataset.bound !== '1') {
             refresh.dataset.bound = '1';
-            refresh.addEventListener('click', loadRequests);
+            refresh.addEventListener('click', function () {
+                requestsPage = 1;
+                loadRequests();
+            });
         }
 
         var filterRoot = el('requests-filter');

@@ -25,9 +25,22 @@ class ServiceRequestController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        return $this->success(
-            ServiceRequestResource::collection($this->serviceRequests->list($request->user()))
+        $paginator = $this->serviceRequests->list(
+            $request->user(),
+            max(1, (int) $request->query('page', 1)),
+            max(1, min(50, (int) $request->query('per_page', 10))),
+            (string) $request->query('filter', 'all'),
         );
+
+        return $this->success([
+            'items' => ServiceRequestResource::collection($paginator->getCollection())->resolve(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
     }
 
     public function storeAudio(StoreAudioRequest $request): JsonResponse

@@ -42,5 +42,6 @@
             </button>
         </div>
         <div id="requests-list" class="request-history" data-i18n="web.loading">Yüklənir…</div>
+        <div id="requests-pagination" class="requests-pagination" hidden></div>
     </section>
 @endsection

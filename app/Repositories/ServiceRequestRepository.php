@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\ServiceRequest;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
 class ServiceRequestRepository
@@ -34,6 +35,34 @@ class ServiceRequestRepository
             ->where('user_id', $userId)
             ->latest()
             ->get();
+    }
+
+    /**
+     * @param  'all'|'matched'|'unmatched'  $filter
+     */
+    public function paginateForUser(
+        int $userId,
+        int $page = 1,
+        int $perPage = 10,
+        string $filter = 'all',
+    ): LengthAwarePaginator {
+        $perPage = max(1, min(50, $perPage));
+        $page = max(1, $page);
+        $filter = in_array($filter, ['matched', 'unmatched'], true) ? $filter : 'all';
+
+        $query = ServiceRequest::with(['category'])
+            ->withCount('matches')
+            ->where('user_id', $userId);
+
+        if ($filter === 'matched') {
+            $query->where(function ($q) {
+                $q->where('status', 'matched')->orWhereHas('matches');
+            });
+        } elseif ($filter === 'unmatched') {
+            $query->where('status', '!=', 'matched')->whereDoesntHave('matches');
+        }
+
+        return $query->latest()->paginate($perPage, ['*'], 'page', $page);
     }
 
     public function findById(int $id): ?ServiceRequest
