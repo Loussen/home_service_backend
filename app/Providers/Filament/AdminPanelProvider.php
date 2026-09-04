@@ -32,6 +32,9 @@ class AdminPanelProvider extends PanelProvider
             ->authGuard('admin')
             ->authPasswordBroker('admins')
             ->brandName('My Sancho')
+            ->brandLogo(asset('images/brand/logo-color.jpg'))
+            ->brandLogoHeight('2.25rem')
+            ->favicon(asset('images/brand/logo-light.jpg'))
             ->colors([
                 'primary' => Color::hex('#08215B'),
             ])

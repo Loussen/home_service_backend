@@ -22,7 +22,7 @@
     </section>
 
     <section class="card card-log mt">
-        <h2>Log</h2>
+        <h2 data-i18n="web.debug.log">{{ wt('web.debug.log', 'Log') }}</h2>
         <pre id="log"></pre>
     </section>
 @endsection

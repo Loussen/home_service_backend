@@ -5,7 +5,7 @@
 
 @section('content')
     <header class="page-hero">
-        <p class="eyebrow" data-i18n="web.dashboard.tile_chat_kicker">Mesajlar</p>
+        <p class="eyebrow" data-i18n="web.chat.eyebrow">{{ wt('web.chat.eyebrow', 'Mesajlar') }}</p>
         <h1 data-i18n="web.dashboard.cta_chats">Söhbətlər</h1>
         <p data-i18n="web.chat.subtitle">CONNECT sonrası yazışmalar burada.</p>
     </header>
@@ -19,7 +19,7 @@
     </section>
 
     <section class="card card-log mt">
-        <h2>Log</h2>
+        <h2 data-i18n="web.debug.log">{{ wt('web.debug.log', 'Log') }}</h2>
         <pre id="log"></pre>
     </section>
 @endsection

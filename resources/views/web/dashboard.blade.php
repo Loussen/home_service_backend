@@ -7,9 +7,9 @@
     <section class="dash-hero">
         <div class="dash-hero-copy">
             <p class="eyebrow" data-i18n="web.dashboard.eyebrow">My Sancho marketplace</p>
-            <h1 id="dash-title">Evdə lazım olanı&nbsp;tez tap</h1>
-            <p id="dash-subtitle" class="dash-lead">
-                Səs və ya mətnlə sorğu göndər — uyğun xidmətçilər çıxır, CONNECT ilə yazış.
+            <h1 id="dash-title" data-i18n="web.dashboard.guest_title">{{ wt('web.dashboard.guest_title', 'Evdə lazım olanı tez tap') }}</h1>
+            <p id="dash-subtitle" class="dash-lead" data-i18n="web.dashboard.guest_subtitle">
+                {{ wt('web.dashboard.guest_subtitle', 'Səs və ya mətnlə sorğu göndər — uyğun xidmətçilər çıxır, CONNECT ilə yazış.') }}
             </p>
             <div class="dash-cta" id="dash-cta-guest">
                 <a href="{{ route('web.login') }}" class="btn btn-primary btn-inline" data-i18n="web.dashboard.cta_start">Başla · Daxil ol</a>
@@ -80,7 +80,7 @@
                 <p data-i18n="web.dashboard.tile_profile_desc">Ad, balans və hesab ayarları.</p>
             </a>
             <a href="{{ route('web.categories') }}" class="dash-tile" data-role="provider">
-                <span class="dash-tile-kicker">Tag</span>
+                <span class="dash-tile-kicker" data-i18n="web.dashboard.tile_categories_kicker">{{ wt('web.dashboard.tile_categories_kicker', 'Tag') }}</span>
                 <strong data-i18n="web.nav.categories">Kateqoriyalar</strong>
                 <p data-i18n="web.dashboard.tile_categories_desc">Maksimum 3 yarpaq kateqoriya seç.</p>
             </a>

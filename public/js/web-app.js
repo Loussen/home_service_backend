@@ -250,7 +250,7 @@
                             esc(hint) +
                             '">' +
                             '<span class="match-reason-bump-icon" aria-hidden="true">↑</span>' +
-                            '<span class="match-reason-bump-label">Önə çıxıb</span>' +
+                            '<span class="match-reason-bump-label">' + esc(t('match.reason.bump', 'Önə çıxıb')) + '</span>' +
                             '</span>'
                         );
                     }
@@ -274,13 +274,13 @@
                 : Math.max(0, (q.free_quota || 5) - (q.free_used || 0));
             var quota = q.free_quota != null ? q.free_quota : 5;
             if (left > 0) {
-                return 'Pulsuz CONNECT: ' + left + '/' + quota + ' qalıb · bu gün ' + daily;
+                return t('web.connect.hint_free', 'Pulsuz CONNECT: {left}/{quota} qalıb · bu gün {daily}', { left: left, quota: quota, daily: daily });
             }
-            return 'CONNECT pulsuzdur · bu gün ' + daily + ' qalıb';
+            return t('web.connect.hint_free_zero', 'CONNECT pulsuzdur · bu gün {daily} qalıb', { daily: daily });
         }
         var fee = Number(q.fee || 0);
         var feeText = Number.isInteger(fee) ? String(fee) : fee.toFixed(1);
-        return 'CONNECT · ' + feeText + ' AZN · bu gün ' + daily + ' qalıb';
+        return t('web.connect.hint_paid', 'CONNECT · {fee} AZN · bu gün {daily} qalıb', { fee: feeText, daily: daily });
     }
 
     function paintConnectHint(me) {
@@ -516,7 +516,7 @@
     function handleAccountBlocked(message) {
         if (window.__accountBlockedHandled) return;
         window.__accountBlockedHandled = true;
-        var msg = message || 'Sizin profiliniz admin tərəfindən bloklanıb.';
+        var msg = message || t('web.auth.blocked_body', 'Sizin profiliniz admin tərəfindən bloklanıb.');
         clearToken();
         meCache = null;
         try {
@@ -526,10 +526,10 @@
         showGuestAuth();
         applyRoleUi();
         showAppAlert({
-            title: 'Hesab bloklanıb',
+            title: t('web.auth.blocked_title', 'Hesab bloklanıb'),
             message: msg,
             tone: 'danger',
-            confirmLabel: 'Başa düşdüm',
+            confirmLabel: t('web.alert.ok', 'Başa düşdüm'),
         }).then(function () {
             go('/login');
         });
@@ -575,7 +575,7 @@
     function openRejectionModal(me) {
         var note = (me && me.provider_rejection_note)
             || (me && me.provider_approval_message)
-            || 'Hesabınız rədd edilib. Profili yeniləyib yenidən göndərə bilərsiniz.';
+            || t('web.auth.rejected_fallback', 'Hesabınız rədd edilib. Profili yeniləyib yenidən göndərə bilərsiniz.');
         // Strip generic prefix if note is embedded in message
         if (me && me.provider_rejection_note) {
             note = me.provider_rejection_note;
@@ -594,13 +594,13 @@
             '<div class="app-alert-icon" aria-hidden="true">' +
             '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="1.1" fill="currentColor" stroke="none"/></svg>' +
             '</div>' +
-            '<h3>Qeydiyyat rədd edilib</h3>' +
-            '<p class="app-alert-message">Admin rədd səbəbi:</p>' +
+            '<h3>' + esc(t('web.auth.rejection_title', 'Qeydiyyat rədd edilib')) + '</h3>' +
+            '<p class="app-alert-message">' + esc(t('web.auth.rejection_reason_label', 'Admin rədd səbəbi:')) + '</p>' +
             '<div class="rejection-note">' + escapeHtml(note) + '</div>' +
-            '<p class="app-alert-hint">Profil və kateqoriyaları düzəldib yenidən baxışa göndərə bilərsiniz.</p>' +
+            '<p class="app-alert-hint">' + esc(t('web.auth.rejection_hint', 'Profil və kateqoriyaları düzəldib yenidən baxışa göndərə bilərsiniz.')) + '</p>' +
             '<div class="modal-actions app-alert-actions rejection-actions">' +
-            '<button type="button" class="btn btn-outline" id="rejection-edit">Profilə keç</button>' +
-            '<button type="button" class="btn btn-primary" id="rejection-resubmit">Yenidən göndər</button>' +
+            '<button type="button" class="btn btn-outline" id="rejection-edit">' + esc(t('web.auth.rejection_edit', 'Profilə keç')) + '</button>' +
+            '<button type="button" class="btn btn-primary" id="rejection-resubmit">' + esc(t('web.auth.rejection_resubmit', 'Yenidən göndər')) + '</button>' +
             '</div></div>';
 
         document.body.appendChild(modal);
@@ -623,23 +623,23 @@
         modal.querySelector('#rejection-resubmit').addEventListener('click', function () {
             var btn = modal.querySelector('#rejection-resubmit');
             btn.disabled = true;
-            btn.textContent = 'Göndərilir…';
+            btn.textContent = t('web.auth.resubmitting', 'Göndərilir…');
             api('/auth/provider/resubmit-review', { method: 'POST', body: '{}' })
                 .then(function (user) {
                     meCache = unwrapMe(user) || user;
                     paintProfileStatus(meCache);
                     close();
-                    toast('success', 'Yenidən baxışa göndərildi');
+                    toast('success', t('web.auth.resubmit_toast', 'Yenidən baxışa göndərildi'));
                     showAppAlert({
-                        title: 'Göndərildi',
-                        message: 'Sorğunuz yenidən baxışa göndərildi. Admin təsdiqləyəndən sonra işlər açıq olacaq.',
+                        title: t('web.auth.resubmit_title', 'Göndərildi'),
+                    message: t('web.auth.resubmit_body', 'Sorğunuz yenidən baxışa göndərildi. Admin təsdiqləyəndən sonra işlər açıq olacaq.'),
                         tone: 'info',
-                        confirmLabel: 'Başa düşdüm',
+                        confirmLabel: t('web.alert.ok', 'Başa düşdüm'),
                     });
                 })
                 .catch(function (e) {
                     btn.disabled = false;
-                    btn.textContent = 'Yenidən göndər';
+                    btn.textContent = t('web.auth.rejection_resubmit', 'Yenidən göndər');
                     toast('error', (e && e.message) || 'Göndərilmədi');
                 });
         });
@@ -792,7 +792,7 @@
         } catch (e) {}
         if (guest) guest.hidden = false;
         if (user) user.hidden = true;
-        if (status) status.textContent = 'Qonaq';
+        if (status) status.textContent = t('web.auth.guest', 'Qonaq');
         paintProfileStatus(null);
     }
 
@@ -809,7 +809,7 @@
         }
         if (guest) guest.hidden = true;
         if (user) user.hidden = false;
-        var label = (me.name && String(me.name).trim()) || me.phone || 'İstifadəçi';
+        var label = (me.name && String(me.name).trim()) || me.phone || t('web.auth.user', 'İstifadəçi');
         var role = roleLabel(me.active_role);
         var initial = userInitial(me);
         if (nameEl) nameEl.textContent = label;
@@ -855,7 +855,7 @@
         return api('/auth/me').then(function (me) {
             meCache = unwrapMe(me);
             if (meCache && (meCache.is_blocked || meCache.status === 'blocked')) {
-                handleAccountBlocked('Sizin profiliniz admin tərəfindən bloklanıb.');
+                handleAccountBlocked(t('web.auth.blocked_body', 'Sizin profiliniz admin tərəfindən bloklanıb.'));
                 return;
             }
             showUserAuth(meCache);
@@ -872,7 +872,7 @@
             showGuestAuth();
             applyRoleUi();
             log('Token etibarsız oldu, silindi');
-            toast('warning', 'Sessiya bitdi, yenidən login et.');
+            toast('warning', t('web.auth.session_expired', 'Sessiya bitdi, yenidən login et.'));
         });
     }
 
@@ -886,11 +886,11 @@
         var cur = me.provider_approval_status;
         if (prev && prev !== cur) {
             if (cur === 'approved') {
-                toast('success', me.provider_approval_message || 'Hesabınız təsdiqləndi');
+                toast('success', me.provider_approval_message || t('web.auth.approved_toast', 'Hesab təsdiqləndi'));
             } else if (cur === 'rejected') {
-                toast('error', me.provider_approval_message || 'Hesabınız rədd edildi');
+                toast('error', me.provider_approval_message || t('web.auth.rejected_toast', 'Hesab rədd edilib'));
             } else if (cur === 'pending') {
-                toast('info', me.provider_approval_message || 'Təsdiq gözlənilir');
+                toast('info', me.provider_approval_message || t('web.auth.pending_toast', 'Təsdiq gözlənilir'));
             }
         }
         try {
@@ -903,7 +903,7 @@
         meCache = null;
         localStorage.removeItem(requestKey);
         showGuestAuth();
-        toast('info', 'Çıxış edildi');
+        toast('info', t('web.auth.logged_out', 'Çıxış edildi'));
         log('Çıxış');
         go('/login');
     }
@@ -911,8 +911,8 @@
     function requireRole(role) {
         function fail() {
             var msg = role === 'client'
-                ? 'Bu əməliyyat yalnız ailə (client) üçündür.'
-                : 'Bu əməliyyat yalnız icraçı (provider) üçündür.';
+                ? t('web.auth.role_client_only', 'Bu əməliyyat yalnız ailə (client) üçündür.')
+            : t('web.auth.role_provider_only', 'Bu əməliyyat yalnız icraçı (provider) üçündür.');
             toast('warning', msg);
             return Promise.reject(new Error(msg));
         }
@@ -929,7 +929,7 @@
     function setRoleOnce(role) {
         if (meCache && meCache.needs_role === false) {
             if (meCache.active_role === role) return Promise.resolve();
-            var msg = 'Rol artıq seçilib və dəyişdirilə bilməz';
+            var msg = t('web.auth.role_locked', 'Rol artıq seçilib və dəyişdirilə bilməz');
             toast('warning', msg);
             return Promise.reject(new Error(msg));
         }
@@ -941,7 +941,7 @@
                 meCache.active_role = role;
                 meCache.needs_role = false;
             }
-            toast('success', 'Rol: ' + roleLabel(role));
+            toast('success', t('web.auth.role_set', 'Rol: {role}', { role: roleLabel(role) }));
             log('Rol seçildi', { role: role });
             return setAuthStatus().then(function () {
                 applyRoleUi();
@@ -1127,12 +1127,12 @@
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'btn btn-dark map-locate';
-        btn.textContent = 'Mənim yerim';
+        btn.textContent = t('web.map.my_location', 'Mənim yerim');
         btn.addEventListener('click', function () {
             var handle = pickerMaps[opts.mapId];
             if (handle && handle.readOnly) return;
             if (!navigator.geolocation) {
-                toast('warning', 'Brauzer geolocation dəstəkləmir');
+                toast('warning', t('web.map.geo_unsupported', 'Brauzer geolocation dəstəkləmir'));
                 return;
             }
             navigator.geolocation.getCurrentPosition(function (pos) {
@@ -1143,7 +1143,7 @@
                     fillAddressFromCoords(opts, lat, lng, apply);
                 }
             }, function () {
-                toast('warning', 'Yer tapılmadı');
+                toast('warning', t('web.map.geo_failed', 'Yer tapılmadı'));
             });
         });
         mapEl.appendChild(btn);
@@ -1237,7 +1237,8 @@
             if (authFail) {
                 toast(
                     'warning',
-                    'Maps JS bu hostda rədd edildi (' + window.location.host + ') — iframe. Cloud Console referrer: ' +
+                    t('web.map.js_blocked', 'Maps JS bu hostda rədd edildi') +
+                    ' (' + window.location.host + ') — iframe. Cloud Console referrer: ' +
                     window.location.origin + '/*'
                 );
                 log('Google Map iframe fallback', {
@@ -1246,7 +1247,7 @@
                     host: window.location.host,
                 });
             } else {
-                toast('warning', 'Xəritə JS açılmadı, Google Map iframe göstərilir');
+                toast('warning', t('web.map.js_iframe', 'Xəritə JS açılmadı, Google Map iframe göstərilir'));
                 log('Xəritə JS: ' + (e && e.message ? e.message : e));
             }
             return initEmbedPicker(opts, start);
@@ -1293,7 +1294,7 @@
                                 box.classList.remove('open');
                                 box.innerHTML = '';
                             }).catch(function (e) {
-                                toast('error', 'Ünvan tapılmadı');
+                                toast('error', t('web.map.place_not_found', 'Ünvan tapılmadı'));
                                 log('Place details xətası: ' + e.message);
                             });
                         });
@@ -1333,7 +1334,7 @@
                     walk(node.children, label);
                     return;
                 }
-                var groupName = parentLabel || 'Digər';
+                var groupName = parentLabel || t('web.categories.other', 'Digər');
                 var group = groups.find(function (g) {
                     return g.label === groupName;
                 });
@@ -1434,7 +1435,7 @@
                 menu.appendChild(wrap);
             });
             if (!any) {
-                menu.innerHTML = '<p class="cat-picker-empty">Uyğun kateqoriya yoxdur</p>';
+                menu.innerHTML = '<p class="cat-picker-empty">' + esc(t('web.request.cat_empty', 'Uyğun kateqoriya yoxdur')) + '</p>';
             }
         }
 
@@ -1494,18 +1495,18 @@
         var meta = (request && request.parsed_criteria && request.parsed_criteria.search_meta) || {};
         var notes = [];
         if (meta.dropped_category) {
-            notes.push('Bu kateqoriyada tapılmadı — yaxın digər icraçılar göstərilir.');
+            notes.push(t('web.request.meta_category_fallback', 'Bu kateqoriyada tapılmadı — yaxın digər icraçılar göstərilir.'));
         }
         if (meta.expanded && meta.base_radius_km != null && meta.radius_km != null) {
             notes.push(
-                'Radius ' + meta.base_radius_km + ' km-dən ' + meta.radius_km + ' km-ə genişləndi.'
+                t('web.request.meta_radius', 'Radius {from} km-dən {to} km-ə genişləndi.', { from: meta.base_radius_km, to: meta.radius_km })
             );
         }
         if (meta.dropped_area) {
-            notes.push('Seçilmiş ərazidə tapılmadı — daha geniş zona.');
+            notes.push(t('web.request.meta_area', 'Seçilmiş ərazidə tapılmadı — daha geniş zona.'));
         }
         if (meta.dropped_schedule) {
-            notes.push('Seçilmiş vaxt üçün tapılmadı — digər vaxtlar göstərilir.');
+            notes.push(t('web.request.meta_time', 'Seçilmiş vaxt üçün tapılmadı — digər vaxtlar göstərilir.'));
         }
         if (!notes.length) {
             box.hidden = true;
@@ -1552,7 +1553,7 @@
         var summary = el('profile-cat-summary');
         var count = el('profile-selected-count');
         var n = (selected || []).length;
-        if (summary) summary.textContent = n + '/3 seçilib';
+        if (summary) summary.textContent = t('web.common.selected_count', '{n}/3 seçilib', { n: n });
         if (count) count.textContent = String(n);
     }
 
@@ -1646,7 +1647,7 @@
         var handle = pickerMaps.map;
         if (!handle || !handle.marker || !handle.map || !window.google) return;
 
-        var title = 'Sizin sorğu göndərdiyiniz ünvan';
+        var title = t('web.map.request_pin', 'Sizin sorğu göndərdiyiniz ünvan');
         var html =
             '<div class="map-info">' +
             '<strong>' + esc(title) + '</strong>' +
@@ -1720,13 +1721,13 @@
         if (matchCount > 0) {
             label.innerHTML =
                 '<span class="map-legend">' +
-                '<span class="map-legend-item"><i class="dot me"></i> Sənin yerin</span>' +
-                '<span class="map-legend-item"><i class="dot provider"></i> Xidmətçi</span>' +
-                '<span class="map-legend-item"><i class="dot vip"></i> VIP</span>' +
-                '<span class="map-legend-note">Kart və ya markerə bas — xəritədə fokus</span>' +
+                '<span class="map-legend-item"><i class="dot me"></i> ' + esc(t('web.map.legend_me', 'Sənin yerin')) + '</span>' +
+                '<span class="map-legend-item"><i class="dot provider"></i> ' + esc(t('web.map.legend_provider', 'Xidmətçi')) + '</span>' +
+                '<span class="map-legend-item"><i class="dot vip"></i> ' + esc(t('web.map.legend_vip', 'VIP')) + '</span>' +
+                '<span class="map-legend-note">' + esc(t('web.map.legend_note', 'Kart və ya markerə bas — xəritədə fokus')) + '</span>' +
                 '</span>';
         } else {
-            label.textContent = 'Google Map. Ünvan axtar və ya “Mənim yerim”.';
+            label.textContent = t('web.request.map_hint', 'Google Map. Ünvan axtar və ya “Mənim yerim”.');
         }
     }
 
@@ -1735,7 +1736,9 @@
         var badge = el('match-count');
         if (!box || !badge) return;
         var matches = (request && request.matches) ? request.matches : [];
-        badge.textContent = matches.length + ' nəticə';
+        badge.textContent = t('web.request.results_count', '{count} nəticə', {
+            count: matches.length,
+        });
         box.innerHTML = '';
         selectedMatchId = null;
         paintConnectHint(meCache);
@@ -1781,7 +1784,7 @@
                 if (provider.latitude == null || provider.longitude == null) return;
                 var id = Number(provider.id);
                 if (!id) return;
-                var name = provider.user_name || provider.title || 'İcraçı';
+                var name = provider.user_name || provider.title || t('web.role.provider', 'İcraçı');
                 var isVip = !!provider.is_vip;
                 var score = Math.round(m.match_score || 0);
                 var pos = {
@@ -1829,16 +1832,16 @@
             if (id) card.setAttribute('data-provider-id', String(id));
             var reasons = renderMatchReasonsHtml(m.reasons);
             card.innerHTML =
-                '<h3>' + esc(provider.user_name || provider.title || 'İcraçı') +
+                '<h3>' + esc(provider.user_name || provider.title || t('web.role.provider', 'İcraçı')) +
                 (provider.is_vip ? ' <span class="pill pill-gold">VIP</span>' : '') + '</h3>' +
                 reasons +
-                '<p class="meta">Skor: <b>' + Math.round(m.match_score || 0) + '%</b> · ' +
+                '<p class="meta">' + esc(t('web.match.score_label', 'Skor: {score}%', { score: Math.round(m.match_score || 0) })) + ' · ' +
                 esc(m.distance_km != null ? m.distance_km : '-') + ' km</p>' +
                 '<div class="match-actions">' +
                 (hasCoords
-                    ? '<button type="button" class="btn btn-outline show-on-map" data-id="' + esc(id) + '">Xəritədə</button>'
+                    ? '<button type="button" class="btn btn-outline show-on-map" data-id="' + esc(id) + '">' + esc(t('web.match.show_on_map', 'Xəritədə')) + '</button>'
                     : '') +
-                '<button type="button" class="btn btn-outline view-profile" data-id="' + esc(id) + '">Profilə bax</button>' +
+                '<button type="button" class="btn btn-outline view-profile" data-id="' + esc(id) + '">' + esc(t('web.match.view_profile', 'Profilə bax')) + '</button>' +
                 '<button type="button" class="btn btn-primary connect" data-id="' + esc(id) + '">CONNECT</button>' +
                 '</div>';
 
@@ -1878,11 +1881,11 @@
                         }),
                     });
                 }).then(function (conversation) {
-                    toast('success', 'CONNECT uğurlu');
+                    toast('success', t('web.connect.success', 'CONNECT uğurlu'));
                     log('CONNECT uğurlu', { conversation_id: conversation.id });
                     go('/chat/' + conversation.id);
                 }).catch(function (e) {
-                    toast('error', 'CONNECT xətası: ' + e.message);
+                    toast('error', t('web.connect.error', 'CONNECT xətası') + ': ' + e.message);
                     log('CONNECT xətası: ' + e.message);
                 });
             });
@@ -1901,10 +1904,10 @@
         7: 'B',
     };
     var SLOT_LABELS = {
-        morning: 'Səhər',
-        afternoon: 'Günorta',
-        evening: 'Axşam',
-        night: 'Gecə',
+        morning: t('web.schedule.morning', 'Səhər'),
+            afternoon: t('web.schedule.afternoon', 'Günorta'),
+            evening: t('web.schedule.evening', 'Axşam'),
+            night: t('web.schedule.night', 'Gecə'),
     };
 
     function scheduleChipLabel(day, slot) {
@@ -1918,7 +1921,7 @@
 
     function renderProviderProfileHtml(provider, opts) {
         opts = opts || {};
-        var name = provider.user_name || provider.title || 'İcraçı';
+        var name = provider.user_name || provider.title || t('web.role.provider', 'İcraçı');
         var title = provider.title && provider.title !== name ? provider.title : '';
         var place = [provider.district, provider.city].filter(Boolean).join(', ');
         var cats = (provider.categories || []).map(function (c) {
@@ -1977,7 +1980,7 @@
 
         if (provider.audio_intro_url) {
             html +=
-                '<div><p class="provider-section-label">Audio intro</p>' +
+                '<div><p class="provider-section-label">' + esc(t('web.provider.audio_intro', 'Audio intro')) + '</p>' +
                 '<audio controls class="w-full" src="' +
                 esc(provider.audio_intro_url) +
                 '"></audio></div>';
@@ -1985,7 +1988,7 @@
 
         if (slots.length) {
             html +=
-                '<div><p class="provider-section-label">Cədvəl</p>' +
+                '<div><p class="provider-section-label">' + esc(t('web.provider.schedule', 'Cədvəl')) + '</p>' +
                 '<div class="provider-schedule-grid">' +
                 slots
                     .slice(0, opts.maxSlots || 21)
@@ -2000,7 +2003,7 @@
                 '</div></div>';
         }
 
-        return html || '<p class="muted">Əlavə məlumat yoxdur</p>';
+        return html || '<p class="muted">' + esc(t('web.provider.no_extra', 'Əlavə məlumat yoxdur')) + '</p>';
     }
 
     function ensureProviderModal() {
@@ -2015,13 +2018,13 @@
             '<div class="provider-preview-head">' +
             '<div class="provider-preview-avatar" id="provider-modal-avatar">?</div>' +
             '<div class="provider-preview-head-text">' +
-            '<h3 id="provider-modal-title">Xidmətçi</h3>' +
+            '<h3 id="provider-modal-title">' + esc(t('web.provider.modal_title', 'Xidmətçi')) + '</h3>' +
             '<p class="provider-preview-title" id="provider-modal-sub" hidden></p>' +
             '</div></div>' +
             '<div id="provider-modal-body" class="provider-preview-body"></div>' +
             '<div class="provider-preview-actions">' +
-            '<button type="button" class="btn btn-outline" id="provider-modal-close">Bağla</button>' +
-            '<a class="btn btn-outline" id="provider-modal-detail" href="#">Ətraflı profil</a>' +
+            '<button type="button" class="btn btn-outline" id="provider-modal-close">' + esc(t('web.common.close', 'Bağla')) + '</button>' +
+            '<a class="btn btn-outline" id="provider-modal-detail" href="#">' + esc(t('web.provider.modal_detail', 'Ətraflı profil')) + '</a>' +
             '<button type="button" class="btn btn-primary" id="provider-modal-connect">CONNECT</button>' +
             '</div></div>';
         document.body.appendChild(modal);
@@ -2042,13 +2045,13 @@
         var bodyEl = document.getElementById('provider-modal-body');
         var connectBtn = document.getElementById('provider-modal-connect');
         var detailLink = document.getElementById('provider-modal-detail');
-        titleEl.textContent = 'Xidmətçi';
+        titleEl.textContent = t('web.provider.modal_title', 'Xidmətçi');
         if (subEl) {
             subEl.hidden = true;
             subEl.textContent = '';
         }
         if (avatarEl) avatarEl.textContent = '?';
-        bodyEl.innerHTML = '<p class="muted">Yüklənir…</p>';
+        bodyEl.innerHTML = '<p class="muted">' + esc(t('web.loading', 'Yüklənir…')) + '</p>';
         connectBtn.disabled = true;
         connectBtn.onclick = null;
         var detailHref = '/providers/' + profileId;
@@ -2059,7 +2062,7 @@
         modal.hidden = false;
 
         api('/providers/' + profileId).then(function (provider) {
-            var name = provider.user_name || provider.title || 'İcraçı';
+            var name = provider.user_name || provider.title || t('web.role.provider', 'İcraçı');
             titleEl.textContent = name;
             if (avatarEl) {
                 if (provider.user_avatar_url) {
@@ -2082,7 +2085,7 @@
             connectBtn.disabled = false;
             connectBtn.onclick = function () {
                 if (!request) {
-                    toast('warning', 'CONNECT üçün əvvəl sorğu yaradın');
+                    toast('warning', t('web.connect.need_request', 'CONNECT üçün əvvəl sorğu yaradın'));
                     return;
                 }
                 requireRole('client').then(function () {
@@ -2095,14 +2098,14 @@
                     });
                 }).then(function (conversation) {
                     modal.hidden = true;
-                    toast('success', 'CONNECT uğurlu');
+                    toast('success', t('web.connect.success', 'CONNECT uğurlu'));
                     go('/chat/' + conversation.id);
                 }).catch(function (e) {
-                    toast('error', 'CONNECT xətası: ' + e.message);
+                    toast('error', t('web.connect.error', 'CONNECT xətası') + ': ' + e.message);
                 });
             };
         }).catch(function (e) {
-            bodyEl.innerHTML = '<p class="muted">Profil açılmadı: ' + esc(e.message) + '</p>';
+            bodyEl.innerHTML = '<p class="muted">' + esc(t('web.provider.open_failed', 'Profil açılmadı: {error}', { error: e.message })) + '</p>';
         });
     }
 
@@ -2125,11 +2128,11 @@
         }
 
         api('/providers/' + profileId).then(function (provider) {
-            var name = provider.user_name || provider.title || 'İcraçı';
+            var name = provider.user_name || provider.title || t('web.role.provider', 'İcraçı');
             if (nameEl) nameEl.textContent = name;
             if (subEl) {
                 subEl.textContent = [provider.district, provider.city].filter(Boolean).join(', ') ||
-                    'Ətraflı məlumat, cədvəl və CONNECT.';
+                    t('web.provider.subtitle', 'Ətraflı məlumat, cədvəl və CONNECT.');
             }
             if (body) {
                 body.innerHTML = renderProviderProfileHtml(provider, {
@@ -2150,22 +2153,22 @@
                             }),
                         });
                     }).then(function (conversation) {
-                        toast('success', 'CONNECT uğurlu');
+                        toast('success', t('web.connect.success', 'CONNECT uğurlu'));
                         go('/chat/' + conversation.id);
                     }).catch(function (e) {
-                        toast('error', 'CONNECT xətası: ' + e.message);
+                        toast('error', t('web.connect.error', 'CONNECT xətası') + ': ' + e.message);
                     });
                 };
             } else if (connectBtn && meCache && meCache.active_role === 'client') {
                 connectBtn.hidden = false;
-                connectBtn.textContent = 'Sorğuya keç';
+                connectBtn.textContent = t('web.provider.go_request', 'Sorğuya keç');
                 connectBtn.onclick = function () {
                     go('/request');
                 };
             }
             log('İcraçı profili açıldı', { id: profileId, name: name });
         }).catch(function (e) {
-            if (nameEl) nameEl.textContent = 'Profil tapılmadı';
+            if (nameEl) nameEl.textContent = t('web.provider.not_found', 'Profil tapılmadı');
             if (body) body.innerHTML = '<p class="muted">' + esc(e.message) + '</p>';
             if (actions) actions.hidden = false;
             log('Profil xətası: ' + e.message);
@@ -2178,7 +2181,10 @@
 
     function resetRequestResultsUi() {
         if (el('request-info')) {
-            el('request-info').textContent = 'Yeni sorğu yazın — əvvəlki nəticələr göstərilmir';
+            el('request-info').textContent = t(
+                'web.request.reset_info',
+                'Yeni sorğu yazın — əvvəlki nəticələr göstərilmir'
+            );
         }
         paintSearchMeta(null);
         renderMatches(null);
@@ -2206,13 +2212,24 @@
         }
         if (el('request-info')) {
             var catName = req.category && categoryLabel(req.category);
-            el('request-info').textContent =
-                'Sorğu #' + req.id +
-                (catName ? (' · ' + catName) : '') +
-                ' · ' + (req.status || '—') +
-                (req.matches && req.matches.length
-                    ? (' · ' + req.matches.length + ' uyğunluq')
-                    : '');
+            var matchPart = '';
+            if (req.matches && req.matches.length) {
+                matchPart =
+                    ' · ' +
+                    t('web.request.matches_count', '{count} uyğunluq', {
+                        count: req.matches.length,
+                    });
+            }
+            el('request-info').textContent = t(
+                'web.request.info_line',
+                'Sorğu #{id}{category} · {status}{matches}',
+                {
+                    id: req.id,
+                    category: catName ? (' · ' + catName) : '',
+                    status: requestStatusLabel(req.status),
+                    matches: matchPart,
+                }
+            );
         }
         paintSearchMeta(req);
 
@@ -2223,8 +2240,8 @@
             }
             if (el('place-label')) {
                 el('place-label').textContent = address
-                    ? ('Ünvan: ' + address)
-                    : 'Google Map. Ünvan axtar və ya “Mənim yerim”.';
+                    ? t('web.request.address', 'Ünvan: {address}', { address: address })
+                    : t('web.request.map_hint', 'Google Map. Ünvan axtar və ya “Mənim yerim”.');
             }
             var handle = pickerMaps.map;
             if (handle && handle.map && req.latitude != null && req.longitude != null && window.google) {
@@ -2265,7 +2282,7 @@
     function refreshRequest() {
         var id = getRequestId();
         if (!id) {
-            toast('info', 'Hələ aktiv sorğu yoxdur — əvvəl sorğu yaradın');
+            toast('info', t('web.request.need_active', 'Hələ aktiv sorğu yoxdur — əvvəl sorğu yaradın'));
             return Promise.resolve();
         }
         return api('/service-requests/' + id).then(function (req) {
@@ -2275,7 +2292,7 @@
                 return painted || req;
             });
         }).catch(function (e) {
-            toast('warning', 'Sorğu yenilənmədi');
+            toast('warning', t('web.request.refresh_failed', 'Sorğu yenilənmədi'));
             log('Sorğu yenilənmədi: ' + e.message);
             throw e;
         });
@@ -2287,16 +2304,16 @@
                 method: 'POST',
                 body: JSON.stringify({ phone: el('phone').value.trim() }),
             }).then(function () {
-                toast('success', 'OTP göndərildi');
+                toast('success', t('web.login.otp_sent', 'OTP göndərildi'));
                 log('OTP göndərildi');
             }).catch(function (e) {
-                var msg = (e && e.message) || 'OTP göndərilmədi';
+                var msg = (e && e.message) || t('web.login.otp_failed', 'OTP göndərilmədi');
                 if (msg.indexOf('bloklanıb') >= 0 || msg.indexOf('bloklanib') >= 0) {
                     showAppAlert({
-                        title: 'Hesab bloklanıb',
+                        title: t('web.auth.blocked_title', 'Hesab bloklanıb'),
                         message: msg,
                         tone: 'danger',
-                        confirmLabel: 'Başa düşdüm',
+                        confirmLabel: t('web.alert.ok', 'Başa düşdüm'),
                     });
                 } else {
                     toast('error', msg);
@@ -2316,7 +2333,7 @@
                 var token = data.token || data.access_token;
                 if (!token) throw new Error('Token qayıtmadı');
                 setToken(token);
-                toast('success', 'Daxil oldunuz');
+                toast('success', t('web.login.success', 'Daxil oldunuz'));
                 log('Login uğurlu');
                 setTimeout(function () {
                     var user = data.user || {};
@@ -2333,7 +2350,7 @@
                     go(next);
                 }, 180);
             }).catch(function (e) {
-                var msg = (e && e.message) || 'Login alınmadı';
+                var msg = (e && e.message) || t('web.login.failed', 'Login alınmadı');
                 toast('error', msg);
                 log('Login alınmadı: ' + msg);
             });
@@ -2362,12 +2379,12 @@
             var cat = document.querySelector('#onb-stepper [data-step="1"]');
             var loc = document.querySelector('#onb-stepper [data-step="2"]');
             if (cat) cat.hidden = !isProvider();
-            if (loc) loc.textContent = isProvider() ? '3. Məkan' : '2. Məkan';
+            if (loc) loc.textContent = t('web.onboarding.step_place_n', '{n}. Məkan', { n: isProvider() ? 3 : 2 });
             var hero = el('onb-hero-sub');
             if (hero) {
                 hero.textContent = isProvider()
-                    ? 'Hesab, kateqoriya, məkan — üç addım.'
-                    : 'Hesab və məkan — iki addım.';
+                    ? t('web.onboarding.hero_sub_3', 'Hesab, kateqoriya, məkan — üç addım.')
+                : t('web.onboarding.hero_sub_2', 'Hesab və məkan — iki addım.');
             }
         }
 
@@ -2379,7 +2396,7 @@
             document.querySelectorAll('#onb-stepper li').forEach(function (item) {
                 item.classList.toggle('active', Number(item.getAttribute('data-step')) === step);
             });
-            el('onb-next').textContent = step === maxStep() ? 'Bitir' : 'Davam et';
+            el('onb-next').textContent = step === maxStep() ? t('web.common.finish', 'Bitir') : t('web.login.continue', 'Davam et');
             if (step === 2 && !mapReady) {
                 mapReady = true;
                 initPickerMap({
@@ -2434,7 +2451,7 @@
         el('onb-next').addEventListener('click', function () {
             if (step === 0) {
                 if (el('onb-name').value.trim().length < 2) {
-                    toast('warning', 'Ad daxil edin');
+                    toast('warning', t('web.onboarding.name_required', 'Ad daxil edin'));
                     return;
                 }
                 if (role() === 'client') {
@@ -2447,7 +2464,7 @@
             }
             if (step === 1) {
                 if (!selected.length) {
-                    toast('warning', 'Ən azı 1 kateqoriya seç');
+                    toast('warning', t('web.categories.need_one', 'Ən azı 1 kateqoriya seç'));
                     return;
                 }
                 setSelectedCategories(selected);
@@ -2493,16 +2510,16 @@
                 });
             }).then(function () {
                 if (chosenRole === 'provider') {
-                    toast('success', 'Qeydiyyat qəbul olundu — təsdiq gözlənilir');
+                    toast('success', t('web.onboarding.pending_toast', 'Qeydiyyat qəbul olundu — təsdiq gözlənilir'));
                     log('Onboarding tamamlandı (pending)', { role: chosenRole });
                     go('/profile');
                     return;
                 }
-                toast('success', 'Onboarding tamamlandı');
+                toast('success', t('web.onboarding.done', 'Onboarding tamamlandı'));
                 log('Onboarding tamamlandı', { role: chosenRole });
                 go('/request');
             }).catch(function (e) {
-                toast('error', 'Onboarding xətası');
+                toast('error', t('web.onboarding.error', 'Onboarding xətası'));
                 log('Onboarding xətası: ' + e.message);
             });
         }
@@ -2632,9 +2649,9 @@
                 if (me.active_role === 'provider' && me.provider_approval_status) {
                     approval.hidden = false;
                     var map = {
-                        pending: 'Təsdiq: gözləyir',
-                        approved: 'Təsdiq: təsdiqlənib',
-                        rejected: 'Təsdiq: rədd edilib',
+                        pending: t('web.profile.approval_pending_label', 'Təsdiq: gözləyir'),
+                        approved: t('web.profile.approval_approved_label', 'Təsdiq: təsdiqlənib'),
+                        rejected: t('web.profile.approval_rejected_label', 'Təsdiq: rədd edilib'),
                     };
                     approval.textContent = map[me.provider_approval_status] || me.provider_approval_status;
                 } else {
@@ -2651,18 +2668,18 @@
                     pendingBanner.classList.add('is-' + status);
                     var titleEl = el('provider-pending-title');
                     var titles = {
-                        pending: 'Təsdiq gözlənilir',
-                        approved: 'Hesab təsdiqləndi',
-                        rejected: 'Hesab rədd edilib',
+                        pending: t('web.profile.pending_title', 'Təsdiq gözlənilir'),
+                        approved: t('web.profile.approval_approved_title', 'Hesab təsdiqləndi'),
+                        rejected: t('web.profile.approval_rejected_title', 'Hesab rədd edilib'),
                     };
-                    if (titleEl) titleEl.textContent = titles[status] || 'Təsdiq statusu';
+                    if (titleEl) titleEl.textContent = titles[status] || t('web.profile.approval_status_title', 'Təsdiq statusu');
                     if (pendingText) {
                         pendingText.textContent = me.provider_approval_message
                             || (status === 'approved'
-                                ? 'İndi iş sorğuları gələ bilər.'
+                                ? t('web.profile.approval_approved_body', 'İndi iş sorğuları gələ bilər.')
                                 : status === 'rejected'
-                                    ? 'Dəstəklə əlaqə saxlayın və ya profili yeniləyin.'
-                                    : 'Sorğunuz 1 saat ərzində baxılacaq.');
+                                    ? t('web.profile.approval_rejected_body', 'Dəstəklə əlaqə saxlayın və ya profili yeniləyin.')
+                                    : t('web.profile.pending_body', 'Sorğunuz 1 saat ərzində baxılacaq. Təsdiqləndikdən sonra iş sorğuları gələcək.'));
                     }
                 }
             }
@@ -2757,11 +2774,11 @@
                 }).then(function (me) {
                     meCache = unwrapMe(me) || meCache;
                     paintUserCard(meCache);
-                    toast('success', 'İstifadəçi profili yeniləndi');
+                    toast('success', t('web.profile.user_saved', 'İstifadəçi profili yeniləndi'));
                     log('İstifadəçi profili yeniləndi');
                     return setAuthStatus();
                 }).catch(function (e) {
-                    toast('error', 'Profil yenilənmədi');
+                    toast('error', t('web.profile.user_save_failed', 'Profil yenilənmədi'));
                     log('Profil yenilənmədi: ' + e.message);
                 });
             });
@@ -2790,10 +2807,10 @@
             api('/auth/avatar', { method: 'POST', body: fd }).then(function (me) {
                 meCache = unwrapMe(me) || meCache;
                 paintUserCard(meCache);
-                toast('success', 'Şəkil yükləndi');
+                toast('success', t('web.profile.avatar_saved', 'Şəkil yeniləndi'));
                 return setAuthStatus();
             }).catch(function (e) {
-                toast('error', 'Şəkil yüklənmədi: ' + e.message);
+                toast('error', t('web.profile.avatar_failed', 'Şəkil yüklənmədi') + ': ' + e.message);
                 paintUserCard(meCache);
             }).finally(function () {
                 if (btn) btn.disabled = false;
@@ -2827,17 +2844,17 @@
             if (url) {
                 player.src = url;
                 player.hidden = false;
-                setAudioStatus('Mövcud intro hazırdır');
+                setAudioStatus(t('web.profile.audio_existing', 'Mövcud intro yüklənib'));
             } else {
                 player.hidden = true;
                 player.removeAttribute('src');
-                setAudioStatus('Hələ audio yoxdur');
+                setAudioStatus(t('web.profile.audio_empty', 'Hələ audio yoxdur'));
             }
         }
 
         function uploadAudioBlob(file, label) {
             if (!providerProfiles[0]) {
-                toast('warning', 'Əvvəl xidmətçi profilini yaradın / saxlayın');
+                toast('warning', t('web.profile.need_provider_first', 'Əvvəl xidmətçi profilini yaradın / saxlayın'));
                 return Promise.reject(new Error('no profile'));
             }
             var fd = new FormData();
@@ -2853,10 +2870,10 @@
             }).then(function (profile) {
                 providerProfiles[0] = profile;
                 paintAudioPlayer(profile.audio_intro_url);
-                toast('success', 'Audio yükləndi');
+                toast('success', t('web.profile.audio_uploaded', 'Audio yükləndi'));
                 return profile;
             }).catch(function (e) {
-                toast('error', 'Audio yüklənmədi: ' + e.message);
+                toast('error', t('web.profile.audio_upload_failed', 'Audio yüklənmədi') + ': ' + e.message);
                 setAudioStatus('Yükləmə alınmadı — yenidən cəhd edin');
                 throw e;
             }).finally(function () {
@@ -2908,11 +2925,11 @@
             if (recording) {
                 btn.classList.remove('btn-primary');
                 btn.classList.add('btn-dark');
-                if (label) label.textContent = 'Dayandır';
+                if (label) label.textContent = t('web.profile.audio_stop', 'Dayandır');
             } else {
                 btn.classList.add('btn-primary');
                 btn.classList.remove('btn-dark');
-                if (label) label.textContent = 'Mikrofonla yaz';
+                if (label) label.textContent = t('web.profile.audio_record', 'Mikrofonla yaz');
             }
         }
 
@@ -2923,11 +2940,11 @@
 
         function startRecording() {
             if (!providerProfiles[0]) {
-                toast('warning', 'Əvvəl xidmətçi profilini yaradın / saxlayın');
+                toast('warning', t('web.profile.need_provider_first', 'Əvvəl xidmətçi profilini yaradın / saxlayın'));
                 return;
             }
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                toast('error', 'Bu brauzerdə mikrofon dəstəklənmir');
+                toast('error', t('web.profile.mic_unsupported', 'Bu brauzerdə mikrofon dəstəklənmir'));
                 return;
             }
             navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
@@ -2951,7 +2968,7 @@
                         : new MediaRecorder(stream);
                 } catch (err) {
                     stopAudioTracks();
-                    toast('error', 'Yazma başladıla bilmədi');
+                    toast('error', t('web.profile.record_failed', 'Yazma başladıla bilmədi'));
                     return;
                 }
                 audioRecorder.ondataavailable = function (ev) {
@@ -2966,7 +2983,7 @@
                     audioRecorder = null;
                     audioChunks = [];
                     if (!blob.size) {
-                        toast('warning', 'Boş yazı — yenidən cəhd edin');
+                        toast('warning', t('web.profile.record_empty', 'Boş yazı — yenidən cəhd edin'));
                         return;
                     }
                     var ext = type.indexOf('ogg') >= 0 ? 'ogg'
@@ -2998,8 +3015,8 @@
                     }
                 }, 1000);
             }).catch(function () {
-                toast('error', 'Mikrofon icazəsi lazımdır');
-                setAudioStatus('Mikrofon icazəsi verilmədi');
+                toast('error', t('web.profile.mic_denied', 'Mikrofon icazəsi lazımdır'));
+                setAudioStatus(t('web.profile.mic_denied', 'Mikrofon icazəsi lazımdır'));
             });
         }
 
@@ -3019,7 +3036,7 @@
         if (pickBtn && audioFile) {
             pickBtn.addEventListener('click', function () {
                 if (!providerProfiles[0]) {
-                    toast('warning', 'Əvvəl xidmətçi profilini yaradın / saxlayın');
+                    toast('warning', t('web.profile.need_provider_first', 'Əvvəl xidmətçi profilini yaradın / saxlayın'));
                     return;
                 }
                 audioFile.click();
@@ -3036,7 +3053,7 @@
             saveProvider.addEventListener('click', function () {
                 var selected = getSelectedCategories();
                 if (!selected.length) {
-                    toast('warning', 'Əvvəl kateqoriya seçin (accordion)');
+                    toast('warning', t('web.profile.pick_cat_accordion', 'Əvvəl kateqoriya seçin (accordion)'));
                     return;
                 }
                 requireRole('provider').then(function () {
@@ -3066,11 +3083,11 @@
                         body: JSON.stringify(payload),
                     });
                 }).then(function () {
-                    toast('success', 'Provider profili saxlanıldı');
+                    toast('success', t('web.profile.provider_saved', 'Provider profili saxlanıldı'));
                     log('Provider profili saxlanıldı');
                     return loadProviderProfiles();
                 }).catch(function (e) {
-                    toast('error', 'Provider profili saxlanmadı');
+                    toast('error', t('web.profile.provider_save_failed', 'Provider profili saxlanmadı'));
                     log('Provider profili xətası: ' + e.message);
                 });
             });
@@ -3081,11 +3098,11 @@
             saveProfileCats.addEventListener('click', function () {
                 profileSelected = getSelectedCategories();
                 if (!profileSelected.length) {
-                    toast('warning', 'Ən azı 1 kateqoriya seç');
+                    toast('warning', t('web.categories.need_one', 'Ən azı 1 kateqoriya seç'));
                     return;
                 }
                 if (!providerProfiles[0]) {
-                    toast('warning', 'Əvvəl aşağıda xidmətçi profilini yarat / saxla');
+                    toast('warning', t('web.profile.need_provider_below', 'Əvvəl aşağıda xidmətçi profilini yarat / saxla'));
                     setSelectedCategories(profileSelected);
                     return;
                 }
@@ -3095,10 +3112,10 @@
                     method: 'PUT',
                     body: JSON.stringify({ category_ids: profileSelected.slice() }),
                 }).then(function () {
-                    toast('success', 'Kateqoriyalar saxlanıldı');
+                    toast('success', t('web.categories.saved', 'Kateqoriyalar saxlanıldı'));
                     return loadProviderProfiles();
                 }).catch(function (e) {
-                    toast('error', e.message || 'Kateqoriyalar saxlanmadı');
+                    toast('error', e.message || t('web.categories.save_error', 'Kateqoriyalar saxlanmadı'));
                 }).finally(function () {
                     btn.disabled = false;
                 });
@@ -3144,22 +3161,37 @@
         var newLink = el('request-new-link');
         if (newLink) newLink.hidden = !on;
 
-        if (el('request-page-title')) {
-            el('request-page-title').textContent = on ? 'Sorğuya bax' : 'Sorğu yarat';
+        function setKeyed(id, key, fallback) {
+            var node = el(id);
+            if (!node) return;
+            node.setAttribute('data-i18n', key);
+            node.textContent = t(key, fallback);
         }
-        if (el('request-page-sub')) {
-            el('request-page-sub').textContent = on
+
+        setKeyed(
+            'request-page-title',
+            on ? 'web.request.view_title' : 'web.nav.request',
+            on ? 'Sorğuya bax' : 'Sorğu yarat'
+        );
+        setKeyed(
+            'request-page-sub',
+            on ? 'web.request.view_subtitle' : 'web.request.subtitle',
+            on
                 ? 'Bu sorğunun məlumatı və uyğun icraçılar — forma yalnız baxış üçündür.'
-                : 'Kateqoriya seç, əlavə qeyd yaz, ünvanı göstər — uyğun icraçılar çıxır.';
-        }
-        if (el('request-form-title')) {
-            el('request-form-title').textContent = on ? 'Sorğu detalları' : 'Yeni sorğu';
-        }
-        if (el('request-form-hint')) {
-            el('request-form-hint').textContent = on
+                : 'Kateqoriya seç, əlavə qeyd yaz, ünvanı göstər — uyğun icraçılar çıxır.'
+        );
+        setKeyed(
+            'request-form-title',
+            on ? 'web.request.details_title' : 'web.dashboard.cta_new_request',
+            on ? 'Sorğu detalları' : 'Yeni sorğu'
+        );
+        setKeyed(
+            'request-form-hint',
+            on ? 'web.request.form_hint_locked' : 'web.request.form_hint',
+            on
                 ? 'Sahələr kilidlidir. Yeni sorğu üçün yuxarıdakı düymədən keçin.'
-                : 'Əvvəl kateqoriya seçin — əlavə qeyd və ünvan dəqiqləşdirir.';
-        }
+                : 'Əvvəl kateqoriya seçin — əlavə qeyd və ünvan dəqiqləşdirir.'
+        );
 
         var editor = el('request-editor');
         if (editor) editor.classList.toggle('is-view-only', !!on);
@@ -3192,7 +3224,7 @@
             return api('/categories').then(function (items) {
                 fillRequestCategorySelect(items || []);
             }).catch(function () {
-                toast('warning', 'Kateqoriyalar yüklənmədi');
+                toast('warning', t('web.request.categories_load_warn', 'Kateqoriyalar yüklənmədi'));
             });
         }).then(function () {
             if (!restoreId) {
@@ -3205,10 +3237,17 @@
             setRequestId(restoreId);
             setRequestViewMode(true);
             if (el('request-info')) {
-                el('request-info').textContent = 'Sorğu #' + restoreId + ' yüklənir…';
+                el('request-info').textContent = t(
+                    'web.request.loading',
+                    'Sorğu #{id} yüklənir…',
+                    { id: restoreId }
+                );
             }
             if (el('matches')) {
-                el('matches').innerHTML = '<p class="muted">Nəticələr yüklənir…</p>';
+                el('matches').innerHTML =
+                    '<p class="muted">' +
+                    escapeHtml(t('web.request.results_loading', 'Nəticələr yüklənir…')) +
+                    '</p>';
             }
             return refreshRequest().then(function () {
                 setRequestViewMode(true);
@@ -3248,21 +3287,23 @@
             if (createBtn.dataset.loading === '1') return;
             var categoryId = getRequestCategoryId();
             if (!categoryId) {
-                toast('warning', 'Əvvəl kateqoriya seçin');
+                toast('warning', t('web.request.pick_category', 'Əvvəl kateqoriya seçin'));
                 var search = el('request-category-search');
                 if (search) search.focus();
                 return;
             }
             var note = el('text').value.trim();
             var catLabel = getRequestCategoryLabel();
-            var text = note || catLabel || 'Sorğu';
-            var idleLabel = createBtn.textContent;
+            var text = note || catLabel || t('web.request.default_text', 'Sorğu');
+            var idleLabel = t('web.request.create', 'Sorğu yarat');
 
             function setCreating(on) {
                 createBtn.dataset.loading = on ? '1' : '';
                 createBtn.disabled = !!on;
                 createBtn.setAttribute('aria-busy', on ? 'true' : 'false');
-                createBtn.textContent = on ? 'Yaradılır…' : idleLabel;
+                createBtn.textContent = on
+                    ? t('web.request.creating', 'Yaradılır…')
+                    : idleLabel;
                 if (on) showPageLoader();
                 else hidePageLoader();
             }
@@ -3285,16 +3326,20 @@
                 if (window.history && window.history.replaceState) {
                     window.history.replaceState({}, '', '/request?requestId=' + encodeURIComponent(data.id));
                 }
-                el('request-info').textContent = 'Sorğu #' + data.id + ' yaradıldı · ' + data.status;
-                toast('success', 'Sorğu yaradıldı');
+                el('request-info').textContent = t(
+                    'web.request.created_info',
+                    'Sorğu #{id} yaradıldı · {status}',
+                    { id: data.id, status: data.status }
+                );
+                toast('success', t('web.request.created', 'Sorğu yaradıldı'));
                 log('Sorğu yaradıldı', { id: data.id, status: data.status, category_id: categoryId });
-                createBtn.textContent = 'Nəticələr yüklənir…';
+                createBtn.textContent = t('web.request.results_loading', 'Nəticələr yüklənir…');
                 return refreshRequest().then(function () {
                     setRequestViewMode(true);
                 });
             }).catch(function (e) {
                 if (e && /yalnız ailə/i.test(e.message || '')) return;
-                toast('error', 'Sorğu yaradılmadı');
+                toast('error', t('web.request.create_failed', 'Sorğu yaradılmadı'));
                 log('Sorğu yaradılmadı: ' + e.message);
             }).finally(function () {
                 if (createBtn.hidden) {
@@ -3309,7 +3354,7 @@
 
         el('refresh-request').addEventListener('click', function () {
             refreshRequest().then(function () {
-                toast('info', 'Nəticələr yeniləndi');
+                toast('info', t('web.request.refreshed', 'Nəticələr yeniləndi'));
             }).catch(function () {});
         });
     }
@@ -3320,13 +3365,13 @@
                 var list = el('chat-list');
                 var rows = Array.isArray(items) ? items : ((items && items.data) || []);
                 if (!rows.length) {
-                    list.textContent = 'Söhbət yoxdur';
+                    list.textContent = t('web.chat.empty', 'Söhbət yoxdur');
                     return;
                 }
                 list.innerHTML = '';
                 rows.forEach(function (c) {
                     var other = (c.other_user && c.other_user.name) || 'İstifadəçi';
-                    var preview = (c.last_message && c.last_message.body) || 'Yeni söhbət';
+                    var preview = (c.last_message && c.last_message.body) || t('web.chat.new_preview', 'Yeni söhbət');
                     var a = document.createElement('a');
                     a.className = 'chat-item';
                     a.href = '/chat/' + c.id;
@@ -3338,7 +3383,7 @@
                 });
                 log('Söhbətlər yükləndi', { count: rows.length });
             }).catch(function (e) {
-                toast('error', 'Söhbətlər yüklənmədi');
+                toast('error', t('web.chat.load_error', 'Söhbətlər yüklənmədi'));
                 log('Chat xətası: ' + e.message);
             });
         }
@@ -3356,11 +3401,11 @@
 
         function statusLabel(status) {
             return ({
-                pending: 'Gözləyir',
-                accepted: 'Təsdiq',
-                declined: 'İmtina',
-                completed: 'Bitdi',
-                cancelled: 'Ləğv',
+                pending: t('web.offer.status.pending', 'Gözləyir'),
+                accepted: t('web.offer.status.accepted', 'Qəbul edilib'),
+                declined: t('web.offer.status.rejected', 'İmtina edilib'),
+                completed: t('web.offer.status.completed', 'Tamamlanıb'),
+                cancelled: t('web.offer.status.cancelled', 'Ləğv edilib'),
             })[status] || status;
         }
 
@@ -3399,7 +3444,7 @@
                     return loadThread();
                 })
                 .catch(function (e) {
-                    toast('error', e.message || 'Əməliyyat alınmadı');
+                    toast('error', e.message || t('error.generic', 'Xəta baş verdi'));
                     log('Offer action xətası: ' + e.message);
                 });
         }
@@ -3419,7 +3464,7 @@
             card.className = 'offer-card';
 
             var hours = offer.duration_hours != null
-                ? '<div><span>Müddət:</span> ' + esc(offer.duration_hours) + ' saat</div>'
+                ? '<div><span>' + esc(t('web.offer.card_duration', 'Müddət:')) + '</span> ' + esc(offer.duration_hours) + ' ' + esc(t('web.offer.hours_unit', 'saat')) + '</div>'
                 : '';
             var note = offer.note
                 ? '<div class="offer-note">' + esc(offer.note) + '</div>'
@@ -3427,13 +3472,13 @@
 
             card.innerHTML =
                 '<div class="offer-head">' +
-                    '<strong>Təklif</strong>' +
+                    '<strong>' + esc(t('web.offer.card_title', 'Təklif')) + '</strong>' +
                     '<span class="pill">' + esc(statusLabel(offer.status)) + '</span>' +
                 '</div>' +
                 '<div class="offer-meta">' +
-                    '<div><span>Vaxt:</span> ' + esc(formatWhen(offer.scheduled_at)) + '</div>' +
+                    '<div><span>' + esc(t('web.offer.card_when', 'Vaxt:')) + '</span> ' + esc(formatWhen(offer.scheduled_at)) + '</div>' +
                     hours +
-                    '<div><span>Qiymət:</span> ' + esc(offer.price_azn) + ' AZN</div>' +
+                    '<div><span>' + esc(t('web.offer.card_price', 'Qiymət:')) + '</span> ' + esc(offer.price_azn) + ' AZN</div>' +
                 '</div>' +
                 note +
                 '<div class="offer-actions"></div>' +
@@ -3446,16 +3491,16 @@
                 var decline = document.createElement('button');
                 decline.type = 'button';
                 decline.className = 'btn';
-                decline.textContent = 'İmtina';
+                decline.textContent = t('web.offer.action_reject', 'İmtina');
                 decline.addEventListener('click', function () {
-                    offerAction('/offers/' + offer.id + '/decline', 'Təklif rədd edildi');
+                    offerAction('/offers/' + offer.id + '/decline', t('web.offer.rejected', 'Təklif imtina edildi'));
                 });
                 var accept = document.createElement('button');
                 accept.type = 'button';
                 accept.className = 'btn btn-primary';
-                accept.textContent = 'Qəbul et';
+                accept.textContent = t('web.offer.action_accept', 'Qəbul et');
                 accept.addEventListener('click', function () {
-                    offerAction('/offers/' + offer.id + '/accept', 'Təklif qəbul edildi');
+                    offerAction('/offers/' + offer.id + '/accept', t('web.offer.accepted', 'Təklif qəbul edildi'));
                 });
                 actions.appendChild(decline);
                 actions.appendChild(accept);
@@ -3465,9 +3510,9 @@
                 var cancel = document.createElement('button');
                 cancel.type = 'button';
                 cancel.className = 'btn';
-                cancel.textContent = 'Ləğv et';
+                cancel.textContent = t('web.offer.action_cancel', 'Ləğv et');
                 cancel.addEventListener('click', function () {
-                    offerAction('/offers/' + offer.id + '/cancel', 'Təklif ləğv edildi');
+                    offerAction('/offers/' + offer.id + '/cancel', t('web.offer.cancelled', 'Təklif ləğv edildi'));
                 });
                 actions.appendChild(cancel);
             }
@@ -3476,9 +3521,9 @@
                 var complete = document.createElement('button');
                 complete.type = 'button';
                 complete.className = 'btn btn-primary';
-                complete.textContent = 'İş tamamlandı';
+                complete.textContent = t('web.offer.action_complete', 'İş tamamlandı');
                 complete.addEventListener('click', function () {
-                    offerAction('/offers/' + offer.id + '/complete', 'İş tamamlandı');
+                    offerAction('/offers/' + offer.id + '/complete', t('web.offer.completed', 'İş tamamlandı kimi qeyd olundu'));
                 });
                 actions.appendChild(complete);
             }
@@ -3488,19 +3533,19 @@
                 var theirs = otherReview(offer, myId);
                 if (mine) {
                     var y = document.createElement('div');
-                    y.textContent = 'Sizin rəyiniz: ★ ' + mine.rating;
+                    y.textContent = t('web.review.mine', 'Sizin rəyiniz') + ': ★ ' + mine.rating;
                     reviewsBox.appendChild(y);
                 }
                 if (theirs) {
                     var t = document.createElement('div');
-                    t.textContent = 'Onların rəyi: ★ ' + theirs.rating;
+                    t.textContent = t('web.review.theirs', 'Digər tərəfin rəyi') + ': ★ ' + theirs.rating;
                     reviewsBox.appendChild(t);
                 }
                 if (!mine) {
                     var reviewBtn = document.createElement('button');
                     reviewBtn.type = 'button';
                     reviewBtn.className = 'btn btn-primary';
-                    reviewBtn.textContent = 'Rəy yaz';
+                    reviewBtn.textContent = t('web.review.write', 'Rəy yaz');
                     reviewBtn.addEventListener('click', function () {
                         openReview(offer.id);
                     });
@@ -3565,7 +3610,7 @@
             }).then(function (conversation) {
                 renderThread(conversation);
             }).catch(function (e) {
-                toast('error', 'Söhbət açılmadı');
+                toast('error', t('web.chat.open_failed', 'Söhbət açılmadı'));
                 log('Thread xətası: ' + e.message);
             });
         }
@@ -3573,7 +3618,7 @@
         el('send-message').addEventListener('click', function () {
             var body = el('chat-body').value.trim();
             if (!body) {
-                toast('warning', 'Mesaj yaz');
+                toast('warning', t('web.chat.message_required', 'Mesaj yaz'));
                 return;
             }
             api('/conversations/' + conversationId + '/messages', {
@@ -3581,10 +3626,10 @@
                 body: JSON.stringify({ body: body }),
             }).then(function () {
                 el('chat-body').value = '';
-                toast('success', 'Göndərildi');
+                toast('success', t('web.chat.message_sent', 'Göndərildi'));
                 return loadThread();
             }).catch(function (e) {
-                toast('error', 'Mesaj getmədi');
+                toast('error', t('web.chat.message_failed', 'Mesaj getmədi'));
                 log('Mesaj xətası: ' + e.message);
             });
         });
@@ -3619,11 +3664,11 @@
             var hoursRaw = el('offer-hours').value.trim();
             var hours = hoursRaw === '' ? null : Number(hoursRaw);
             if (!when) {
-                toast('warning', 'Tarix seç');
+                toast('warning', t('web.offer.need_when', 'Tarix seç'));
                 return;
             }
             if (!price || price < 1) {
-                toast('warning', 'Qiymət yaz');
+                toast('warning', t('web.offer.need_price', 'Qiymət yaz'));
                 return;
             }
             var payload = {
@@ -3639,10 +3684,10 @@
                 body: JSON.stringify(payload),
             }).then(function () {
                 offerModal.hidden = true;
-                toast('success', 'Təklif göndərildi');
+                toast('success', t('web.offer.sent', 'Təklif göndərildi'));
                 return loadThread();
             }).catch(function (e) {
-                toast('error', e.message || 'Təklif getmədi');
+                toast('error', e.message || t('web.offer.send_failed', 'Təklif göndərilmədi'));
                 log('Offer create xətası: ' + e.message);
             });
         });
@@ -3662,10 +3707,10 @@
                 }),
             }).then(function () {
                 reviewModal.hidden = true;
-                toast('success', 'Rəy göndərildi');
+                toast('success', t('web.review.sent', 'Rəy göndərildi'));
                 return loadThread();
             }).catch(function (e) {
-                toast('error', e.message || 'Rəy getmədi');
+                toast('error', e.message || t('web.review.failed', 'Rəy göndərilmədi'));
                 log('Review xətası: ' + e.message);
             });
         });
@@ -3688,7 +3733,7 @@
 
         function loadJobs() {
             var box = el('jobs-list');
-            if (box) box.textContent = 'Yüklənir…';
+            if (box) box.textContent = t('web.loading', 'Yüklənir…');
 
             return ensureMe().then(function () {
                 applyRoleUi();
@@ -3717,7 +3762,7 @@
                 if (!box) return;
                 var rows = Array.isArray(items) ? items : ((items && items.data) || []);
                 if (!rows.length) {
-                    box.textContent = 'Hazırda gələn iş yoxdur';
+                    box.textContent = t('web.jobs.empty', 'Hazırda gələn iş yoxdur');
                     return;
                 }
                 box.innerHTML = '';
@@ -3729,7 +3774,7 @@
                         (job.is_urgent ? '<span class="pill">URGENT</span>' : '') +
                         '<h3>' + esc((job.client && job.client.name) || 'Müştəri') + '</h3>' +
                         '<p class="reasons">' + esc(req.transcribed_text || req.address || '') + '</p>' +
-                        '<p class="meta">Skor: <b>' + Math.round(job.match_score || 0) + '%</b> · ' +
+                        '<p class="meta">' + esc(t('web.match.score_label', 'Skor: {score}%', { score: Math.round(job.match_score || 0) })) + ' · ' +
                         esc(job.distance_km != null ? job.distance_km : '-') + ' km</p>' +
                         '<button type="button" class="btn btn-primary reply">Cavab ver</button>';
                     card.querySelector('.reply').addEventListener('click', function () {
@@ -3738,13 +3783,13 @@
                             body: JSON.stringify({
                                 service_request_id: req.id,
                                 provider_profile_id: job.provider_profile_id,
-                                message: 'Salam, işə baxıram.',
+                                message: t('web.jobs.default_reply', 'Salam, işə baxıram.'),
                             }),
                         }).then(function (conversation) {
-                            toast('success', 'Cavab göndərildi');
+                            toast('success', t('web.jobs.reply_sent', 'Cavab göndərildi'));
                             go('/chat/' + conversation.id);
                         }).catch(function (e) {
-                            toast('error', 'Cavab getmədi');
+                            toast('error', t('web.jobs.reply_failed', 'Cavab getmədi'));
                             log('Job reply xətası: ' + e.message);
                         });
                     });
@@ -3752,8 +3797,8 @@
                 });
                 log('İşlər yükləndi', { count: rows.length });
             }).catch(function (e) {
-                if (box) box.textContent = 'İşlər yüklənmədi';
-                toast('error', 'İşlər yüklənmədi');
+                if (box) box.textContent = t('web.jobs.load_error', 'İşlər yüklənmədi');
+                toast('error', t('web.jobs.load_error', 'İşlər yüklənmədi'));
                 log('Jobs xətası: ' + (e && e.message ? e.message : e));
             });
         }
@@ -3770,11 +3815,11 @@
 
     function requestStatusLabel(status) {
         var map = {
-            processing: 'Emal olunur',
-            active: 'Aktiv',
-            matched: 'Uyğunlaşıb',
-            completed: 'Tamamlanıb',
-            cancelled: 'Ləğv edilib',
+            processing: t('web.request.status.processing', 'Emal olunur'),
+            active: t('web.request.status.active', 'Aktiv'),
+            matched: t('web.request.status.matched', 'Uyğunlaşıb'),
+            completed: t('web.request.status.completed', 'Tamamlanıb'),
+            cancelled: t('web.request.status.cancelled', 'Ləğv edilib'),
         };
         return map[status] || status || '—';
     }
@@ -3819,7 +3864,7 @@
 
         function loadRequests() {
             var box = el('requests-list');
-            if (box) box.textContent = 'Yüklənir…';
+            if (box) box.textContent = t('web.loading', 'Yüklənir…');
 
             return ensureMe().then(function () {
                 applyRoleUi();
@@ -3839,8 +3884,8 @@
                 if (!rows.length) {
                     box.innerHTML =
                         '<div class="request-history-empty">' +
-                        '<p>Hələ sorğu yoxdur.</p>' +
-                        '<a href="/request" class="btn btn-primary btn-inline">Yeni sorğu yaz</a>' +
+                        '<p>' + esc(t('web.requests.empty', 'Hələ sorğu yoxdur.')) + '</p>' +
+                        '<a href="/request" class="btn btn-primary btn-inline">' + esc(t('web.requests.empty_cta', 'Yeni sorğu yaz')) + '</a>' +
                         '</div>';
                     return;
                 }
@@ -3860,7 +3905,7 @@
                         '<span class="request-status ' + requestStatusClass(req.status) + '">' +
                         esc(requestStatusLabel(req.status)) +
                         '</span>' +
-                        (req.is_urgent ? '<span class="request-status is-urgent">Təcili</span>' : '') +
+                        (req.is_urgent ? '<span class="request-status is-urgent">' + esc(t('web.requests.urgent', 'Təcili')) + '</span>' : '') +
                         '</div>' +
                         '<h3 class="request-history-title">' + esc(title) + '</h3>' +
                         (text && text !== title
@@ -3868,10 +3913,14 @@
                             : '') +
                         '<div class="request-history-foot">' +
                         '<span class="request-history-meta">' +
-                        esc(count) + ' uyğunluq' +
+                        esc(
+                            t('web.request.matches_count', '{count} uyğunluq', {
+                                count: count,
+                            })
+                        ) +
                         (req.created_at ? ' · ' + esc(formatRequestWhen(req.created_at)) : '') +
                         '</span>' +
-                        '<span class="request-history-cta">Nəticələrə bax →</span>' +
+                        '<span class="request-history-cta">' + esc(t('web.requests.open_results', 'Nəticələrə bax →')) + '</span>' +
                         '</div>';
                     card.addEventListener('click', function () {
                         openRequest(req.id);
@@ -3886,8 +3935,8 @@
                 });
                 log('Sorğular yükləndi', { count: rows.length });
             }).catch(function (e) {
-                if (box) box.textContent = 'Sorğular yüklənmədi';
-                toast('error', 'Sorğular yüklənmədi');
+                if (box) box.textContent = t('web.requests.load_error', 'Sorğular yüklənmədi');
+                toast('error', t('web.requests.load_error', 'Sorğular yüklənmədi'));
                 log('Requests xətası: ' + (e && e.message ? e.message : e));
             });
         }
