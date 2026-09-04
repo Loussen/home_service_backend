@@ -490,10 +490,12 @@
 
     function categoryLabel(node) {
         if (!node) return '';
-        if (node.name) return String(node.name);
+        // Prefer locale fields over API `name` (frozen at fetch; wrong after language switch).
         var locale = getStoredLocale();
         if (locale === 'en' && node.name_en) return String(node.name_en);
         if (locale === 'ru' && node.name_ru) return String(node.name_ru);
+        if (locale === 'az' && node.name_az) return String(node.name_az);
+        if (node.name) return String(node.name);
         return String(node.name_az || node.name_en || node.name_ru || node.slug || '');
     }
 

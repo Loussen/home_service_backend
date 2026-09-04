@@ -62,6 +62,8 @@ return array (
   'search.map_key_hint' => 'Xəritə üçün: flutter run --dart-define-from-file=dart_defines.json',
   'search.your_request' => 'Sizin sorğunuz',
   'search.filter_category' => 'Kateqoriya (istəyə bağlı)',
+  'search.category_search_ph' => 'Axtar və ya kateqoriya seç…',
+  'search.category_empty' => 'Uyğun kateqoriya yoxdur',
   'search.filter_when' => 'Vaxt (istəyə bağlı)',
   'search.pick_datetime' => 'Tarix və saat',
   'search.clear_filters' => 'Təmizlə',

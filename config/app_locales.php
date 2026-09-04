@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'version' => 37,
+    'version' => 39,
     'default' => env('APP_DEFAULT_LOCALE', 'az'),
     'supported' => array_filter(explode(',', env('APP_SUPPORTED_LOCALES', 'az,en,ru'))),
     'labels' => [

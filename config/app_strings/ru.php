@@ -62,6 +62,8 @@ return [
     'search.map_key_hint' => 'Карта: flutter run --dart-define-from-file=dart_defines.json',
     'search.your_request' => 'Ваша заявка',
     'search.filter_category' => 'Категория (необязательно)',
+    'search.category_search_ph' => 'Найти или выбрать категорию…',
+    'search.category_empty' => 'Нет подходящей категории',
     'search.filter_when' => 'Когда (необязательно)',
     'search.pick_datetime' => 'Дата и время',
     'search.clear_filters' => 'Очистить',
