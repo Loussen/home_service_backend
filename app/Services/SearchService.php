@@ -42,6 +42,7 @@ class SearchService
         $urgentRadius = (float) config('homeservice.urgent_radius_km', 5);
         $searchRadius = (float) config('homeservice.search_radius_km', 50);
         $baseRadius = $isUrgent ? $urgentRadius : $searchRadius;
+        $minResults = max(1, (int) config('homeservice.search_min_results', 12));
 
         $criteria = $request->parsed_criteria ?? [];
         $desiredSlot = $criteria['time_slot'] ?? null;
@@ -57,12 +58,13 @@ class SearchService
             ->values()
             ->all();
 
-        $providers = collect();
+        $merged = collect();
         $usedRadius = $baseRadius;
-        $usedCategory = (bool) $request->category_id;
+        $usedCategory = true;
         $usedArea = $districtId !== null || $cityId !== null;
         $usedSchedule = filled($desiredSlot);
         $found = false;
+        $metaLocked = false;
 
         $attempts = $isUrgent
             ? [
@@ -70,15 +72,13 @@ class SearchService
                 ['category' => true, 'district' => null, 'city' => $cityId, 'radius' => true, 'schedule' => true],
                 ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => true],
                 ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
-                ['category' => false, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
             ]
             : [
+                // Tight → wider. Merge hits so one district match does not hide peers.
                 ['category' => true, 'district' => $districtId, 'city' => null, 'radius' => false, 'schedule' => true],
                 ['category' => true, 'district' => null, 'city' => $cityId, 'radius' => false, 'schedule' => true],
                 ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => true],
-                ['category' => false, 'district' => $districtId, 'city' => null, 'radius' => false, 'schedule' => true],
                 ['category' => true, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
-                ['category' => false, 'district' => null, 'city' => null, 'radius' => true, 'schedule' => false],
             ];
 
         foreach ($attempts as $attempt) {
@@ -95,7 +95,7 @@ class SearchService
                 : [9999.0];
             sort($radii);
             foreach ($radii as $radius) {
-                $providers = $this->profiles->searchNearby(
+                $batch = $this->profiles->searchNearby(
                     $request->latitude,
                     $request->longitude,
                     $categoryId,
@@ -106,16 +106,31 @@ class SearchService
                     $attempt['radius'],
                     $slot,
                 );
-                if ($providers->isNotEmpty()) {
+                if ($batch->isEmpty()) {
+                    continue;
+                }
+
+                $merged = $merged
+                    ->concat($batch)
+                    ->unique(fn (ProviderProfile $p) => $p->id)
+                    ->values();
+
+                if (! $metaLocked) {
                     $found = true;
+                    $metaLocked = true;
                     $usedRadius = $attempt['radius'] ? $radius : $baseRadius;
                     $usedCategory = (bool) $attempt['category'] && filled($request->category_id);
                     $usedArea = $attempt['district'] !== null || $attempt['city'] !== null;
                     $usedSchedule = filled($slot);
+                }
+
+                if ($merged->count() >= $minResults) {
                     break 2;
                 }
             }
         }
+
+        $providers = $merged;
 
         $criteria = $request->parsed_criteria ?? [];
         $criteria['search_meta'] = [
@@ -127,10 +142,11 @@ class SearchService
             'dropped_category' => $found && filled($request->category_id) && ! $usedCategory,
             'dropped_area' => $found && ($districtId || $cityId) && ! $usedArea,
             'dropped_schedule' => $found && filled($desiredSlot) && ! $usedSchedule,
+            'result_count' => $providers->count(),
         ];
         $request->forceFill(['parsed_criteria' => $criteria])->save();
 
-        $results = $providers->map(function (ProviderProfile $provider) use ($desiredSlot, $repeatProviderIds) {
+        $results = $providers->map(function (ProviderProfile $provider) use ($desiredSlot, $repeatProviderIds, $districtId) {
             $distance = (float) ($provider->distance_km ?? 0);
             $distanceScore = max(0, 100 - ($distance * 4));
 
@@ -149,6 +165,7 @@ class SearchService
             $repeatBonus = in_array((int) $provider->id, $repeatProviderIds, true) ? 12 : 0;
             $bumpActive = BumpQuota::isActive($provider->bumped_at);
             $bumpBonus = $bumpActive ? 6 : 0;
+            $districtBonus = ($districtId && (int) $provider->district_id === $districtId) ? 10 : 0;
 
             $score = min(100, round(
                 ($distanceScore * 0.45) +
@@ -157,7 +174,8 @@ class SearchService
                 $vipBonus +
                 $ratingBonus +
                 $repeatBonus +
-                $bumpBonus,
+                $bumpBonus +
+                $districtBonus,
                 2
             ));
 
@@ -173,6 +191,7 @@ class SearchService
                     'rating' => $ratingBonus,
                     'repeat_client' => $repeatBonus > 0 ? 1 : 0,
                     'bump' => $bumpActive ? 1 : 0,
+                    'district' => $districtBonus > 0 ? 1 : 0,
                 ],
                 'provider' => $provider,
             ];

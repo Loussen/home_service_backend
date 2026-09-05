@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Category;
+use App\Models\District;
 use App\Models\ProviderProfile;
 use App\Support\BumpQuota;
 use Illuminate\Database\Eloquent\Collection;
@@ -88,7 +89,19 @@ class ProviderProfileRepository
         }
 
         if ($districtId) {
-            $query->where('district_id', $districtId);
+            // Soft district: exact district OR same city with no district set.
+            // Hard district-only hid peers who only pinned a city / map point.
+            $districtCityId = $cityId
+                ?? District::query()->whereKey($districtId)->value('city_id');
+            $query->where(function ($q) use ($districtId, $districtCityId) {
+                $q->where('district_id', $districtId);
+                if ($districtCityId) {
+                    $q->orWhere(function ($q2) use ($districtCityId) {
+                        $q2->where('city_id', $districtCityId)
+                            ->whereNull('district_id');
+                    });
+                }
+            });
         } elseif ($cityId) {
             $query->where('city_id', $cityId);
         }

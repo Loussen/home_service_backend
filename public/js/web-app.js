@@ -3473,7 +3473,7 @@
                         ),
                         message: t(
                             'web.request.voice_unclear',
-                            'Səs oxunmadı və ya qeyri-müəyyəndir. Nümunəyə bənzər aydın səs göndərin (5–20 san).'
+                            'Səs oxunmadı və ya qeyri-müəyyəndir. Nümunəyə bənzər aydın səs göndərin (3–20 san).'
                         ),
                         tone: 'warning',
                         confirmLabel: t('web.alert.ok', 'Başa düşdüm'),
@@ -3563,7 +3563,7 @@
         var voiceStream = null;
         var voiceTimer = null;
         var voiceElapsed = 0;
-        var voiceMinSec = 5;
+        var voiceMinSec = 3;
         var voiceMaxSec = 20;
         var voiceBusy = false;
         var voiceSampleAudio = null;
@@ -3804,7 +3804,7 @@
                         }
                         setVoiceStatus(
                             'web.request.voice_idle',
-                            'Hazırsınızsa yazmağa başlayın (ən azı 5, maks. 20 san). Dayandıranda sorğu göndərilir.'
+                            'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 20 san). Dayandıranda sorğu göndərilir.'
                         );
                         return req;
                     });
@@ -3816,12 +3816,12 @@
                         e.message ||
                             t(
                                 'web.request.voice_rejected',
-                                'Səs qəbul olunmadı. Aydın və düzgün səs göndərin (5–20 san).'
+                                'Səs qəbul olunmadı. Aydın və düzgün səs göndərin (3–20 san).'
                             )
                     );
                     setVoiceStatus(
                         'web.request.voice_idle',
-                        'Hazırsınızsa yazmağa başlayın (ən azı 5, maks. 20 san). Dayandıranda sorğu göndərilir.'
+                        'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 20 san). Dayandıranda sorğu göndərilir.'
                     );
                     log('Səsli sorğu xətası: ' + ((e && e.message) || e));
                 })
@@ -3883,7 +3883,7 @@
                             );
                             setVoiceStatus(
                                 'web.request.voice_idle',
-                                'Hazırsınızsa yazmağa başlayın (ən azı 5, maks. 20 san). Dayandıranda sorğu göndərilir.'
+                                'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 20 san). Dayandıranda sorğu göndərilir.'
                             );
                             return;
                         }

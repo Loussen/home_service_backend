@@ -9,8 +9,9 @@ class RequestMatchRepository
 {
     public function upsertMany(ServiceRequest $request, array $matches): void
     {
+        $keepIds = [];
         foreach ($matches as $match) {
-            RequestMatch::updateOrCreate(
+            $row = RequestMatch::updateOrCreate(
                 [
                     'service_request_id' => $request->id,
                     'provider_profile_id' => $match['provider_profile_id'],
@@ -21,6 +22,13 @@ class RequestMatchRepository
                     'score_breakdown' => $match['score_breakdown'] ?? null,
                 ]
             );
+            $keepIds[] = $row->id;
         }
+
+        RequestMatch::query()
+            ->where('service_request_id', $request->id)
+            ->when($keepIds !== [], fn ($q) => $q->whereNotIn('id', $keepIds))
+            ->when($keepIds === [], fn ($q) => $q)
+            ->delete();
     }
 }

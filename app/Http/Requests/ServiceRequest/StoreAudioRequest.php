@@ -45,7 +45,7 @@ class StoreAudioRequest extends FormRequest
         return [
             // Keep MIME loose — iOS record produces audio/mp4, video/mp4, etc.
             'audio' => ['required', 'file', 'max:15360'],
-            'duration_seconds' => ['required', 'numeric', 'min:5', 'max:20'],
+            'duration_seconds' => ['required', 'numeric', 'min:3', 'max:20'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'address' => ['nullable', 'string', 'max:255'],
@@ -62,7 +62,7 @@ class StoreAudioRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'duration_seconds.min' => 'Səs ən azı 5 saniyə olmalıdır. Aydın danışıb yenidən göndərin.',
+            'duration_seconds.min' => 'Səs ən azı 3 saniyə olmalıdır. Aydın danışıb yenidən göndərin.',
             'duration_seconds.max' => 'Səs ən çox 20 saniyə ola bilər.',
         ];
     }

@@ -18,6 +18,8 @@ return [
     'bump_daily_limit' => (int) env('WALLET_BUMP_DAILY_LIMIT', 2),
     'bump_boost_km' => (float) env('WALLET_BUMP_BOOST_KM', 8),
     'search_radius_km' => (float) env('SEARCH_RADIUS_KM', 50),
+    /** Keep widening (same category) until at least this many unique providers. */
+    'search_min_results' => (int) env('SEARCH_MIN_RESULTS', 12),
     'max_category_tags' => (int) env('MAX_CATEGORY_TAGS', 3),
     'otp_ttl_minutes' => (int) env('OTP_TTL_MINUTES', 5),
     'otp_max_attempts' => (int) env('OTP_MAX_ATTEMPTS', 5),
