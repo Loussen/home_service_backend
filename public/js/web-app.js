@@ -2959,13 +2959,13 @@
             return api('/provider-profiles').then(function (items) {
                 providerProfiles = items || [];
                 if (providerProfiles[0]) {
-                    var t = el('provider-title');
+                    var titleEl = el('provider-title');
                     var b = el('provider-bio');
                     var c = el('provider-city');
                     var d = el('provider-district');
                     var lat = el('provider-lat');
                     var lng = el('provider-lng');
-                    if (t) t.value = providerProfiles[0].title || '';
+                    if (titleEl) titleEl.value = providerProfiles[0].title || '';
                     if (b) b.value = providerProfiles[0].bio || '';
                     if (c) c.value = providerProfiles[0].city || '';
                     if (d) d.value = providerProfiles[0].district || '';
@@ -4203,9 +4203,9 @@
                     reviewsBox.appendChild(y);
                 }
                 if (theirs) {
-                    var t = document.createElement('div');
-                    t.textContent = t('web.review.theirs', 'Digər tərəfin rəyi') + ': ★ ' + theirs.rating;
-                    reviewsBox.appendChild(t);
+                    var theirsEl = document.createElement('div');
+                    theirsEl.textContent = t('web.review.theirs', 'Digər tərəfin rəyi') + ': ★ ' + theirs.rating;
+                    reviewsBox.appendChild(theirsEl);
                 }
                 if (!mine) {
                     var reviewBtn = document.createElement('button');
