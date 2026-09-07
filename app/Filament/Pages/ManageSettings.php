@@ -203,6 +203,28 @@ class ManageSettings extends Page
                         ->minValue(1)
                         ->maxValue(10)
                         ->required(),
+                    TextInput::make('request_ttl_default_hours')
+                        ->label('Sorğu default ömrü (saat)')
+                        ->helperText('Ailə popup-da təsdiqləməsə belə bu seçilir.')
+                        ->integer()
+                        ->minValue(1)
+                        ->maxValue(168)
+                        ->required(),
+                    TextInput::make('request_ttl_options_hours')
+                        ->label('Sorğu ömrü seçimləri (saat)')
+                        ->helperText('Vergüllə: 1,3,6')
+                        ->formatStateUsing(fn ($state) => is_array($state) ? implode(',', $state) : $state)
+                        ->dehydrateStateUsing(function ($state) {
+                            if (is_array($state)) {
+                                return $state;
+                            }
+
+                            return array_values(array_filter(array_map(
+                                'intval',
+                                explode(',', (string) $state)
+                            )));
+                        })
+                        ->required(),
                 ]),
             Section::make('Funksiyalar')
                 ->description('Söndürülən funksiya app-də gizlənir və ya işləmir. Xəritə/push üçün açarlar yenə .env-də qalır.')

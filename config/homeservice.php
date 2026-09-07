@@ -28,6 +28,20 @@ return [
     'otp_resend_seconds' => (int) env('OTP_RESEND_SECONDS', 30),
     // Local: 123456. Production always random. Set false to test random codes locally.
     'otp_allow_debug_code' => filter_var(env('OTP_ALLOW_DEBUG_CODE', true), FILTER_VALIDATE_BOOL),
+    /**
+     * App Store / TestFlight review phones — always OTP 123456 (even in production).
+     * Comma-separated E.164, e.g. +994501111111
+     */
+    'otp_review_phones' => array_values(array_filter(array_map(
+        static fn (string $p) => preg_replace('/\s+/', '', $p) ?: null,
+        explode(',', (string) env('OTP_REVIEW_PHONES', '+994501111111'))
+    ))),
+    /** Family request TTL (hours). Default + picker options. */
+    'request_ttl_default_hours' => (int) env('REQUEST_TTL_DEFAULT_HOURS', 1),
+    'request_ttl_options_hours' => array_values(array_filter(array_map(
+        'intval',
+        explode(',', env('REQUEST_TTL_OPTIONS_HOURS', '1,3,6'))
+    ))),
     'wallet_packages' => array_values(array_filter(array_map(
         'floatval',
         explode(',', env('WALLET_PACKAGES', '10,30,50'))

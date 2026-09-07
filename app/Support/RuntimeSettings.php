@@ -38,6 +38,9 @@ class RuntimeSettings
             'vip_days' => 'homeservice.vip_days',
             'verified_fee' => 'homeservice.verified_fee',
             'search_radius_km' => 'homeservice.search_radius_km',
+            'search_min_results' => 'homeservice.search_min_results',
+            'request_ttl_default_hours' => 'homeservice.request_ttl_default_hours',
+            'request_ttl_options_hours' => 'homeservice.request_ttl_options_hours',
             'max_category_tags' => 'homeservice.max_category_tags',
             'feature_voice_search' => 'homeservice.feature_voice_search',
             'feature_maps' => 'homeservice.feature_maps',
@@ -130,6 +133,26 @@ class RuntimeSettings
         if ($state['wallet_packages'] === []) {
             $state['wallet_packages'] = [10, 30, 50];
         }
+
+        $ttlOpts = $state['request_ttl_options_hours'] ?? [1, 3, 6];
+        if (is_string($ttlOpts)) {
+            $ttlOpts = array_filter(explode(',', $ttlOpts));
+        }
+        if (! is_array($ttlOpts)) {
+            $ttlOpts = [1, 3, 6];
+        }
+        $state['request_ttl_options_hours'] = array_values(array_unique(array_filter(array_map(
+            static fn ($v) => is_numeric($v) ? (int) $v : null,
+            $ttlOpts,
+        ), static fn ($v) => $v !== null && $v > 0)));
+        if ($state['request_ttl_options_hours'] === []) {
+            $state['request_ttl_options_hours'] = [1, 3, 6];
+        }
+        $ttlDefault = (int) ($state['request_ttl_default_hours'] ?? 1);
+        if (! in_array($ttlDefault, $state['request_ttl_options_hours'], true)) {
+            $ttlDefault = $state['request_ttl_options_hours'][0];
+        }
+        $state['request_ttl_default_hours'] = $ttlDefault;
 
         $previous = self::stored();
         $version = (int) ($previous['locales_version'] ?? config('app_locales.version', 1));

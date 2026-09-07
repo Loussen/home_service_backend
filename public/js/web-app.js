@@ -384,6 +384,138 @@
         });
     }
 
+    function requestTtlConfig() {
+        var cfg = (bootstrapCache && bootstrapCache.config) || {};
+        var options = Array.isArray(cfg.request_ttl_options_hours)
+            ? cfg.request_ttl_options_hours
+                  .map(function (h) {
+                      return parseInt(h, 10);
+                  })
+                  .filter(function (h) {
+                      return h > 0;
+                  })
+            : [1, 3, 6];
+        if (!options.length) options = [1, 3, 6];
+        var def = parseInt(cfg.request_ttl_default_hours, 10) || 1;
+        if (options.indexOf(def) < 0) def = options[0];
+        return { options: options, defaultHours: def };
+    }
+
+    /**
+     * Family picks request TTL before create. Resolves hours or null if cancelled.
+     * @returns {Promise<number|null>}
+     */
+    function confirmRequestTtl() {
+        var ttl = requestTtlConfig();
+        var selected = ttl.defaultHours;
+
+        return new Promise(function (resolve) {
+            var existing = document.getElementById('request-ttl-modal');
+            if (existing) existing.remove();
+
+            var optionsHtml = ttl.options
+                .map(function (hours) {
+                    var isDefault = hours === ttl.defaultHours;
+                    var checked = hours === selected ? ' checked' : '';
+                    var badge = isDefault
+                        ? '<span class="ttl-default-badge">' +
+                          escapeHtml(
+                              t('web.request.ttl.default_badge', 'Standart')
+                          ) +
+                          '</span>'
+                        : '';
+                    return (
+                        '<label class="ttl-option">' +
+                        '<input type="radio" name="request-ttl" value="' +
+                        hours +
+                        '"' +
+                        checked +
+                        '/>' +
+                        '<span class="ttl-option-body">' +
+                        '<span class="ttl-option-label">' +
+                        escapeHtml(
+                            t('web.request.ttl.hours', '{hours} saat', {
+                                hours: String(hours),
+                            })
+                        ) +
+                        '</span>' +
+                        badge +
+                        '</span></label>'
+                    );
+                })
+                .join('');
+
+            var modal = document.createElement('div');
+            modal.id = 'request-ttl-modal';
+            modal.className = 'modal app-alert-modal';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.innerHTML =
+                '<div class="modal-card app-alert-card tone-info ttl-modal-card">' +
+                '<h3 id="request-ttl-title">' +
+                escapeHtml(
+                    t(
+                        'web.request.ttl.title',
+                        'Sorğu nə qədər açıq qalsın?'
+                    )
+                ) +
+                '</h3>' +
+                '<p class="app-alert-message">' +
+                escapeHtml(
+                    t(
+                        'web.request.ttl.body',
+                        'Bu müddətdən sonra yeni əlaqə və cavab bağlanır.'
+                    )
+                ) +
+                '</p>' +
+                '<div class="ttl-options">' +
+                optionsHtml +
+                '</div>' +
+                '<div class="modal-actions app-alert-actions">' +
+                '<button type="button" class="btn btn-outline" id="request-ttl-cancel">' +
+                escapeHtml(t('web.request.ttl.cancel', 'Ləğv et')) +
+                '</button>' +
+                '<button type="button" class="btn btn-primary" id="request-ttl-ok">' +
+                escapeHtml(t('web.request.ttl.confirm', 'Təsdiqlə')) +
+                '</button>' +
+                '</div></div>';
+
+            document.body.appendChild(modal);
+            document.body.classList.add('app-alert-open');
+
+            function close(value) {
+                document.body.classList.remove('app-alert-open');
+                modal.remove();
+                resolve(value);
+            }
+
+            modal.querySelectorAll('input[name="request-ttl"]').forEach(function (input) {
+                input.addEventListener('change', function () {
+                    selected = parseInt(input.value, 10) || ttl.defaultHours;
+                });
+            });
+            modal.querySelector('#request-ttl-cancel').addEventListener('click', function () {
+                close(null);
+            });
+            modal.querySelector('#request-ttl-ok').addEventListener('click', function () {
+                close(selected);
+            });
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) close(null);
+            });
+            modal.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    close(null);
+                }
+            });
+            setTimeout(function () {
+                var btn = modal.querySelector('#request-ttl-ok');
+                if (btn) btn.focus();
+            }, 30);
+        });
+    }
+
     function escapeHtml(str) {
         return String(str == null ? '' : str)
             .replace(/&/g, '&amp;')
@@ -3751,10 +3883,20 @@
                       ? 'm4a'
                       : 'webm';
             var file = new File([blob], 'request.' + ext, { type: type });
+            var ttlHours = null;
 
-            setVoiceStatus('web.request.voice_uploading', 'Səs göndərilir…');
-            showPageLoader();
-            requireRole('client')
+            confirmRequestTtl()
+                .then(function (hours) {
+                    if (hours == null) {
+                        var err = new Error('ttl_cancelled');
+                        err.code = 'ttl_cancelled';
+                        throw err;
+                    }
+                    ttlHours = hours;
+                    setVoiceStatus('web.request.voice_uploading', 'Səs göndərilir…');
+                    showPageLoader();
+                    return requireRole('client');
+                })
                 .then(function () {
                     return resolveVoiceCoords();
                 })
@@ -3770,6 +3912,7 @@
                     fd.append('latitude', String(coords.lat));
                     fd.append('longitude', String(coords.lng));
                     fd.append('is_urgent', '0');
+                    fd.append('ttl_hours', String(ttlHours));
                     // No category_id / address — AI parses from voice only.
                     return api('/service-requests/audio', {
                         method: 'POST',
@@ -3810,6 +3953,13 @@
                     });
                 })
                 .catch(function (e) {
+                    if (e && (e.code === 'ttl_cancelled' || e.message === 'ttl_cancelled')) {
+                        setVoiceStatus(
+                            'web.request.voice_idle',
+                            'Hazırsınızsa yazmağa başlayın (ən azı 3, maks. 20 san). Dayandıranda sorğu göndərilir.'
+                        );
+                        return;
+                    }
                     if (e && /yalnız ailə/i.test(e.message || '')) return;
                     toast(
                         'error',
@@ -3974,20 +4124,33 @@
                 else hidePageLoader();
             }
 
-            setCreating(true);
-            requireRole('client').then(function () {
-                return api('/service-requests/text', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        text: text,
-                        category_id: categoryId,
-                        latitude: Number(el('lat').value || 0),
-                        longitude: Number(el('lng').value || 0),
-                        address: (el('place-search') && el('place-search').value.trim()) || null,
-                        is_urgent: false,
-                    }),
-                });
-            }).then(function (data) {
+            confirmRequestTtl()
+                .then(function (hours) {
+                    if (hours == null) {
+                        var err = new Error('ttl_cancelled');
+                        err.code = 'ttl_cancelled';
+                        throw err;
+                    }
+                    setCreating(true);
+                    return requireRole('client').then(function () {
+                        return api('/service-requests/text', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                text: text,
+                                category_id: categoryId,
+                                latitude: Number(el('lat').value || 0),
+                                longitude: Number(el('lng').value || 0),
+                                address:
+                                    (el('place-search') &&
+                                        el('place-search').value.trim()) ||
+                                    null,
+                                is_urgent: false,
+                                ttl_hours: hours,
+                            }),
+                        });
+                    });
+                })
+                .then(function (data) {
                 setRequestId(data.id);
                 if (window.history && window.history.replaceState) {
                     window.history.replaceState({}, '', '/request?requestId=' + encodeURIComponent(data.id));
@@ -4004,6 +4167,7 @@
                     setRequestViewMode(true);
                 });
             }).catch(function (e) {
+                if (e && (e.code === 'ttl_cancelled' || e.message === 'ttl_cancelled')) return;
                 if (e && /yalnız ailə/i.test(e.message || '')) return;
                 toast('error', t('web.request.create_failed', 'Sorğu yaradılmadı'));
                 log('Sorğu yaradılmadı: ' + e.message);

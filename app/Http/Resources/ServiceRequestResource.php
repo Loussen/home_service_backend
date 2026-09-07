@@ -30,6 +30,10 @@ class ServiceRequestResource extends JsonResource
             'status' => $this->status,
             'bumped_at' => $this->bumped_at?->toIso8601String(),
             'urgent_until' => $this->urgent_until?->toIso8601String(),
+            'expires_at' => $this->expires_at?->toIso8601String(),
+            'expires_in_hours' => $this->expires_at && $this->created_at
+                ? max(1, (int) ceil($this->created_at->diffInMinutes($this->expires_at) / 60))
+                : null,
             'matches' => $this->when($grouped !== null, $grouped),
             'matches_count' => $grouped !== null
                 ? count($grouped)

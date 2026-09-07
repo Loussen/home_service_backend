@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Repositories\TransactionRepository;
 use App\Repositories\UserRepository;
 use App\Support\BumpQuota;
+use App\Support\RequestTtl;
 use App\Support\UrgentQuota;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -89,6 +90,14 @@ class WalletService
 
     public function chargeBumpUp(User $user, ProviderProfile|ServiceRequest $target): User
     {
+        if ($target instanceof ServiceRequest) {
+            abort_unless(
+                RequestTtl::isOpenForContact($target),
+                422,
+                'Sorğunun müddəti bitib.',
+            );
+        }
+
         if (BumpQuota::isActive($target->bumped_at)) {
             $left = BumpQuota::remainingHours($target->bumped_at);
             throw ValidationException::withMessages([
@@ -118,6 +127,11 @@ class WalletService
         return DB::transaction(function () use ($user, $request) {
             $user = User::query()->lockForUpdate()->find($user->id) ?? $user;
             $request = ServiceRequest::query()->lockForUpdate()->find($request->id) ?? $request;
+            abort_unless(
+                RequestTtl::isOpenForContact($request),
+                422,
+                'Sorğunun müddəti bitib.',
+            );
             UrgentQuota::assertCanCharge($user, $request);
 
             $fee = (float) config('homeservice.urgent_fee', 2);

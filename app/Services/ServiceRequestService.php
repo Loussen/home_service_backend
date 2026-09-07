@@ -7,6 +7,7 @@ use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Repositories\ServiceRequestRepository;
 use App\Support\RequestFilters;
+use App\Support\RequestTtl;
 use App\Support\UrgentQuota;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
@@ -25,6 +26,8 @@ class ServiceRequestService
         int $perPage = 10,
         string $filter = 'all',
     ): LengthAwarePaginator {
+        RequestTtl::expireOverdue($user->id);
+
         return $this->requests->paginateForUser($user->id, $page, $perPage, $filter);
     }
 
@@ -32,8 +35,10 @@ class ServiceRequestService
     {
         $request = $this->requests->findForUser($user->id, $id);
         abort_if(! $request, 404, 'Request not found');
+        RequestTtl::expireIfNeeded($request);
 
-        return $request;
+        return $request->fresh(['category', 'matches.providerProfile.category', 'matches.providerProfile.categories', 'matches.providerProfile.user'])
+            ?? $request;
     }
 
     public function createFromAudio(
@@ -49,6 +54,7 @@ class ServiceRequestService
         ?int $childAge = null,
         ?bool $hasPet = null,
         ?float $budgetMax = null,
+        ?int $ttlHours = null,
     ): ServiceRequest {
         abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
         if ($isUrgent) {
@@ -64,17 +70,21 @@ class ServiceRequestService
             $hasPet,
             $budgetMax,
         );
+        $hours = RequestTtl::resolveHours($ttlHours);
 
         $request = $this->requests->create([
             'user_id' => $user->id,
             'raw_audio_url' => $path,
             'category_id' => $filters['category_id'],
-            'parsed_criteria' => $filters['parsed_criteria'],
+            'parsed_criteria' => array_merge($filters['parsed_criteria'] ?? [], [
+                'ttl_hours' => $hours,
+            ]),
             'latitude' => $latitude,
             'longitude' => $longitude,
             'address' => $address,
             'is_urgent' => false,
             'status' => 'processing',
+            'expires_at' => RequestTtl::expiresAtFromNow($hours),
         ]);
 
         if ($isUrgent) {
@@ -105,6 +115,7 @@ class ServiceRequestService
         ?int $childAge = null,
         ?bool $hasPet = null,
         ?float $budgetMax = null,
+        ?int $ttlHours = null,
     ): ServiceRequest {
         abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
         if ($isUrgent) {
@@ -120,17 +131,21 @@ class ServiceRequestService
             $budgetMax,
             $text,
         );
+        $hours = RequestTtl::resolveHours($ttlHours);
 
         $request = $this->requests->create([
             'user_id' => $user->id,
             'transcribed_text' => $text,
-            'parsed_criteria' => $filters['parsed_criteria'],
+            'parsed_criteria' => array_merge($filters['parsed_criteria'] ?? [], [
+                'ttl_hours' => $hours,
+            ]),
             'category_id' => $filters['category_id'],
             'latitude' => $latitude,
             'longitude' => $longitude,
             'address' => $address,
             'is_urgent' => false,
             'status' => 'processing',
+            'expires_at' => RequestTtl::expiresAtFromNow($hours),
         ]);
 
         if ($isUrgent) {

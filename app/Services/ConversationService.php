@@ -8,6 +8,7 @@ use App\Models\Offer;
 use App\Models\ProviderProfile;
 use App\Models\RequestMatch;
 use App\Models\ServiceRequest;
+use App\Support\RequestTtl;
 use App\Models\User;
 use App\Support\ConnectQuota;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -118,6 +119,11 @@ class ConversationService
                 ->where('user_id', $client->id)
                 ->find($serviceRequestId);
             abort_if(! $serviceRequest, 404, 'Request not found');
+            abort_unless(
+                RequestTtl::isOpenForContact($serviceRequest),
+                422,
+                'Sorğunun müddəti bitib. Yeni sorğu yaradın.',
+            );
         }
 
         return DB::transaction(function () use ($client, $profile, $serviceRequest, $message) {
@@ -189,6 +195,11 @@ class ConversationService
 
         $request = $match->serviceRequest;
         abort_if(! $request, 404, 'Sorğu tapılmadı');
+        abort_unless(
+            RequestTtl::isOpenForContact($request),
+            422,
+            'Bu sorğunun müddəti bitib.',
+        );
 
         $profile = $match->providerProfile;
         $client = $request->user;

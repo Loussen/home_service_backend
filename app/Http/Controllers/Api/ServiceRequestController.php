@@ -62,6 +62,9 @@ class ServiceRequestController extends Controller
             $request->validated('budget_max') !== null
                 ? (float) $request->validated('budget_max')
                 : null,
+            $request->validated('ttl_hours') !== null
+                ? (int) $request->validated('ttl_hours')
+                : null,
         );
 
         return $this->success(
@@ -87,6 +90,9 @@ class ServiceRequestController extends Controller
             $request->validated('has_pet'),
             $request->validated('budget_max') !== null
                 ? (float) $request->validated('budget_max')
+                : null,
+            $request->validated('ttl_hours') !== null
+                ? (int) $request->validated('ttl_hours')
                 : null,
         );
 

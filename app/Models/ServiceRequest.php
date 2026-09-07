@@ -22,6 +22,7 @@ class ServiceRequest extends Model
         'status',
         'bumped_at',
         'urgent_until',
+        'expires_at',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class ServiceRequest extends Model
             'longitude' => 'float',
             'bumped_at' => 'datetime',
             'urgent_until' => 'datetime',
+            'expires_at' => 'datetime',
         ];
     }
 

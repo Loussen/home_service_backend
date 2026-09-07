@@ -1030,6 +1030,43 @@
         @apply min-w-[10rem];
     }
 
+    .ttl-modal-card {
+        @apply text-left;
+    }
+
+    .ttl-modal-card h3,
+    .ttl-modal-card .app-alert-message {
+        @apply text-left;
+    }
+
+    .ttl-options {
+        @apply mt-4 flex flex-col gap-2;
+    }
+
+    .ttl-option {
+        @apply flex cursor-pointer items-center gap-3 rounded-[16px] border border-line bg-canvas px-4 py-3 transition;
+    }
+
+    .ttl-option:has(input:checked) {
+        @apply border-brand bg-brand/5;
+    }
+
+    .ttl-option input {
+        @apply accent-brand;
+    }
+
+    .ttl-option-body {
+        @apply flex flex-1 items-center justify-between gap-2;
+    }
+
+    .ttl-option-label {
+        @apply text-[0.95rem] font-semibold text-ink;
+    }
+
+    .ttl-default-badge {
+        @apply text-[0.75rem] font-semibold text-brand-accent;
+    }
+
     body.app-alert-open {
         overflow: hidden;
     }

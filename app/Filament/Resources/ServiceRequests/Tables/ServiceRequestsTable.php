@@ -57,6 +57,7 @@ class ServiceRequestsTable
                         'matched' => 'Uyğunlaşıb',
                         'completed' => 'Tamamlanıb',
                         'cancelled' => 'Ləğv edilib',
+                        'expired' => 'Müddəti bitib',
                         default => $state,
                     }),
                 TextColumn::make('created_at')
@@ -74,6 +75,7 @@ class ServiceRequestsTable
                         'matched' => 'Uyğunlaşıb',
                         'completed' => 'Tamamlanıb',
                         'cancelled' => 'Ləğv edilib',
+                        'expired' => 'Müddəti bitib',
                     ]),
                 SelectFilter::make('category_id')
                     ->label('Kateqoriya')

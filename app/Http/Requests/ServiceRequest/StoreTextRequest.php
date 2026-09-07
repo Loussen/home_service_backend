@@ -2,13 +2,22 @@
 
 namespace App\Http\Requests\ServiceRequest;
 
+use App\Support\RequestTtl;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTextRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('ttl_hours') && $this->input('ttl_hours') !== null && $this->input('ttl_hours') !== '') {
+            $this->merge(['ttl_hours' => (int) $this->input('ttl_hours')]);
+        }
     }
 
     public function rules(): array
@@ -25,6 +34,7 @@ class StoreTextRequest extends FormRequest
             'is_urgent' => ['sometimes', 'boolean'],
             'scheduled_at' => ['nullable', 'date', 'after:now'],
             'time_slot' => ['nullable', 'string', 'in:morning,afternoon,evening,night'],
+            'ttl_hours' => ['nullable', 'integer', Rule::in(RequestTtl::optionsHours())],
         ];
     }
 }

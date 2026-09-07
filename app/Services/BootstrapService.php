@@ -47,6 +47,8 @@ class BootstrapService
                 'urgent_hours' => $hs['urgent_hours'],
                 'urgent_daily_limit' => $hs['urgent_daily_limit'],
                 'urgent_radius_km' => $hs['urgent_radius_km'],
+                'request_ttl_default_hours' => (int) ($hs['request_ttl_default_hours'] ?? 1),
+                'request_ttl_options_hours' => array_values($hs['request_ttl_options_hours'] ?? [1, 3, 6]),
                 'places_configured' => filled($hs['google_maps_api_key']),
                 'onboarding_steps' => [
                     ['id' => 'name', 'title' => $stringMap['onboarding.step.name'] ?? ''],
