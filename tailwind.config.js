@@ -32,7 +32,7 @@ export default {
                 line: '#DCE3EF',
             },
             fontFamily: {
-                sans: ['Outfit', ...defaultTheme.fontFamily.sans],
+                sans: ['Montserrat', ...defaultTheme.fontFamily.sans],
                 brand: ['Fraunces', ...defaultTheme.fontFamily.serif],
             },
             boxShadow: {
