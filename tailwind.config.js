@@ -33,7 +33,7 @@ export default {
             },
             fontFamily: {
                 sans: ['Montserrat', ...defaultTheme.fontFamily.sans],
-                brand: ['Fraunces', ...defaultTheme.fontFamily.serif],
+                brand: ['Montserrat', ...defaultTheme.fontFamily.sans],
             },
             boxShadow: {
                 soft: '0 4px 16px rgba(8, 33, 91, 0.06)',
