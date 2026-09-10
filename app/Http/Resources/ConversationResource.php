@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Offer;
+use App\Support\PublicMediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -37,7 +38,7 @@ class ConversationResource extends JsonResource
                 'id' => $other->id,
                 'name' => $other->name,
                 'phone' => $this->hasSharedContact() ? $other->phone : null,
-                'avatar_url' => $other->avatar_url,
+                'avatar_url' => PublicMediaUrl::make($other->avatar_url),
             ] : null,
             'provider_profile' => new ProviderProfileResource($this->whenLoaded('providerProfile')),
             'last_message' => $this->when(

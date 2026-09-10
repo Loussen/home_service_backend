@@ -7,10 +7,10 @@ use App\Support\BumpQuota;
 use App\Support\ConnectQuota;
 use App\Support\ProfileCompleteness;
 use App\Support\RequestLocale;
+use App\Support\PublicMediaUrl;
 use App\Support\UrgentQuota;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 /** @mixin \App\Models\User */
 class UserResource extends JsonResource
@@ -24,13 +24,7 @@ class UserResource extends JsonResource
             return is_string($value) && $value !== '' ? $value : $fallback;
         };
 
-        $avatar = $this->avatar_url;
-        if ($avatar && ! str_starts_with($avatar, 'http')) {
-            $avatar = Storage::disk('public')->url($avatar);
-            if (! str_starts_with($avatar, 'http')) {
-                $avatar = url($avatar);
-            }
-        }
+        $avatar = PublicMediaUrl::make($this->avatar_url);
 
         $approvalMessage = null;
         if ($this->isProvider() && $this->provider_approval_status) {

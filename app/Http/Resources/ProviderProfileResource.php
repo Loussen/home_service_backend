@@ -3,9 +3,9 @@
 namespace App\Http\Resources;
 
 use App\Support\BumpQuota;
+use App\Support\PublicMediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 /** @mixin \App\Models\ProviderProfile */
 class ProviderProfileResource extends JsonResource
@@ -27,23 +27,13 @@ class ProviderProfileResource extends JsonResource
             'bio' => $this->bio,
             'user_name' => $this->whenLoaded('user', fn () => $this->user?->name),
             'user_avatar_url' => $this->whenLoaded('user', function () {
-                $avatar = $this->user?->avatar_url;
-                if (! $avatar) {
-                    return null;
-                }
-                if (str_starts_with($avatar, 'http')) {
-                    return $avatar;
-                }
-
-                return Storage::disk('public')->url($avatar);
+                return PublicMediaUrl::make($this->user?->avatar_url);
             }),
             'user_phone' => $this->when(
                 $this->relationLoaded('user') && $request->user()?->id === $this->user_id,
                 fn () => $this->user?->phone,
             ),
-            'audio_intro_url' => $this->audio_intro_url
-                ? Storage::disk('public')->url($this->audio_intro_url)
-                : null,
+            'audio_intro_url' => PublicMediaUrl::make($this->audio_intro_url),
             'is_verified' => $this->is_verified,
             'is_vip' => $this->is_vip,
             'latitude' => $this->latitude,
