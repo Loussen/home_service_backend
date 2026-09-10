@@ -2715,7 +2715,9 @@
 
     function bindOnboardingPage() {
         var step = 0;
-        var selected = getSelectedCategories();
+        // New registration must not inherit leftover chips from a prior session/profile visit.
+        setSelectedCategories([]);
+        var selected = [];
         var categoryTree = [];
         var mapReady = false;
 
