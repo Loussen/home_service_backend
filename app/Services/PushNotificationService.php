@@ -244,6 +244,55 @@ class PushNotificationService
     }
 
     /**
+     * Admin broadcast: send the same title/body to many users.
+     *
+     * @param  iterable<int|User>  $users
+     * @param  array<string, string>  $data
+     * @return array{targeted: int, delivered: int, skipped_no_token: int}
+     */
+    public function broadcast(
+        iterable $users,
+        string $title,
+        string $body,
+        array $data = [],
+    ): array {
+        $stats = [
+            'targeted' => 0,
+            'delivered' => 0,
+            'skipped_no_token' => 0,
+        ];
+
+        if (! config('homeservice.feature_push', true)) {
+            return $stats;
+        }
+
+        $payload = array_merge(['type' => 'admin'], $data);
+
+        foreach ($users as $user) {
+            if (! $user instanceof User) {
+                $user = User::query()->with('deviceTokens')->find((int) $user);
+            }
+            if (! $user) {
+                continue;
+            }
+
+            $stats['targeted']++;
+
+            if ($user->deviceTokens()->doesntExist()) {
+                $stats['skipped_no_token']++;
+
+                continue;
+            }
+
+            if ($this->sendToUser($user, $title, $body, $payload)) {
+                $stats['delivered']++;
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
      * @param  iterable<RequestMatch>  $matches
      */
     private function markNotified(iterable $matches): void
