@@ -31,6 +31,15 @@ class FcmClient
         }
 
         $projectId = $this->credentials()['project_id'];
+        $title = (string) ($notification['title'] ?? '');
+        $body = (string) ($notification['body'] ?? '');
+
+        // FCM data values must be strings. Title/body go in data so Android can
+        // render a local heads-up with the colorful launcher largeIcon.
+        $dataPayload = ['title' => $title, 'body' => $body];
+        foreach ($data as $key => $value) {
+            $dataPayload[(string) $key] = (string) $value;
+        }
 
         try {
             $response = Http::withToken($this->accessToken())
@@ -41,21 +50,11 @@ class FcmClient
                     [
                         'message' => [
                             'token' => $token,
-                            'notification' => [
-                                'title' => $notification['title'] ?? '',
-                                'body' => $notification['body'] ?? '',
-                            ],
-                            'data' => $data,
+                            'data' => $dataPayload,
+                            // No top-level / android.notification — Android shows via app
+                            // (largeIcon = app icon). iOS still uses APNs alert below.
                             'android' => [
                                 'priority' => 'high',
-                                'notification' => [
-                                    'channel_id' => 'mysancho_high',
-                                    'notification_priority' => 'PRIORITY_HIGH',
-                                    'default_sound' => true,
-                                    'default_vibrate_timings' => true,
-                                    'icon' => 'ic_stat_mysancho',
-                                    'color' => '#08215B',
-                                ],
                             ],
                             'apns' => [
                                 'headers' => [
@@ -63,6 +62,10 @@ class FcmClient
                                 ],
                                 'payload' => [
                                     'aps' => [
+                                        'alert' => [
+                                            'title' => $title,
+                                            'body' => $body,
+                                        ],
                                         'sound' => 'default',
                                         'badge' => 1,
                                     ],
