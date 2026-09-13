@@ -29,13 +29,26 @@ class AppStringRepository
 
         $result = [];
         foreach ($keys as $key) {
-            $result[$key] = $dbLocale[$key]
+            $raw = $dbLocale[$key]
                 ?? ($fileLocale[$key] ?? null)
                 ?? ($dbDefault[$key] ?? null)
                 ?? ($fileDefault[$key] ?? $key);
+            $result[$key] = $this->normalizeNewlines((string) $raw);
         }
 
         return $result;
+    }
+
+    /**
+     * PHP single-quoted config / older DB rows may store literal "\n" instead of a newline.
+     */
+    private function normalizeNewlines(string $value): string
+    {
+        if (! str_contains($value, '\\')) {
+            return $value;
+        }
+
+        return str_replace(["\\r\\n", '\\n', '\\r'], ["\n", "\n", "\n"], $value);
     }
 
     public function supportedLocales(): array
