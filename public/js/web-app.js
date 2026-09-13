@@ -4878,10 +4878,19 @@
                 }
                 showAppConfirm({
                     title: t('block.title', 'Blokla'),
-                    message: t(
-                        'block.confirm',
-                        'Bu istifadəçini bloklamaq istəyirsiniz? Söhbət tarixçəsi qalacaq, amma heç bir tərəf mesaj göndərə bilməyəcək.'
-                    ),
+                    message: (function () {
+                        var role = (meCache && meCache.active_role) || '';
+                        if (role === 'provider') {
+                            return t(
+                                'block.confirm.provider',
+                                'Bu müştərini bloklamaq istəyirsiniz? Bundan sonra onun işləri sizə gəlməyəcək və mesaj yazmaq olmaz. Söhbət tarixçəsi qalacaq.'
+                            );
+                        }
+                        return t(
+                            'block.confirm.client',
+                            'Bu xidmətçini bloklamaq istəyirsiniz? Bundan sonra sorğularınızın nəticəsində görünməyəcək və mesaj yazmaq olmaz. Söhbət tarixçəsi qalacaq.'
+                        );
+                    })(),
                     confirmLabel: t('block.confirm_action', 'Blokla'),
                     cancelLabel: t('block.cancel', 'Ləğv'),
                     tone: 'danger',

@@ -336,6 +336,8 @@ return array (
   'block.menu' => 'Blokla',
   'block.title' => 'Blokla',
   'block.confirm' => 'Bu istifadəçini bloklamaq istəyirsiniz? Söhbət tarixçəsi qalacaq, amma heç bir tərəf mesaj göndərə bilməyəcək.',
+  'block.confirm.client' => 'Bu xidmətçini bloklamaq istəyirsiniz? Bundan sonra sorğularınızın nəticəsində görünməyəcək və mesaj yazmaq olmaz. Söhbət tarixçəsi qalacaq.',
+  'block.confirm.provider' => 'Bu müştərini bloklamaq istəyirsiniz? Bundan sonra onun işləri sizə gəlməyəcək və mesaj yazmaq olmaz. Söhbət tarixçəsi qalacaq.',
   'block.cancel' => 'Ləğv',
   'block.confirm_action' => 'Blokla',
   'block.done' => 'İstifadəçi bloklandı',
