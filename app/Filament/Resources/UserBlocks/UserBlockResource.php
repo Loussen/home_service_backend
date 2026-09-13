@@ -51,7 +51,7 @@ class UserBlockResource extends Resource
                     ->label('Kim bloklayıb')
                     ->description(fn (UserBlock $record): string => trim(implode(' · ', array_filter([
                         $record->blocker?->phone,
-                        $record->blocker?->role,
+                        self::roleLabel($record->blocker?->active_role),
                         $record->blocker_id ? '#'.$record->blocker_id : null,
                     ]))) ?: '—')
                     ->searchable()
@@ -62,20 +62,22 @@ class UserBlockResource extends Resource
                     ->label('Kim bloklanıb')
                     ->description(fn (UserBlock $record): string => trim(implode(' · ', array_filter([
                         $record->blocked?->phone,
-                        $record->blocked?->role,
+                        self::roleLabel($record->blocked?->active_role),
                         $record->blocked_id ? '#'.$record->blocked_id : null,
                     ]))) ?: '—')
                     ->searchable()
                     ->url(fn (UserBlock $record): ?string => $record->blocked_id
                         ? UserResource::getUrl('edit', ['record' => $record->blocked_id])
                         : null),
-                TextColumn::make('blocker.role')
+                TextColumn::make('blocker.active_role')
                     ->label('Bloklayan rol')
                     ->badge()
+                    ->formatStateUsing(fn (?string $state): string => self::roleLabel($state) ?? '—')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('blocked.role')
+                TextColumn::make('blocked.active_role')
                     ->label('Bloklanan rol')
                     ->badge()
+                    ->formatStateUsing(fn (?string $state): string => self::roleLabel($state) ?? '—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->label('Tarix')
@@ -91,7 +93,7 @@ class UserBlockResource extends Resource
                         'provider' => 'İcraçı',
                     ])
                     ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
-                        ? $query->whereHas('blocker', fn (Builder $q) => $q->where('role', $data['value']))
+                        ? $query->whereHas('blocker', fn (Builder $q) => $q->where('active_role', $data['value']))
                         : $query),
                 SelectFilter::make('blocked_role')
                     ->label('Bloklanan rol')
@@ -100,7 +102,7 @@ class UserBlockResource extends Resource
                         'provider' => 'İcraçı',
                     ])
                     ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
-                        ? $query->whereHas('blocked', fn (Builder $q) => $q->where('role', $data['value']))
+                        ? $query->whereHas('blocked', fn (Builder $q) => $q->where('active_role', $data['value']))
                         : $query),
             ])
             ->recordActions([
@@ -138,7 +140,16 @@ class UserBlockResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['blocker:id,name,phone,role', 'blocked:id,name,phone,role']);
+            ->with(['blocker:id,name,phone,active_role', 'blocked:id,name,phone,active_role']);
+    }
+
+    private static function roleLabel(?string $role): ?string
+    {
+        return match ($role) {
+            'client' => 'Ailə',
+            'provider' => 'İcraçı',
+            default => $role,
+        };
     }
 
     public static function getPages(): array
