@@ -9,21 +9,49 @@ use Illuminate\Console\Command;
 
 class SendTestPushCommand extends Command
 {
-    protected $signature = 'push:test {userId : User id}';
+    protected $signature = 'push:test
+                            {userId? : User id (omit when using --token)}
+                            {--token= : Send directly to this FCM device token}';
 
-    protected $description = 'Send a test FCM push to a user\'s registered devices';
+    protected $description = 'Send a test FCM push to a user\'s devices or a raw token';
 
     public function handle(PushNotificationService $push, FcmClient $fcm): int
     {
-        $user = User::query()->with('deviceTokens')->find($this->argument('userId'));
-        if (! $user) {
-            $this->error('User not found');
+        if (! $fcm->isConfigured()) {
+            $this->error('FCM not configured. Set FCM_CREDENTIALS or FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY.');
 
             return self::FAILURE;
         }
 
-        if (! $fcm->isConfigured()) {
-            $this->warn('FCM not configured. Set FCM_CREDENTIALS or FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY.');
+        $rawToken = trim((string) $this->option('token'));
+        if ($rawToken !== '') {
+            $result = $fcm->send(
+                $rawToken,
+                ['title' => 'Sizə uyğun sorğu', 'body' => 'Test bildirişi — İşlər tabını açın'],
+                ['type' => 'new_job']
+            );
+            if ($result['ok']) {
+                $this->info('Push sent to token');
+
+                return self::SUCCESS;
+            }
+            $this->error('FCM error: '.($result['error'] ?? 'unknown'));
+
+            return self::FAILURE;
+        }
+
+        $userId = $this->argument('userId');
+        if (! $userId) {
+            $this->error('Provide userId or --token=');
+
+            return self::FAILURE;
+        }
+
+        $user = User::query()->with('deviceTokens')->find($userId);
+        if (! $user) {
+            $this->error('User not found');
+
+            return self::FAILURE;
         }
 
         $this->info('Tokens: '.$user->deviceTokens->count());
