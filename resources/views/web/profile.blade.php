@@ -56,6 +56,7 @@
                 <a href="{{ route('web.request') }}" class="btn btn-primary" data-i18n="web.dashboard.cta_new_request">{{ wt('web.dashboard.cta_new_request', 'Yeni sorğu') }}</a>
                 <a href="{{ route('web.requests') }}" class="btn btn-outline" data-i18n="web.nav.requests">{{ wt('web.nav.requests', 'Sorğularım') }}</a>
                 <a href="{{ route('web.chat') }}" class="btn btn-outline" data-i18n="web.dashboard.cta_chats">{{ wt('web.dashboard.cta_chats', 'Söhbətlər') }}</a>
+                <a href="{{ route('web.blocked') }}" class="btn btn-outline" data-i18n="web.nav.blocked">{{ wt('web.nav.blocked', 'Bloklanmışlar') }}</a>
                 <a href="{{ route('web.app') }}" class="btn btn-outline" data-i18n="web.nav.home">{{ wt('web.nav.home', 'Ana səhifə') }}</a>
             </div>
         </section>

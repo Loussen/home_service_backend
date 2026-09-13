@@ -53,6 +53,11 @@ class WebAppController extends Controller
         return view('web.chat-thread', ['conversationId' => $id]);
     }
 
+    public function blocked(): View
+    {
+        return view('web.blocked');
+    }
+
     public function jobs(): View
     {
         return view('web.jobs');

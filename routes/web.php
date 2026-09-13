@@ -12,6 +12,7 @@ Route::get('/request', [WebAppController::class, 'request'])->name('web.request'
 Route::get('/requests', [WebAppController::class, 'requests'])->name('web.requests');
 Route::get('/chat', [WebAppController::class, 'chat'])->name('web.chat');
 Route::get('/chat/{id}', [WebAppController::class, 'chatShow'])->whereNumber('id')->name('web.chat.show');
+Route::get('/blocked', [WebAppController::class, 'blocked'])->name('web.blocked');
 Route::get('/jobs', [WebAppController::class, 'jobs'])->name('web.jobs');
 Route::get('/providers/{id}', [WebAppController::class, 'providerShow'])
     ->whereNumber('id')

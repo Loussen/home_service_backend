@@ -643,6 +643,46 @@
         @apply mb-0;
     }
 
+    .thread-head-actions {
+        @apply flex flex-wrap items-center justify-end gap-2;
+    }
+
+    .thread-menu {
+        @apply relative;
+    }
+
+    .thread-menu > summary {
+        @apply list-none;
+    }
+
+    .thread-menu > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .thread-menu-panel {
+        @apply absolute right-0 z-30 mt-1.5 min-w-[11rem] rounded-2xl border border-line bg-white p-1 shadow-lift;
+    }
+
+    .thread-menu-item {
+        @apply block w-full cursor-pointer rounded-xl border-0 bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-ink transition hover:bg-canvas;
+    }
+
+    .thread-menu-item.is-danger {
+        @apply text-[#B42318];
+    }
+
+    .blocked-item {
+        @apply flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3;
+    }
+
+    .blocked-item-name {
+        @apply m-0 text-base font-bold text-ink;
+    }
+
+    .blocked-item-meta {
+        @apply mt-0.5 text-sm text-mute;
+    }
+
     .requests-toolbar {
         @apply mb-6 items-end border-b border-line pb-5;
     }

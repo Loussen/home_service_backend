@@ -11,9 +11,22 @@
                 <a class="muted" href="{{ route('web.chat') }}" data-i18n="web.chat.back">{{ wt('web.chat.back', '← Söhbətlər') }}</a>
                 <h2 id="thread-title">{{ str_replace('{id}', (string) $conversationId, wt('web.chat.thread_heading', 'Söhbət #{id}')) }}</h2>
             </div>
-            <button type="button" id="open-offer" class="btn btn-primary btn-inline" hidden data-i18n="web.offer.send">
-                {{ wt('web.offer.send', 'Təklif göndər') }}
-            </button>
+            <div class="thread-head-actions">
+                <button type="button" id="open-offer" class="btn btn-primary btn-inline" hidden data-i18n="web.offer.send">
+                    {{ wt('web.offer.send', 'Təklif göndər') }}
+                </button>
+                <details class="thread-menu" id="thread-menu">
+                    <summary class="btn btn-outline btn-inline" aria-label="{{ wt('web.common.more', 'Digər') }}">⋯</summary>
+                    <div class="thread-menu-panel" role="menu">
+                        <button type="button" id="thread-report" class="thread-menu-item" role="menuitem" data-i18n="report.menu">
+                            {{ wt('report.menu', 'Şikayət et') }}
+                        </button>
+                        <button type="button" id="thread-block" class="thread-menu-item is-danger" role="menuitem" data-i18n="block.menu">
+                            {{ wt('block.menu', 'Blokla') }}
+                        </button>
+                    </div>
+                </details>
+            </div>
         </div>
         <div id="thread-messages" class="thread"></div>
         <div class="composer mt">
@@ -69,6 +82,30 @@
             <div class="modal-actions">
                 <button type="button" id="review-cancel" class="btn btn-outline btn-inline" data-i18n="web.common.close">{{ wt('web.common.close', 'Bağla') }}</button>
                 <button type="button" id="review-submit" class="btn btn-primary btn-inline" data-i18n="web.common.send">{{ wt('web.common.send', 'Göndər') }}</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="report-modal" class="modal" hidden>
+        <div class="modal-card">
+            <h3 data-i18n="report.title">{{ wt('report.title', 'Şikayət') }}</h3>
+            <label class="field">
+                <span data-i18n="report.menu">{{ wt('report.menu', 'Şikayət et') }}</span>
+                <select id="report-reason">
+                    <option value="spam">{{ wt('report.reason.spam', 'Spam') }}</option>
+                    <option value="harassment">{{ wt('report.reason.harassment', 'Təzyiq') }}</option>
+                    <option value="fraud">{{ wt('report.reason.fraud', 'Fırıldaq') }}</option>
+                    <option value="inappropriate">{{ wt('report.reason.inappropriate', 'Uyğun deyil') }}</option>
+                    <option value="other">{{ wt('report.reason.other', 'Digər') }}</option>
+                </select>
+            </label>
+            <label class="field">
+                <span data-i18n="report.details_label">{{ wt('report.details_label', 'Əlavə qeyd (istəyə bağlı)') }}</span>
+                <input id="report-details" type="text" maxlength="1000" placeholder="{{ wt('report.details_label', 'Əlavə qeyd') }}">
+            </label>
+            <div class="modal-actions">
+                <button type="button" id="report-cancel" class="btn btn-outline btn-inline" data-i18n="web.common.close">{{ wt('web.common.close', 'Bağla') }}</button>
+                <button type="button" id="report-submit" class="btn btn-primary btn-inline" data-i18n="report.send">{{ wt('report.send', 'Göndər') }}</button>
             </div>
         </div>
     </div>

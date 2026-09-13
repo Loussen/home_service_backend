@@ -55,7 +55,7 @@ class ModerationService
     public function blockedUsersFor(User $user): Collection
     {
         return UserBlock::query()
-            ->with(['blocked:id,name,avatar_url,role'])
+            ->with(['blocked:id,name,avatar_url,active_role'])
             ->where('blocker_id', $user->id)
             ->latest('id')
             ->get()
@@ -66,7 +66,7 @@ class ModerationService
                     'id' => (int) $block->blocked_id,
                     'name' => $target?->name,
                     'avatar_url' => PublicMediaUrl::make($target?->avatar_url),
-                    'role' => $target?->role,
+                    'role' => $target?->active_role,
                     'blocked_at' => $block->created_at?->toIso8601String(),
                 ];
             })

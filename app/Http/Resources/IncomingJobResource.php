@@ -30,6 +30,7 @@ class IncomingJobResource extends JsonResource
                 'address' => $sr->address,
                 'latitude' => $sr->latitude,
                 'longitude' => $sr->longitude,
+                'parsed_criteria' => $sr->parsed_criteria,
                 'category' => $sr->category ? [
                     'id' => $sr->category->id,
                     'name' => $sr->category->nameFor($locale),
