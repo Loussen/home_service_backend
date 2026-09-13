@@ -1163,6 +1163,23 @@
         return Promise.resolve();
     }
 
+    function toggleFavorite(profileId, currentlyFavorite) {
+        var path = '/provider-profiles/' + profileId + '/favorite';
+        return requireRole('client').then(function () {
+            return currentlyFavorite
+                ? api(path, { method: 'DELETE' })
+                : api(path, { method: 'POST', body: JSON.stringify({}) });
+        }).then(function () {
+            toast(
+                'success',
+                currentlyFavorite
+                    ? t('favorites.removed', 'Seçilmişlərdən çıxarıldı')
+                    : t('favorites.added', 'Seçilmişlərə əlavə olundu')
+            );
+            return !currentlyFavorite;
+        });
+    }
+
     function setRoleOnce(role) {
         if (meCache && meCache.needs_role === false) {
             if (meCache.active_role === role) return Promise.resolve();
@@ -2069,8 +2086,21 @@
             if (id) card.setAttribute('data-provider-id', String(id));
             var reasons = renderMatchReasonsHtml(m.reasons);
             card.innerHTML =
+                '<div class="match-card-top">' +
                 '<h3>' + esc(provider.user_name || provider.title || t('web.role.provider', 'İcraçı')) +
                 (provider.is_vip ? ' <span class="pill pill-gold">VIP</span>' : '') + '</h3>' +
+                '<button type="button" class="btn-icon favorite-toggle' +
+                (provider.is_favorite ? ' is-on' : '') +
+                '" data-id="' + esc(id) + '" aria-label="' +
+                esc(
+                    provider.is_favorite
+                        ? t('favorites.toggle_remove', 'Seçilmişdən çıxar')
+                        : t('favorites.toggle_add', 'Seçilmişə əlavə et')
+                ) +
+                '">' +
+                (provider.is_favorite ? '★' : '☆') +
+                '</button>' +
+                '</div>' +
                 reasons +
                 '<p class="meta">' + esc(t('web.match.score_label', 'Skor: {score}%', { score: Math.round(m.match_score || 0) })) + ' · ' +
                 esc(m.distance_km != null ? m.distance_km : '-') + ' km</p>' +
@@ -2095,6 +2125,32 @@
                         if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     });
                 }
+            }
+
+            var favBtn = card.querySelector('.favorite-toggle');
+            if (favBtn) {
+                favBtn.addEventListener('click', function (evt) {
+                    evt.stopPropagation();
+                    var btn = evt.currentTarget;
+                    var pid = Number(btn.getAttribute('data-id'));
+                    var on = btn.classList.contains('is-on');
+                    if (!pid) return;
+                    toggleFavorite(pid, on)
+                        .then(function (nowOn) {
+                            btn.classList.toggle('is-on', nowOn);
+                            btn.textContent = nowOn ? '★' : '☆';
+                            btn.setAttribute(
+                                'aria-label',
+                                nowOn
+                                    ? t('favorites.toggle_remove', 'Seçilmişdən çıxar')
+                                    : t('favorites.toggle_add', 'Seçilmişə əlavə et')
+                            );
+                            provider.is_favorite = nowOn;
+                        })
+                        .catch(function (e) {
+                            toast('error', e.message || t('error.generic', 'Xəta baş verdi'));
+                        });
+                });
             }
 
             var profileBtn = card.querySelector('.view-profile');
@@ -2491,6 +2547,7 @@
         var subEl = el('pp-subtitle');
         var actions = el('pp-actions');
         var connectBtn = el('pp-connect');
+        var favBtn = el('pp-favorite');
         var back = el('pp-back');
 
         if (back) {
@@ -2519,6 +2576,27 @@
                 });
             }
             if (actions) actions.hidden = false;
+            if (favBtn && meCache && meCache.active_role === 'client') {
+                favBtn.hidden = false;
+                function paintFav(on) {
+                    favBtn.classList.toggle('is-favorite', on);
+                    favBtn.textContent = on
+                        ? t('favorites.toggle_remove', 'Seçilmişdən çıxar')
+                        : t('favorites.toggle_add', 'Seçilmişə əlavə et');
+                    favBtn.dataset.on = on ? '1' : '0';
+                }
+                paintFav(!!provider.is_favorite);
+                favBtn.onclick = function () {
+                    var on = favBtn.dataset.on === '1';
+                    toggleFavorite(profileId, on)
+                        .then(function (nowOn) {
+                            paintFav(nowOn);
+                        })
+                        .catch(function (e) {
+                            toast('error', e.message || t('error.generic', 'Xəta baş verdi'));
+                        });
+                };
+            }
             if (connectBtn && meCache && meCache.active_role === 'client' && requestId) {
                 connectBtn.hidden = false;
                 connectBtn.onclick = function () {
@@ -4269,12 +4347,23 @@
                 rows.forEach(function (c) {
                     var other = (c.other_user && c.other_user.name) || 'İstifadəçi';
                     var preview = (c.last_message && c.last_message.body) || t('web.chat.new_preview', 'Yeni söhbət');
+                    var requestCtx = conversationRequestContext(c);
                     var a = document.createElement('a');
-                    a.className = 'chat-item';
+                    a.className = 'chat-item' + (c.is_blocked ? ' is-blocked' : '');
                     a.href = '/chat/' + c.id;
                     a.innerHTML =
+                        '<div class="chat-item-top">' +
                         '<b>' + esc(other) + '</b>' +
+                        (c.is_blocked
+                            ? ' <span class="chat-blocked-badge">' +
+                              esc(t('chat.blocked_badge', 'Bloklanıb')) +
+                              '</span>'
+                            : '') +
                         (c.unread_count ? ' <span class="pill">' + esc(c.unread_count) + '</span>' : '') +
+                        '</div>' +
+                        (requestCtx
+                            ? '<div class="chat-item-request">' + esc(requestCtx) + '</div>'
+                            : '') +
                         '<div class="muted">' + esc(preview) + '</div>';
                     list.appendChild(a);
                 });
@@ -4475,11 +4564,106 @@
             threadConversation = conversation;
             var me = unwrapMe(meCache);
             var other = (conversation.other_user && conversation.other_user.name) || 'Söhbət';
+            var isBlocked = conversation.is_blocked === true;
+            var requestCtx = conversationRequestContext(conversation);
             if (el('thread-title')) {
-                el('thread-title').textContent = other;
+                el('thread-title').textContent = other + (isBlocked
+                    ? ' · ' + t('chat.blocked_badge', 'Bloklanıb')
+                    : '');
+            }
+            var threadSub = el('thread-request-context');
+            if (!threadSub) {
+                threadSub = document.createElement('p');
+                threadSub.id = 'thread-request-context';
+                threadSub.className = 'thread-request-context muted';
+                var titleEl = el('thread-title');
+                if (titleEl && titleEl.parentNode) {
+                    titleEl.parentNode.appendChild(threadSub);
+                }
+            }
+            if (requestCtx) {
+                threadSub.hidden = false;
+                threadSub.textContent = requestCtx;
+            } else {
+                threadSub.hidden = true;
+                threadSub.textContent = '';
             }
             if (openOfferBtn) {
-                openOfferBtn.hidden = conversation.can_send_offer !== true;
+                openOfferBtn.hidden = conversation.can_send_offer !== true || isBlocked;
+            }
+
+            var banner = el('thread-blocked-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'thread-blocked-banner';
+                banner.className = 'thread-blocked-banner';
+                var head = el('thread-title') && el('thread-title').closest('.section-head');
+                if (head && head.parentNode) {
+                    head.parentNode.insertBefore(banner, head.nextSibling);
+                }
+            }
+            if (isBlocked) {
+                banner.hidden = false;
+                banner.innerHTML =
+                    '<p>' +
+                    esc(
+                        conversation.blocked_by_me
+                            ? t(
+                                  'chat.blocked_by_me_hint',
+                                  'Bu istifadəçini bloklamısınız. Tarixçə açıqdır; mesaj üçün bloku götürün.'
+                              )
+                            : t(
+                                  'chat.blocked_hint',
+                                  'Bu söhbət bloklanıb. Tarixçəyə baxa bilərsiniz, mesaj göndərmək olmur.'
+                              )
+                    ) +
+                    '</p>' +
+                    (conversation.blocked_by_me
+                        ? '<button type="button" class="btn btn-outline btn-inline" id="thread-unblock-inline">' +
+                          esc(t('block.unblock_action', 'Bloku götür')) +
+                          '</button>'
+                        : '');
+                var unblockInline = el('thread-unblock-inline');
+                if (unblockInline) {
+                    unblockInline.addEventListener('click', function () {
+                        var targetId = otherUserId();
+                        if (!targetId) return;
+                        showAppConfirm({
+                            title: t('block.unblock_title', 'Bloku götür'),
+                            message: t('block.unblock_confirm', '{name} üçün bloku götürmək istəyirsiniz?', {
+                                name: other,
+                            }),
+                            confirmLabel: t('block.unblock_action', 'Bloku götür'),
+                            cancelLabel: t('block.cancel', 'Ləğv'),
+                            tone: 'info',
+                        }).then(function (ok) {
+                            if (!ok) return;
+                            return api('/users/' + targetId + '/block', { method: 'DELETE' }).then(function () {
+                                toast('success', t('block.unblocked', 'Blok götürüldü'));
+                                return loadThread();
+                            });
+                        }).catch(function (e) {
+                            toast('error', e.message || t('error.generic', 'Xəta baş verdi'));
+                        });
+                    });
+                }
+            } else {
+                banner.hidden = true;
+                banner.innerHTML = '';
+            }
+
+            var composer = document.querySelector('.composer');
+            if (composer) {
+                composer.hidden = isBlocked;
+            }
+
+            var blockBtn = el('thread-block');
+            var unblockBtn = el('thread-unblock');
+            if (blockBtn) {
+                blockBtn.hidden = isBlocked;
+            }
+            if (unblockBtn) {
+                unblockBtn.hidden = !(conversation.blocked_by_me === true);
             }
 
             var box = el('thread-messages');
@@ -4525,6 +4709,13 @@
         }
 
         el('send-message').addEventListener('click', function () {
+            if (threadConversation && threadConversation.is_blocked) {
+                toast(
+                    'warning',
+                    t('chat.blocked_composer', 'Bloklanmış söhbətdə mesaj göndərmək olmur')
+                );
+                return;
+            }
             var body = el('chat-body').value.trim();
             if (!body) {
                 toast('warning', t('web.chat.message_required', 'Mesaj yaz'));
@@ -4538,7 +4729,7 @@
                 toast('success', t('web.chat.message_sent', 'Göndərildi'));
                 return loadThread();
             }).catch(function (e) {
-                toast('error', t('web.chat.message_failed', 'Mesaj getmədi'));
+                toast('error', e.message || t('web.chat.message_failed', 'Mesaj getmədi'));
                 log('Mesaj xətası: ' + e.message);
             });
         });
@@ -4689,7 +4880,7 @@
                     title: t('block.title', 'Blokla'),
                     message: t(
                         'block.confirm',
-                        'Bu istifadəçini bloklamaq istəyirsiniz? Söhbət siyahısından silinəcək və mesaj göndərə bilməyəcəksiniz.'
+                        'Bu istifadəçini bloklamaq istəyirsiniz? Söhbət tarixçəsi qalacaq, amma heç bir tərəf mesaj göndərə bilməyəcək.'
                     ),
                     confirmLabel: t('block.confirm_action', 'Blokla'),
                     cancelLabel: t('block.cancel', 'Ləğv'),
@@ -4701,7 +4892,41 @@
                         body: JSON.stringify({}),
                     }).then(function () {
                         toast('success', t('block.done', 'İstifadəçi bloklandı'));
-                        go('/chat');
+                        return loadThread();
+                    });
+                }).catch(function (e) {
+                    toast('error', e.message || t('error.generic', 'Xəta baş verdi'));
+                });
+            });
+        }
+
+        var unblockMenuBtn = el('thread-unblock');
+        if (unblockMenuBtn) {
+            unblockMenuBtn.addEventListener('click', function () {
+                closeThreadMenu();
+                var targetId = otherUserId();
+                var name =
+                    (threadConversation &&
+                        threadConversation.other_user &&
+                        threadConversation.other_user.name) ||
+                    t('account.user_fallback', 'İstifadəçi');
+                if (!targetId) {
+                    toast('warning', t('web.chat.open_failed', 'Söhbət açılmadı'));
+                    return;
+                }
+                showAppConfirm({
+                    title: t('block.unblock_title', 'Bloku götür'),
+                    message: t('block.unblock_confirm', '{name} üçün bloku götürmək istəyirsiniz?', {
+                        name: name,
+                    }),
+                    confirmLabel: t('block.unblock_action', 'Bloku götür'),
+                    cancelLabel: t('block.cancel', 'Ləğv'),
+                    tone: 'info',
+                }).then(function (ok) {
+                    if (!ok) return;
+                    return api('/users/' + targetId + '/block', { method: 'DELETE' }).then(function () {
+                        toast('success', t('block.unblocked', 'Blok götürüldü'));
+                        return loadThread();
                     });
                 }).catch(function (e) {
                     toast('error', e.message || t('error.generic', 'Xəta baş verdi'));
@@ -4795,6 +5020,98 @@
         loadBlocked();
     }
 
+    function bindFavoritesPage() {
+        function displayName(p) {
+            return (p && (p.user_name || p.title)) || t('web.role.provider', 'İcraçı');
+        }
+
+        function loadFavorites() {
+            var box = el('favorites-list');
+            if (box) box.textContent = t('web.loading', 'Yüklənir…');
+            return requireRole('client')
+                .then(function () {
+                    return api('/favorites');
+                })
+                .then(function (payload) {
+                    var rows = Array.isArray(payload)
+                        ? payload
+                        : (payload && (payload.data || payload.items)) || [];
+                    if (!box) return;
+                    if (!rows.length) {
+                        box.innerHTML =
+                            '<p class="muted">' +
+                            esc(t('web.favorites.empty', 'Seçilmiş yoxdur.')) +
+                            '</p>';
+                        return;
+                    }
+                    box.innerHTML = '';
+                    rows.forEach(function (profile) {
+                        var row = document.createElement('article');
+                        row.className = 'blocked-item';
+                        var name = displayName(profile);
+                        var meta = (profile.categories || [])
+                            .map(function (c) {
+                                return categoryLabel(c) || c.name || '';
+                            })
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .join(' · ');
+                        row.innerHTML =
+                            '<div>' +
+                            '<p class="blocked-item-name">' +
+                            esc(name) +
+                            '</p>' +
+                            (meta
+                                ? '<p class="blocked-item-meta">' + esc(meta) + '</p>'
+                                : '') +
+                            '</div>' +
+                            '<div class="favorites-item-actions">' +
+                            '<a class="btn btn-outline btn-inline" href="/providers/' +
+                            esc(profile.id) +
+                            '">' +
+                            esc(t('web.match.view_profile', 'Profilə bax')) +
+                            '</a>' +
+                            '<button type="button" class="btn btn-outline btn-inline remove">' +
+                            esc(t('favorites.remove_action', 'Çıxar')) +
+                            '</button>' +
+                            '</div>';
+                        row.querySelector('.remove').addEventListener('click', function () {
+                            showAppConfirm({
+                                title: t('favorites.title', 'Seçilmişlər'),
+                                message: t('favorites.remove_confirm', '{name} seçilmişlərdən çıxarılsın?', {
+                                    name: name,
+                                }),
+                                confirmLabel: t('favorites.remove_action', 'Çıxar'),
+                                cancelLabel: t('common.cancel', 'Ləğv et'),
+                                tone: 'danger',
+                            }).then(function (ok) {
+                                if (!ok) return;
+                                return toggleFavorite(profile.id, true).then(function () {
+                                    return loadFavorites();
+                                });
+                            }).catch(function (e) {
+                                toast('error', e.message || t('error.generic', 'Xəta baş verdi'));
+                            });
+                        });
+                        box.appendChild(row);
+                    });
+                })
+                .catch(function (e) {
+                    if (box) {
+                        box.textContent = t('web.favorites.load_error', 'Seçilmişlər yüklənmədi');
+                    }
+                    toast('error', e.message || t('web.favorites.load_error', 'Seçilmişlər yüklənmədi'));
+                });
+        }
+
+        var refresh = el('refresh-favorites');
+        if (refresh && refresh.dataset.bound !== '1') {
+            refresh.dataset.bound = '1';
+            refresh.addEventListener('click', loadFavorites);
+        }
+        loadFavorites();
+    }
+
     function bindJobsPage() {
         function ensureMe() {
             if (meCache) return Promise.resolve(meCache);
@@ -4842,14 +5159,112 @@
                     return;
                 }
                 box.innerHTML = '';
+                function replyToJob(job) {
+                    var req = job.request || {};
+                    return api('/conversations/reply', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            service_request_id: req.id,
+                            provider_profile_id: job.provider_profile_id,
+                            message: t('web.jobs.default_reply', 'Salam, işə baxıram.'),
+                        }),
+                    }).then(function (conversation) {
+                        toast('success', t('web.jobs.reply_sent', 'Cavab göndərildi'));
+                        go('/chat/' + conversation.id);
+                    }).catch(function (e) {
+                        toast('error', t('web.jobs.reply_failed', 'Cavab getmədi'));
+                        log('Job reply xətası: ' + e.message);
+                    });
+                }
+
+                function openJobDetail(job) {
+                    var req = job.request || {};
+                    var serviceWhen = requestServiceWhen(req);
+                    var audioUrl = req.audio_url || req.raw_audio_url || '';
+                    var existing = document.getElementById('job-detail-modal');
+                    if (existing) existing.remove();
+
+                    var modal = document.createElement('div');
+                    modal.id = 'job-detail-modal';
+                    modal.className = 'modal';
+                    modal.innerHTML =
+                        '<div class="modal-card job-detail-card">' +
+                        '<h3>' + esc(t('jobs.detail_title', 'İş haqqında')) + '</h3>' +
+                        '<p class="muted">' +
+                        esc((job.client && job.client.name) || t('jobs.client_fallback', 'Müştəri')) +
+                        ' · ' +
+                        esc(
+                            t('web.match.score_label', 'Skor: {score}%', {
+                                score: Math.round(job.match_score || 0),
+                            })
+                        ) +
+                        '</p>' +
+                        (req.transcribed_text
+                            ? '<p class="job-detail-text">' + esc(req.transcribed_text) + '</p>'
+                            : '') +
+                        (audioUrl
+                            ? '<div class="job-detail-audio">' +
+                              '<audio controls preload="none" src="' +
+                              esc(audioUrl) +
+                              '"></audio>' +
+                              '<p class="muted text-xs">' +
+                              esc(t('jobs.audio_hint', 'Müştərinin yazdığı orijinal səs')) +
+                              '</p></div>'
+                            : '') +
+                        '<p class="meta">' +
+                        esc(job.distance_km != null ? job.distance_km : '-') +
+                        ' km' +
+                        (req.address ? ' · ' + esc(req.address) : '') +
+                        (serviceWhen
+                            ? ' · ' +
+                              esc(
+                                  t('web.request.service_when', 'Vaxt: {when}', {
+                                      when: serviceWhen,
+                                  })
+                              )
+                            : '') +
+                        '</p>' +
+                        '<div class="modal-actions">' +
+                        '<button type="button" class="btn btn-outline" id="job-detail-close">' +
+                        esc(t('web.common.close', 'Bağla')) +
+                        '</button>' +
+                        '<button type="button" class="btn btn-primary" id="job-detail-reply">' +
+                        esc(t('web.jobs.reply_cta', 'Cavab ver')) +
+                        '</button>' +
+                        '</div></div>';
+
+                    document.body.appendChild(modal);
+                    function close() {
+                        modal.remove();
+                    }
+                    modal.querySelector('#job-detail-close').addEventListener('click', close);
+                    modal.addEventListener('click', function (e) {
+                        if (e.target === modal) close();
+                    });
+                    modal.querySelector('#job-detail-reply').addEventListener('click', function () {
+                        close();
+                        replyToJob(job);
+                    });
+                }
+
                 rows.forEach(function (job) {
                     var req = job.request || {};
                     var serviceWhen = requestServiceWhen(req);
+                    var audioUrl = req.audio_url || req.raw_audio_url || '';
                     var card = document.createElement('article');
-                    card.className = 'match-card';
+                    card.className = 'match-card is-clickable';
+                    card.tabIndex = 0;
+                    card.setAttribute('role', 'button');
                     card.innerHTML =
                         (job.is_urgent ? '<span class="pill">URGENT</span>' : '') +
-                        '<h3>' + esc((job.client && job.client.name) || 'Müştəri') + '</h3>' +
+                        '<h3>' +
+                        esc((job.client && job.client.name) || 'Müştəri') +
+                        (audioUrl
+                            ? ' <span class="job-audio-badge">' +
+                              esc(t('jobs.audio_badge', 'Səs')) +
+                              '</span>'
+                            : '') +
+                        '</h3>' +
                         '<p class="reasons">' + esc(req.transcribed_text || req.address || '') + '</p>' +
                         '<p class="meta">' + esc(t('web.match.score_label', 'Skor: {score}%', { score: Math.round(job.match_score || 0) })) + ' · ' +
                         esc(job.distance_km != null ? job.distance_km : '-') + ' km' +
@@ -4862,24 +5277,25 @@
                               )
                             : '') +
                         '</p>' +
+                        '<p class="job-open-hint">' +
+                        esc(t('jobs.open_detail', 'Ətraflı bax →')) +
+                        '</p>' +
                         '<button type="button" class="btn btn-primary reply">' +
                         esc(t('web.jobs.reply_cta', 'Cavab ver')) +
                         '</button>';
-                    card.querySelector('.reply').addEventListener('click', function () {
-                        api('/conversations/reply', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                service_request_id: req.id,
-                                provider_profile_id: job.provider_profile_id,
-                                message: t('web.jobs.default_reply', 'Salam, işə baxıram.'),
-                            }),
-                        }).then(function (conversation) {
-                            toast('success', t('web.jobs.reply_sent', 'Cavab göndərildi'));
-                            go('/chat/' + conversation.id);
-                        }).catch(function (e) {
-                            toast('error', t('web.jobs.reply_failed', 'Cavab getmədi'));
-                            log('Job reply xətası: ' + e.message);
-                        });
+                    card.addEventListener('click', function (e) {
+                        if (e.target.closest('.reply')) return;
+                        openJobDetail(job);
+                    });
+                    card.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openJobDetail(job);
+                        }
+                    });
+                    card.querySelector('.reply').addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        replyToJob(job);
                     });
                     box.appendChild(card);
                 });
@@ -4964,6 +5380,19 @@
             }
         }
         return when;
+    }
+
+    function conversationRequestContext(conversation) {
+        var sr = conversation && conversation.service_request;
+        if (!sr) return '';
+        var text = (sr.transcribed_text || '').trim();
+        if (text.length > 80) text = text.slice(0, 80) + '…';
+        if (!text) text = (sr.address || '').trim();
+        var when = requestServiceWhen(sr);
+        var parts = [];
+        if (text) parts.push(text);
+        if (when) parts.push(when);
+        return parts.join(' · ');
     }
 
     function bindRequestsPage() {
@@ -5441,6 +5870,7 @@
         if (page === 'chat') bindChatPage();
         if (page === 'chat-thread') bindChatThreadPage();
         if (page === 'blocked') bindBlockedPage();
+        if (page === 'favorites') bindFavoritesPage();
         if (page === 'jobs') bindJobsPage();
     }
 

@@ -24,6 +24,9 @@
                         <button type="button" id="thread-block" class="thread-menu-item is-danger" role="menuitem" data-i18n="block.menu">
                             {{ wt('block.menu', 'Blokla') }}
                         </button>
+                        <button type="button" id="thread-unblock" class="thread-menu-item" role="menuitem" hidden data-i18n="block.unblock_action">
+                            {{ wt('block.unblock_action', 'Bloku götür') }}
+                        </button>
                     </div>
                 </details>
             </div>

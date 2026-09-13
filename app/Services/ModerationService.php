@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\RequestMatch;
 use App\Models\User;
 use App\Models\UserBlock;
 use App\Models\UserReport;
@@ -30,6 +31,26 @@ class ModerationService
             'blocker_id' => $user->id,
             'blocked_id' => $targetUserId,
         ]);
+
+        $this->purgeMatchesBetween((int) $user->id, $targetUserId);
+    }
+
+    /**
+     * Drop request_matches both ways so blocked peers leave results / jobs immediately.
+     */
+    public function purgeMatchesBetween(int $userA, int $userB): void
+    {
+        RequestMatch::query()
+            ->where(function ($outer) use ($userA, $userB) {
+                $outer->where(function ($q) use ($userA, $userB) {
+                    $q->whereHas('serviceRequest', fn ($sr) => $sr->where('user_id', $userA))
+                        ->whereHas('providerProfile', fn ($pp) => $pp->where('user_id', $userB));
+                })->orWhere(function ($q) use ($userA, $userB) {
+                    $q->whereHas('serviceRequest', fn ($sr) => $sr->where('user_id', $userB))
+                        ->whereHas('providerProfile', fn ($pp) => $pp->where('user_id', $userA));
+                });
+            })
+            ->delete();
     }
 
     public function unblock(User $user, int $targetUserId): void

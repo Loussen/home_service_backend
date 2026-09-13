@@ -683,6 +683,27 @@
         @apply mt-0.5 text-sm text-mute;
     }
 
+    .favorites-item-actions {
+        @apply flex flex-wrap items-center justify-end gap-2;
+    }
+
+    .match-card-top {
+        @apply mb-1 flex items-start justify-between gap-2;
+    }
+
+    .match-card-top h3 {
+        @apply m-0 flex-1;
+    }
+
+    .btn-icon.favorite-toggle {
+        @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-parchment text-lg font-bold text-mute transition
+            hover:border-brand/30 hover:bg-brand-peach/50;
+    }
+
+    .btn-icon.favorite-toggle.is-on {
+        @apply border-brand-accent/40 bg-brand-peach text-brand-accent;
+    }
+
     .requests-toolbar {
         @apply mb-6 items-end border-b border-line pb-5;
     }
@@ -1355,6 +1376,34 @@
             hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-lift;
     }
 
+    .chat-item.is-blocked {
+        @apply border-line/80 bg-parchment/50;
+    }
+
+    .chat-item-top {
+        @apply flex flex-wrap items-center gap-2;
+    }
+
+    .chat-item-request {
+        @apply mt-1 text-[0.8rem] font-semibold leading-snug text-brand;
+    }
+
+    .thread-request-context {
+        @apply m-0 mt-1 max-w-xl text-sm font-semibold text-brand;
+    }
+
+    .chat-blocked-badge {
+        @apply inline-flex rounded-full bg-dusk-soft px-2 py-0.5 text-[0.7rem] font-extrabold uppercase tracking-wide text-mute;
+    }
+
+    .thread-blocked-banner {
+        @apply mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand/15 bg-brand-peach/50 px-4 py-3 text-sm font-semibold text-brand-dark;
+    }
+
+    .thread-blocked-banner p {
+        @apply m-0 flex-1;
+    }
+
     .matches {
         @apply grid gap-4;
     }
@@ -1410,6 +1459,30 @@
 
     .match-card .meta {
         @apply mt-2.5 text-sm font-medium;
+    }
+
+    .job-open-hint {
+        @apply mt-2 mb-1 text-xs font-bold text-brand;
+    }
+
+    .job-audio-badge {
+        @apply ml-1 inline-flex align-middle rounded-full bg-brand-peach px-2 py-0.5 text-[0.7rem] font-extrabold uppercase tracking-wide text-brand;
+    }
+
+    .job-detail-card .job-detail-text {
+        @apply mt-3 text-base leading-relaxed text-ink;
+    }
+
+    .job-detail-audio {
+        @apply mt-3 rounded-2xl border border-line bg-canvas p-3;
+    }
+
+    .job-detail-audio audio {
+        @apply w-full;
+    }
+
+    .job-detail-audio .muted {
+        @apply mt-2 mb-0;
     }
 
     .match-actions {

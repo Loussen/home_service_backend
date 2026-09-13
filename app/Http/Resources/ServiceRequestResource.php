@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Support\GroupedMatches;
+use App\Services\ModerationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,8 +12,27 @@ class ServiceRequestResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $grouped = $this->relationLoaded('matches')
-            ? GroupedMatches::forClient($this->matches, $this->resource)
+        $matches = null;
+        if ($this->relationLoaded('matches')) {
+            $matches = $this->matches;
+            $viewer = $request->user();
+            if ($viewer) {
+                $hiddenIds = app(ModerationService::class)->hiddenUserIdsFor($viewer)
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+                if ($hiddenIds !== []) {
+                    $matches = $matches->filter(function ($m) use ($hiddenIds) {
+                        $providerUserId = (int) ($m->providerProfile?->user_id ?? 0);
+
+                        return $providerUserId === 0
+                            || ! in_array($providerUserId, $hiddenIds, true);
+                    })->values();
+                }
+            }
+        }
+
+        $grouped = $matches !== null
+            ? GroupedMatches::forClient($matches, $this->resource)
             : null;
 
         return [

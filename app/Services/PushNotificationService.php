@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\NotifyMatchedProvidersJob;
+use App\Models\Conversation;
 use App\Models\RequestMatch;
 use App\Models\ServiceRequest;
 use App\Models\User;
@@ -54,6 +55,27 @@ class PushNotificationService
                     && (float) $m->distance_km <= $radiusKm + 0.01)
                 ->values();
         }
+
+        $client = User::query()->find($request->user_id);
+        if ($client) {
+            $hiddenIds = app(ModerationService::class)->hiddenUserIdsFor($client)
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            if ($hiddenIds !== []) {
+                $skipped = $matches->filter(
+                    fn (RequestMatch $m) => in_array((int) ($m->providerProfile?->user_id ?? 0), $hiddenIds, true)
+                );
+                if ($skipped->isNotEmpty()) {
+                    $this->markNotified($skipped);
+                }
+                $matches = $matches
+                    ->reject(
+                        fn (RequestMatch $m) => in_array((int) ($m->providerProfile?->user_id ?? 0), $hiddenIds, true)
+                    )
+                    ->values();
+            }
+        }
+
         if ($matches->isEmpty()) {
             return 0;
         }
@@ -88,16 +110,6 @@ class PushNotificationService
                 continue;
             }
 
-            $profile = $first->providerProfile;
-            if ($profile?->isFull()) {
-                $this->markNotified($userMatches);
-
-                continue;
-            }
-            if (! $urgent && ! $force && $profile?->isInQuietHours()) {
-                continue;
-            }
-
             $ok = $this->sendToUser($user, $title, $body, [
                 'type' => $urgent ? 'urgent_job' : 'new_job',
                 'request_id' => (string) $request->id,
@@ -111,6 +123,73 @@ class PushNotificationService
         }
 
         return $sent;
+    }
+
+    public function notifyConnect(Conversation $conversation, User $actor): void
+    {
+        if (! config('homeservice.feature_push', true)) {
+            return;
+        }
+
+        $recipientId = (int) $actor->id === (int) $conversation->client_id
+            ? (int) $conversation->provider_id
+            : (int) $conversation->client_id;
+
+        $recipient = User::query()->find($recipientId);
+        if (! $recipient) {
+            return;
+        }
+
+        if (app(ModerationService::class)->isBlockedEitherWay($actor, $recipient)) {
+            return;
+        }
+
+        $name = trim((string) ($actor->name ?: 'İstifadəçi'));
+        $isClientActing = (int) $actor->id === (int) $conversation->client_id;
+
+        $title = $isClientActing ? 'Yeni CONNECT' : 'Yeni cavab';
+        $body = $isClientActing
+            ? "{$name} sizinlə əlaqə qurdu"
+            : "{$name} sorğunuza cavab verdi";
+
+        $this->sendToUser($recipient, $title, $body, [
+            'type' => 'chat_connect',
+            'conversation_id' => (string) $conversation->id,
+        ]);
+    }
+
+    public function notifyNewMessage(Conversation $conversation, User $sender, string $body): void
+    {
+        if (! config('homeservice.feature_push', true)) {
+            return;
+        }
+
+        $recipientId = (int) $sender->id === (int) $conversation->client_id
+            ? (int) $conversation->provider_id
+            : (int) $conversation->client_id;
+
+        $recipient = User::query()->find($recipientId);
+        if (! $recipient) {
+            return;
+        }
+
+        if (app(ModerationService::class)->isBlockedEitherWay($sender, $recipient)) {
+            return;
+        }
+
+        $name = trim((string) ($sender->name ?: 'İstifadəçi'));
+        $preview = trim(preg_replace('/\s+/', ' ', $body) ?? '');
+        if (mb_strlen($preview) > 120) {
+            $preview = mb_substr($preview, 0, 117).'…';
+        }
+        if ($preview === '') {
+            $preview = 'Yeni mesaj';
+        }
+
+        $this->sendToUser($recipient, $name, $preview, [
+            'type' => 'chat_message',
+            'conversation_id' => (string) $conversation->id,
+        ]);
     }
 
     /**

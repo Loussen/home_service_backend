@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\IncomingJobController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\ModerationController;
@@ -86,6 +87,11 @@ Route::prefix('v1')->group(function () {
             Route::post('service-requests/{id}/bump', [ServiceRequestController::class, 'bump']);
             Route::post('service-requests/{id}/urgent', [ServiceRequestController::class, 'urgent']);
             Route::post('conversations', [ConversationController::class, 'store']);
+            Route::get('favorites', [FavoriteController::class, 'index']);
+            Route::post('provider-profiles/{id}/favorite', [FavoriteController::class, 'store'])
+                ->whereNumber('id');
+            Route::delete('provider-profiles/{id}/favorite', [FavoriteController::class, 'destroy'])
+                ->whereNumber('id');
         });
 
         Route::get('wallet', [WalletController::class, 'show']);

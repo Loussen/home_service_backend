@@ -14,8 +14,9 @@
         <div id="pp-body" class="provider-public-body">
             <p class="muted" data-i18n="web.provider_public.loading">{{ wt('web.provider_public.loading', 'Profil yüklənir…') }}</p>
         </div>
-        <div class="provider-public-actions" id="pp-actions" hidden>
+            <div class="provider-public-actions" id="pp-actions" hidden>
             <a href="{{ route('web.request') }}" class="btn btn-outline" id="pp-back" data-i18n="web.common.back">{{ wt('web.common.back', 'Geri') }}</a>
+            <button type="button" class="btn btn-outline" id="pp-favorite" hidden data-i18n="favorites.toggle_add">{{ wt('favorites.toggle_add', 'Seçilmişə əlavə et') }}</button>
             <button type="button" class="btn btn-primary" id="pp-connect" hidden data-i18n="web.connect.cta">{{ wt('web.connect.cta', 'CONNECT') }}</button>
         </div>
     </section>

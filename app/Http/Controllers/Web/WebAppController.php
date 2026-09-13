@@ -58,6 +58,11 @@ class WebAppController extends Controller
         return view('web.blocked');
     }
 
+    public function favorites(): View
+    {
+        return view('web.favorites');
+    }
+
     public function jobs(): View
     {
         return view('web.jobs');

@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Support\BumpQuota;
 use App\Support\PublicMediaUrl;
+use App\Services\FavoriteService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,6 +13,16 @@ class ProviderProfileResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $user = $request->user();
+        $isFavorite = false;
+        if ($user && $user->isClient()) {
+            if (array_key_exists('is_favorite', $this->resource->getAttributes())) {
+                $isFavorite = (bool) $this->is_favorite;
+            } else {
+                $isFavorite = app(FavoriteService::class)->isFavorite($user, (int) $this->id);
+            }
+        }
+
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
@@ -36,6 +47,7 @@ class ProviderProfileResource extends JsonResource
             'audio_intro_url' => PublicMediaUrl::make($this->audio_intro_url),
             'is_verified' => $this->is_verified,
             'is_vip' => $this->is_vip,
+            'is_favorite' => $isFavorite,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'city_id' => $this->city_id,

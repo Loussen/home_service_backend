@@ -20,33 +20,29 @@ class ConversationService
         private readonly ModerationService $moderation,
         private readonly BookingService $bookings,
         private readonly WalletService $wallet,
+        private readonly PushNotificationService $push,
     ) {}
 
     public function listFor(User $user): LengthAwarePaginator
     {
-        $blockedIds = $this->moderation->hiddenUserIdsFor($user);
+        $blockedByMe = $this->moderation->blockedIdsFor($user)
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $hiddenIds = $this->moderation->hiddenUserIdsFor($user)
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
-        return Conversation::query()
+        $page = Conversation::query()
             ->where(function ($q) use ($user) {
                 $q->where('client_id', $user->id)
                     ->orWhere('provider_id', $user->id);
-            })
-            ->when($blockedIds->isNotEmpty(), function ($q) use ($user, $blockedIds) {
-                $q->where(function ($inner) use ($user, $blockedIds) {
-                    $inner->where(function ($clientSide) use ($user, $blockedIds) {
-                        $clientSide->where('client_id', $user->id)
-                            ->whereNotIn('provider_id', $blockedIds);
-                    })->orWhere(function ($providerSide) use ($user, $blockedIds) {
-                        $providerSide->where('provider_id', $user->id)
-                            ->whereNotIn('client_id', $blockedIds);
-                    });
-                });
             })
             ->with([
                 'client:id,name,phone,avatar_url',
                 'provider:id,name,phone,avatar_url',
                 'providerProfile.category',
                 'providerProfile.categories',
+                'serviceRequest',
                 'lastMessage.offer',
             ])
             ->withCount([
@@ -57,6 +53,14 @@ class ConversationService
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')
             ->paginate(40);
+
+        $page->getCollection()->transform(function (Conversation $conversation) use ($user, $blockedByMe, $hiddenIds) {
+            $this->attachBlockFlags($conversation, $user, $blockedByMe, $hiddenIds);
+
+            return $conversation;
+        });
+
+        return $page;
     }
 
     public function getFor(User $user, int $id): Conversation
@@ -71,28 +75,51 @@ class ConversationService
                 'provider:id,name,phone,avatar_url',
                 'providerProfile.category',
                 'providerProfile.categories',
+                'serviceRequest',
                 'messages' => fn ($q) => $q->with(['offer.reviews.reviewer:id,name'])->orderBy('created_at')->orderBy('id'),
             ])
             ->find($id);
 
         abort_if(! $conversation, 404, 'Conversation not found');
 
-        $otherId = $conversation->client_id === $user->id
-            ? $conversation->provider_id
-            : $conversation->client_id;
-        $other = User::query()->find($otherId);
-        if ($other) {
-            $this->moderation->assertNotBlocked($user, $other);
-        }
+        $blockedByMe = $this->moderation->blockedIdsFor($user)
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $hiddenIds = $this->moderation->hiddenUserIdsFor($user)
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $this->attachBlockFlags($conversation, $user, $blockedByMe, $hiddenIds);
 
+        // History stays readable when blocked; sending is blocked separately.
         $this->markRead($conversation, $user);
-
         $conversation->unsetRelation('messages');
         $conversation->load([
             'messages' => fn ($q) => $q->with(['offer.reviews.reviewer:id,name'])->orderBy('created_at')->orderBy('id'),
         ]);
 
         return $conversation;
+    }
+
+    /**
+     * @param  list<int>  $blockedByMe
+     * @param  list<int>  $hiddenIds
+     */
+    private function attachBlockFlags(
+        Conversation $conversation,
+        User $user,
+        array $blockedByMe,
+        array $hiddenIds,
+    ): void {
+        $otherId = (int) $conversation->client_id === (int) $user->id
+            ? (int) $conversation->provider_id
+            : (int) $conversation->client_id;
+
+        $isBlocked = in_array($otherId, $hiddenIds, true);
+        $blockedByMeFlag = in_array($otherId, $blockedByMe, true);
+
+        $conversation->setAttribute('is_blocked', $isBlocked);
+        $conversation->setAttribute('blocked_by_me', $blockedByMeFlag);
+        $conversation->setAttribute('can_message', ! $isBlocked);
     }
 
     public function open(
@@ -129,11 +156,12 @@ class ConversationService
         return DB::transaction(function () use ($client, $profile, $serviceRequest, $message) {
             $client = User::query()->lockForUpdate()->find($client->id) ?? $client;
 
-            $conversation = Conversation::query()
-                ->where('client_id', $client->id)
-                ->where('provider_id', $profile->user_id)
-                ->where('provider_profile_id', $profile->id)
-                ->first();
+            $conversation = $this->findPairConversation(
+                clientId: (int) $client->id,
+                providerId: (int) $profile->user_id,
+                providerProfileId: (int) $profile->id,
+                serviceRequestId: $serviceRequest?->id,
+            );
 
             $isNew = false;
             if (! $conversation) {
@@ -142,6 +170,7 @@ class ConversationService
                 if ((float) $quota['fee'] > 0) {
                     $this->wallet->debit($client, (float) $quota['fee'], 'connect_fee', 'wallet', [
                         'provider_profile_id' => $profile->id,
+                        'service_request_id' => $serviceRequest?->id,
                     ]);
                     $client = $client->fresh() ?? $client;
                 }
@@ -154,10 +183,6 @@ class ConversationService
                 $isNew = true;
             }
 
-            if ($serviceRequest && ! $conversation->service_request_id) {
-                $conversation->update(['service_request_id' => $serviceRequest->id]);
-            }
-
             $body = trim((string) $message);
             if ($body === '' && $isNew) {
                 $snippet = $serviceRequest?->transcribed_text;
@@ -167,7 +192,12 @@ class ConversationService
             }
 
             if ($body !== '') {
-                $this->postMessage($conversation, $client, $body);
+                // New CONNECT: dedicated push; avoid double-notify on auto greeting.
+                $this->postMessage($conversation, $client, $body, notify: ! $isNew);
+            }
+
+            if ($isNew) {
+                $this->push->notifyConnect($conversation, $client);
             }
 
             return $this->getFor($client, $conversation->id);
@@ -207,27 +237,58 @@ class ConversationService
         $this->moderation->assertNotBlocked($provider, $client);
 
         return DB::transaction(function () use ($provider, $client, $profile, $request, $message) {
-            $conversation = Conversation::query()->firstOrCreate(
-                [
+            $conversation = $this->findPairConversation(
+                clientId: (int) $client->id,
+                providerId: (int) $provider->id,
+                providerProfileId: (int) $profile->id,
+                serviceRequestId: (int) $request->id,
+            );
+
+            $created = false;
+            if (! $conversation) {
+                $conversation = Conversation::query()->create([
                     'client_id' => $client->id,
                     'provider_id' => $provider->id,
                     'provider_profile_id' => $profile->id,
-                ],
-                [
                     'service_request_id' => $request->id,
-                ]
-            );
+                ]);
+                $created = true;
+            }
 
             $body = trim((string) $message);
-            if ($body === '' && $conversation->wasRecentlyCreated) {
+            if ($body === '' && $created) {
                 $body = 'Salam! Sorğunuzu gördüm, kömək edə bilərəm.';
             }
             if ($body !== '') {
-                $this->postMessage($conversation, $provider, $body);
+                $this->postMessage($conversation, $provider, $body, notify: ! $created);
+            }
+
+            if ($created) {
+                $this->push->notifyConnect($conversation, $provider);
             }
 
             return $this->getFor($provider, $conversation->id);
         });
+    }
+
+    private function findPairConversation(
+        int $clientId,
+        int $providerId,
+        int $providerProfileId,
+        ?int $serviceRequestId,
+    ): ?Conversation {
+        $query = Conversation::query()
+            ->where('client_id', $clientId)
+            ->where('provider_id', $providerId)
+            ->where('provider_profile_id', $providerProfileId);
+
+        if ($serviceRequestId !== null) {
+            $query->where('service_request_id', $serviceRequestId);
+        } else {
+            $query->whereNull('service_request_id');
+        }
+
+        return $query->first();
     }
 
     public function send(User $user, int $conversationId, string $body): Message
@@ -385,6 +446,7 @@ class ConversationService
         string $body,
         string $type = 'text',
         ?int $offerId = null,
+        bool $notify = true,
     ): Message {
         $message = Message::query()->create([
             'conversation_id' => $conversation->id,
@@ -395,6 +457,10 @@ class ConversationService
         ]);
 
         $conversation->update(['last_message_at' => now()]);
+
+        if ($notify) {
+            $this->push->notifyNewMessage($conversation, $sender, $body);
+        }
 
         return $message;
     }

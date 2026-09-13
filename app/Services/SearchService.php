@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\ProviderProfile;
 use App\Models\ServiceRequest;
+use App\Models\User;
 use App\Repositories\ProviderProfileRepository;
 use App\Repositories\RequestMatchRepository;
 use App\Support\BumpQuota;
@@ -15,6 +16,7 @@ class SearchService
     public function __construct(
         private readonly ProviderProfileRepository $profiles,
         private readonly RequestMatchRepository $matches,
+        private readonly ModerationService $moderation,
     ) {}
 
     public function matchRequest(ServiceRequest $request): Collection
@@ -131,10 +133,23 @@ class SearchService
         }
 
         $providers = $merged;
+        $client = $request->relationLoaded('user')
+            ? $request->user
+            : User::query()->find($request->user_id);
+        if ($client) {
+            $hiddenIds = $this->moderation->hiddenUserIdsFor($client)
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            if ($hiddenIds !== []) {
+                $providers = $providers
+                    ->reject(fn (ProviderProfile $p) => in_array((int) $p->user_id, $hiddenIds, true))
+                    ->values();
+            }
+        }
 
         $criteria = $request->parsed_criteria ?? [];
         $criteria['search_meta'] = [
-            'empty' => ! $found,
+            'empty' => ! $found || $providers->isEmpty(),
             'urgent' => $isUrgent,
             'radius_km' => $usedRadius,
             'base_radius_km' => $baseRadius,
@@ -145,6 +160,12 @@ class SearchService
             'result_count' => $providers->count(),
         ];
         $request->forceFill(['parsed_criteria' => $criteria])->save();
+
+        if ($providers->isEmpty()) {
+            $this->matches->upsertMany($request, []);
+
+            return collect();
+        }
 
         $results = $providers->map(function (ProviderProfile $provider) use ($desiredSlot, $repeatProviderIds, $districtId) {
             $distance = (float) ($provider->distance_km ?? 0);

@@ -30,7 +30,9 @@ class IncomingJobResource extends JsonResource
                 'address' => $sr->address,
                 'latitude' => $sr->latitude,
                 'longitude' => $sr->longitude,
+                'audio_url' => $sr->audio_public_url,
                 'parsed_criteria' => $sr->parsed_criteria,
+                'expires_at' => $sr->expires_at?->toIso8601String(),
                 'category' => $sr->category ? [
                     'id' => $sr->category->id,
                     'name' => $sr->category->nameFor($locale),
