@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\UserBlock;
 use App\Models\UserReport;
+use App\Support\PublicMediaUrl;
 use Illuminate\Support\Collection;
 
 class ModerationService
@@ -44,6 +45,32 @@ class ModerationService
         return UserBlock::query()
             ->where('blocker_id', $user->id)
             ->pluck('blocked_id');
+    }
+
+    /**
+     * Users this account has blocked (for Profile → Blocked list).
+     *
+     * @return Collection<int, array{id: int, name: ?string, avatar_url: ?string, role: ?string, blocked_at: ?string}>
+     */
+    public function blockedUsersFor(User $user): Collection
+    {
+        return UserBlock::query()
+            ->with(['blocked:id,name,avatar_url,role'])
+            ->where('blocker_id', $user->id)
+            ->latest('id')
+            ->get()
+            ->map(static function (UserBlock $block): array {
+                $target = $block->blocked;
+
+                return [
+                    'id' => (int) $block->blocked_id,
+                    'name' => $target?->name,
+                    'avatar_url' => PublicMediaUrl::make($target?->avatar_url),
+                    'role' => $target?->role,
+                    'blocked_at' => $block->created_at?->toIso8601String(),
+                ];
+            })
+            ->values();
     }
 
     public function hiddenUserIdsFor(User $user): Collection

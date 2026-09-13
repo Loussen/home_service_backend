@@ -33,7 +33,7 @@ class ModerationController extends Controller
     public function blocks(Request $request): JsonResponse
     {
         return $this->success(
-            $this->moderation->blockedIdsFor($request->user())->values()->all(),
+            $this->moderation->blockedUsersFor($request->user())->all(),
             'Blocked users'
         );
     }
