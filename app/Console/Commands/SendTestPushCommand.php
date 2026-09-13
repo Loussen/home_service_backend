@@ -56,7 +56,7 @@ class SendTestPushCommand extends Command
 
         $this->info('Tokens: '.$user->deviceTokens->count());
         $ok = $push->sendToUser($user, 'Sizə uyğun sorğu', 'Test bildirişi — İşlər tabını açın', [
-            'type' => 'new_job',
+            'type' => 'test',
         ]);
 
         if ($ok) {

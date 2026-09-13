@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\IncomingJobController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\ModerationController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PlacesController;
 use App\Http\Controllers\Api\ProviderProfileController;
 use App\Http\Controllers\Api\ReviewController;
@@ -113,6 +114,11 @@ Route::prefix('v1')->group(function () {
         Route::post('users/{id}/block', [ModerationController::class, 'block']);
         Route::delete('users/{id}/block', [ModerationController::class, 'unblock']);
         Route::post('reports', [ModerationController::class, 'report']);
+
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markRead']);
 
         Route::get('bookings', [BookingController::class, 'index']);
         Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel']);

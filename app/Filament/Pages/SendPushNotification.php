@@ -172,9 +172,14 @@ class SendPushNotification extends Page
             return;
         }
 
-        $stats = $push->broadcast($users, $title, $body, [
-            'type' => 'admin',
-        ]);
+        $stats = $push->broadcast(
+            $users,
+            $title,
+            $body,
+            ['type' => 'admin'],
+            auth('admin')->id(),
+            $audience,
+        );
 
         $logger->record(
             null,
@@ -186,6 +191,8 @@ class SendPushNotification extends Page
                 'targeted' => $stats['targeted'],
                 'delivered' => $stats['delivered'],
                 'skipped_no_token' => $stats['skipped_no_token'],
+                'failed' => $stats['failed'] ?? 0,
+                'dispatch_id' => $stats['dispatch_id'] ?? null,
                 'user_ids' => $audience === 'selected'
                     ? array_values(array_map('intval', (array) ($state['user_ids'] ?? [])))
                     : null,
@@ -199,6 +206,9 @@ class SendPushNotification extends Page
                 "Hədəf: {$stats['targeted']} · Çatdı: {$stats['delivered']}"
                 .($stats['skipped_no_token'] > 0
                     ? " · Tokensuz: {$stats['skipped_no_token']}"
+                    : '')
+                .(($stats['failed'] ?? 0) > 0
+                    ? " · Uğursuz: {$stats['failed']}"
                     : '')
             )
             ->success()

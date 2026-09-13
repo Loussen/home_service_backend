@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Jobs\NotifyMatchedProvidersJob;
 use App\Models\Conversation;
+use App\Models\PushDispatch;
+use App\Models\PushDispatchRecipient;
 use App\Models\RequestMatch;
 use App\Models\ServiceRequest;
 use App\Models\User;
+use App\Notifications\UserInboxNotification;
 use Illuminate\Support\Facades\Log;
 
 class PushNotificationService
@@ -91,6 +94,18 @@ class PushNotificationService
             ? $place
             : 'İşlər tabında yeni sorğuya baxın';
 
+        $dispatch = $this->createDispatch([
+            'source' => 'request',
+            'type' => $urgent ? 'urgent_job' : 'new_job',
+            'title' => $title,
+            'body' => $body,
+            'payload' => [
+                'type' => $urgent ? 'urgent_job' : 'new_job',
+                'request_id' => (string) $request->id,
+            ],
+            'service_request_id' => $request->id,
+        ]);
+
         $sent = 0;
         $grouped = $matches->groupBy(fn (RequestMatch $m) => $m->providerProfile?->user_id);
 
@@ -114,12 +129,17 @@ class PushNotificationService
                 'type' => $urgent ? 'urgent_job' : 'new_job',
                 'request_id' => (string) $request->id,
                 'match_id' => (string) $first->id,
-            ]);
+            ], $dispatch);
 
             if ($ok) {
                 $this->markNotified($userMatches);
                 $sent++;
             }
+        }
+
+        $dispatch->refreshCounts();
+        if ($dispatch->targeted_count === 0) {
+            $dispatch->delete();
         }
 
         return $sent;
@@ -195,11 +215,43 @@ class PushNotificationService
     /**
      * @param  array<string, string>  $data
      */
-    public function sendToUser(User $user, string $title, string $body, array $data = []): bool
-    {
+    public function sendToUser(
+        User $user,
+        string $title,
+        string $body,
+        array $data = [],
+        ?PushDispatch $dispatch = null,
+    ): bool {
+        $ownsDispatch = $dispatch === null;
+        if ($ownsDispatch) {
+            $type = (string) ($data['type'] ?? 'system');
+            $dispatch = $this->createDispatch([
+                'source' => $this->sourceFromType($type),
+                'type' => $type,
+                'title' => $title,
+                'body' => $body,
+                'payload' => $data,
+                'service_request_id' => isset($data['request_id']) ? (int) $data['request_id'] : null,
+                'conversation_id' => isset($data['conversation_id']) ? (int) $data['conversation_id'] : null,
+            ]);
+        }
+
+        try {
+            $user->notify(new UserInboxNotification($title, $body, $data));
+        } catch (\Throwable $e) {
+            Log::warning('Inbox notification save failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $tokens = $user->deviceTokens()->get();
         if ($tokens->isEmpty()) {
             Log::info('Push skipped: no device tokens', ['user_id' => $user->id]);
+            $this->recordRecipient($dispatch, $user, 'skipped_no_token');
+            if ($ownsDispatch) {
+                $dispatch->refreshCounts();
+            }
 
             return false;
         }
@@ -210,11 +262,16 @@ class PushNotificationService
                 'title' => $title,
                 'tokens' => $tokens->count(),
             ]);
+            $this->recordRecipient($dispatch, $user, 'failed', 'FCM konfiqurasiya olunmayıb');
+            if ($ownsDispatch) {
+                $dispatch->refreshCounts();
+            }
 
             return false;
         }
 
         $anyOk = false;
+        $lastError = null;
         foreach ($tokens as $device) {
             $result = $this->fcm->send(
                 $device->token,
@@ -228,6 +285,8 @@ class PushNotificationService
                 continue;
             }
 
+            $lastError = $result['error'] ?? 'FCM xətası';
+
             if ($result['unregistered']) {
                 $device->delete();
 
@@ -240,6 +299,17 @@ class PushNotificationService
             ]);
         }
 
+        $this->recordRecipient(
+            $dispatch,
+            $user,
+            $anyOk ? 'delivered' : 'failed',
+            $anyOk ? null : ($lastError ?: 'Göndərilmədi'),
+        );
+
+        if ($ownsDispatch) {
+            $dispatch->refreshCounts();
+        }
+
         return $anyOk;
     }
 
@@ -248,18 +318,22 @@ class PushNotificationService
      *
      * @param  iterable<int|User>  $users
      * @param  array<string, string>  $data
-     * @return array{targeted: int, delivered: int, skipped_no_token: int}
+     * @return array{targeted: int, delivered: int, skipped_no_token: int, failed: int, dispatch_id: int|null}
      */
     public function broadcast(
         iterable $users,
         string $title,
         string $body,
         array $data = [],
+        ?int $adminId = null,
+        ?string $audience = null,
     ): array {
         $stats = [
             'targeted' => 0,
             'delivered' => 0,
             'skipped_no_token' => 0,
+            'failed' => 0,
+            'dispatch_id' => null,
         ];
 
         if (! config('homeservice.feature_push', true)) {
@@ -267,6 +341,17 @@ class PushNotificationService
         }
 
         $payload = array_merge(['type' => 'admin'], $data);
+
+        $dispatch = $this->createDispatch([
+            'source' => 'admin',
+            'type' => (string) ($payload['type'] ?? 'admin'),
+            'title' => $title,
+            'body' => $body,
+            'payload' => $payload,
+            'audience' => $audience,
+            'admin_id' => $adminId,
+        ]);
+        $stats['dispatch_id'] = $dispatch->id;
 
         foreach ($users as $user) {
             if (! $user instanceof User) {
@@ -278,18 +363,59 @@ class PushNotificationService
 
             $stats['targeted']++;
 
-            if ($user->deviceTokens()->doesntExist()) {
-                $stats['skipped_no_token']++;
-
-                continue;
-            }
-
-            if ($this->sendToUser($user, $title, $body, $payload)) {
+            if ($this->sendToUser($user, $title, $body, $payload, $dispatch)) {
                 $stats['delivered']++;
             }
         }
 
+        $dispatch->refreshCounts();
+        $stats['delivered'] = $dispatch->delivered_count;
+        $stats['skipped_no_token'] = $dispatch->skipped_count;
+        $stats['failed'] = $dispatch->failed_count;
+        $stats['targeted'] = $dispatch->targeted_count;
+
         return $stats;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attrs
+     */
+    private function createDispatch(array $attrs): PushDispatch
+    {
+        return PushDispatch::query()->create($attrs);
+    }
+
+    private function recordRecipient(
+        PushDispatch $dispatch,
+        User $user,
+        string $status,
+        ?string $error = null,
+    ): void {
+        try {
+            PushDispatchRecipient::query()->create([
+                'push_dispatch_id' => $dispatch->id,
+                'user_id' => $user->id,
+                'status' => $status,
+                'error' => $error,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Push recipient log failed', [
+                'dispatch_id' => $dispatch->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function sourceFromType(string $type): string
+    {
+        return match ($type) {
+            'admin' => 'admin',
+            'new_job', 'urgent_job' => 'request',
+            'chat_connect', 'chat_message' => 'chat',
+            'test' => 'test',
+            default => 'system',
+        };
     }
 
     /**
