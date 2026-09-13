@@ -48,6 +48,10 @@ class FcmClient
                             'data' => $data,
                             'android' => [
                                 'priority' => 'high',
+                                'notification' => [
+                                    'icon' => 'ic_stat_mysancho',
+                                    'color' => '#08215B',
+                                ],
                             ],
                             'apns' => [
                                 'headers' => [
