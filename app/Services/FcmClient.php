@@ -49,6 +49,10 @@ class FcmClient
                             'android' => [
                                 'priority' => 'high',
                                 'notification' => [
+                                    'channel_id' => 'mysancho_high',
+                                    'notification_priority' => 'PRIORITY_HIGH',
+                                    'default_sound' => true,
+                                    'default_vibrate_timings' => true,
                                     'icon' => 'ic_stat_mysancho',
                                     'color' => '#08215B',
                                 ],
