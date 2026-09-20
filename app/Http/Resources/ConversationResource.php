@@ -61,10 +61,7 @@ class ConversationResource extends JsonResource
             'can_message' => $canMessage,
             'can_send_offer' => $canSendOffer,
             'last_message_at' => $this->last_message_at?->toIso8601String(),
-            'unread_count' => $this->when(
-                isset($this->unread_count),
-                (int) $this->unread_count
-            ),
+            'unread_count' => (int) ($this->unread_count ?? 0),
             'other_user' => $other ? [
                 'id' => $other->id,
                 'name' => $other->name,

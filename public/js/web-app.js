@@ -4375,6 +4375,16 @@
         }
         el('refresh-chats').addEventListener('click', loadChats);
         loadChats();
+        if (window.__chatListPoll) {
+            clearInterval(window.__chatListPoll);
+        }
+        window.__chatListPoll = setInterval(function () {
+            if (document.hidden) return;
+            loadChats();
+        }, 10000);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) loadChats();
+        });
     }
 
     function bindChatThreadPage() {
