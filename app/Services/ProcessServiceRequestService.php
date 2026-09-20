@@ -99,8 +99,9 @@ class ProcessServiceRequestService
                     'transcribed_text' => $displayText !== '' ? $displayText : null,
                     'category_id' => null,
                     'parsed_criteria' => array_merge($parsed, [
-                        'transcription_failed' => true,
+                        // ASR may have worked — category/intent unclear. Do not pretend voice failed.
                         'missing_category' => true,
+                        'transcription_failed' => $transcriptionFailed,
                     ]),
                     'status' => 'active',
                 ]);
