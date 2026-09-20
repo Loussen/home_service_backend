@@ -270,13 +270,16 @@ class PushNotificationService
             return false;
         }
 
+        $badge = max(1, (int) $user->unreadNotifications()->count());
+
         $anyOk = false;
         $lastError = null;
         foreach ($tokens as $device) {
             $result = $this->fcm->send(
                 $device->token,
                 ['title' => $title, 'body' => $body],
-                $data
+                $data,
+                $badge,
             );
 
             if ($result['ok']) {

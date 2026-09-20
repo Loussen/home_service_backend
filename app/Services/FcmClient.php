@@ -24,8 +24,12 @@ class FcmClient
      * @param  array<string, string>  $data
      * @return array{ok: bool, unregistered: bool, error: ?string}
      */
-    public function send(string $token, array $notification, array $data = []): array
-    {
+    public function send(
+        string $token,
+        array $notification,
+        array $data = [],
+        int $badge = 1,
+    ): array {
         if (! $this->isConfigured()) {
             return ['ok' => false, 'unregistered' => false, 'error' => 'fcm_not_configured'];
         }
@@ -33,6 +37,7 @@ class FcmClient
         $projectId = $this->credentials()['project_id'];
         $title = (string) ($notification['title'] ?? '');
         $body = (string) ($notification['body'] ?? '');
+        $badge = max(0, $badge);
 
         // FCM data values must be strings. Title/body go in data so Android can
         // render a local heads-up with the colorful launcher largeIcon.
@@ -67,7 +72,7 @@ class FcmClient
                                             'body' => $body,
                                         ],
                                         'sound' => 'default',
-                                        'badge' => 1,
+                                        'badge' => $badge,
                                     ],
                                 ],
                             ],
