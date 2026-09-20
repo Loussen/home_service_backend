@@ -22,7 +22,7 @@ class FavoriteService
         return Favorite::query()
             ->where('user_id', $user->id)
             ->with([
-                'providerProfile.user:id,name,phone,avatar_url',
+                'providerProfile.user:id,name,phone,avatar_url,active_role,provider_approval_status',
                 'providerProfile.category',
                 'providerProfile.categories',
             ])
@@ -55,7 +55,11 @@ class FavoriteService
         unset($this->idsCache[$user->id]);
         $profile->setAttribute('is_favorite', true);
 
-        return $profile->loadMissing(['user:id,name,phone,avatar_url', 'category', 'categories']);
+        return $profile->loadMissing([
+            'user:id,name,phone,avatar_url,active_role,provider_approval_status',
+            'category',
+            'categories',
+        ]);
     }
 
     public function remove(User $user, int $providerProfileId): void
@@ -102,7 +106,7 @@ class FavoriteService
     private function resolvableProfile(int $id): ProviderProfile
     {
         $profile = ProviderProfile::query()
-            ->with(['user:id,name,phone,avatar_url', 'category', 'categories'])
+            ->with(['user', 'category', 'categories'])
             ->find($id);
 
         abort_if(! $profile || ! $profile->is_active, 404, 'Provider not found');
