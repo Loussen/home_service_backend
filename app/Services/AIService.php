@@ -66,16 +66,9 @@ class AIService
             $payload['language'] = $language;
         }
 
-        // Place names only — NEVER put service phrases in the STT prompt.
-        // Silence / empty clips make Whisper-family models echo prompt tokens
-        // (e.g. "uşaq dayəsi lazımdır"), which then become fake search requests.
-        if (! str_starts_with($model, 'whisper')) {
-            $vocab = $this->transcribeVocabPrompt($locationHints);
-            if ($vocab !== '') {
-                $payload['prompt'] = $vocab;
-            }
-        }
-
+        // No STT prompt. Empty/silent clips make Whisper-family models echo
+        // any prompt text (former service vocab / place lists). Location hints
+        // are used only by parseRequestText.
         $response = Http::withToken($apiKey)
             ->timeout(90)
             ->attach('file', file_get_contents($localPath), basename($localPath))
@@ -139,28 +132,6 @@ class AIService
             ?? $this->slotFromClock($parsed['time_hhmm'] ?? null);
 
         return $parsed;
-    }
-
-    /**
-     * Short STT place vocabulary only (no service phrases / sample sentences).
-     * Service words in the prompt prime silence hallucinations.
-     *
-     * @param  list<string>  $locationHints
-     */
-    private function transcribeVocabPrompt(array $locationHints): string
-    {
-        $places = array_slice(array_values(array_filter($locationHints)), 0, 40);
-        $extraPlaces = [
-            'Qara Qarayev', 'Gənclik', '28 May', 'İçərişəhər', 'Elmlər', 'Həzi Aslanov',
-            'Nərimanov', 'Nəsimi', 'Nizami', 'Yasamal', 'Xətai', 'Bakı',
-        ];
-        $bits = array_values(array_unique(array_merge($extraPlaces, $places)));
-        if ($bits === []) {
-            return '';
-        }
-
-        return 'Azerbaijan place names (transcribe speech only; if silent/empty return nothing): '
-            .implode(', ', $bits).'.';
     }
 
     /**

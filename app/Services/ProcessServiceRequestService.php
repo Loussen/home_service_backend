@@ -246,6 +246,19 @@ class ProcessServiceRequestService
             return true;
         }
 
+        // Prompt-echo of our location vocabulary: long comma lists / "City / District".
+        $commaCount = substr_count($bare, ',');
+        $slashPlaceCount = preg_match_all('/\s\/\s/u', $bare) ?: 0;
+        if ($commaCount >= 6 || $slashPlaceCount >= 3) {
+            return true;
+        }
+        if (str_contains($bare, 'azerbaijan place names')
+            || str_contains($bare, 'home-service request vocabulary')
+            || str_contains($bare, 'transcribe speech only')
+        ) {
+            return true;
+        }
+
         $hallucinations = [
             'thanks for watching',
             'thank you for watching',
