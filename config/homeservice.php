@@ -57,6 +57,9 @@ return [
     'ios_force_min_version' => env('IOS_FORCE_MIN_VERSION', ''),
     'android_soft_min_version' => env('ANDROID_SOFT_MIN_VERSION', ''),
     'android_force_min_version' => env('ANDROID_FORCE_MIN_VERSION', ''),
+    /** Latest published marketing version (semver). Admin updates on each store release. */
+    'ios_current_version' => env('IOS_CURRENT_VERSION', '1.0.0'),
+    'android_current_version' => env('ANDROID_CURRENT_VERSION', '1.0.0'),
     // Local/dev: log OTP instead of SMS
     'otp_driver' => env('OTP_DRIVER', 'log'),
     // Process voice requests inline (no queue worker needed)

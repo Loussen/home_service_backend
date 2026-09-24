@@ -59,11 +59,13 @@ class BootstrapService
                 ],
                 'app_update' => [
                     'ios' => [
+                        'current_version' => (string) ($hs['ios_current_version'] ?? '1.0.0'),
                         'soft_min_version' => (string) ($hs['ios_soft_min_version'] ?? ''),
                         'force_min_version' => (string) ($hs['ios_force_min_version'] ?? ''),
                         'store_url' => (string) ($hs['app_store_url'] ?? ''),
                     ],
                     'android' => [
+                        'current_version' => (string) ($hs['android_current_version'] ?? '1.0.0'),
                         'soft_min_version' => (string) ($hs['android_soft_min_version'] ?? ''),
                         'force_min_version' => (string) ($hs['android_force_min_version'] ?? ''),
                         'store_url' => (string) ($hs['play_store_url'] ?? ''),

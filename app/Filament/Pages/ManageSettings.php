@@ -238,13 +238,29 @@ class ManageSettings extends Page
                         ->label('Push bildiriş (FCM açarı varsa)'),
                 ]),
             Section::make('App versiya (soft / force update)')
-                ->description('Semver: 1.0.0. Boş = söndürülüb. Force soft-dan üstündür. iOS və Android ayrıdır.')
+                ->description('Semver: 1.0.0. Boş soft/force = söndürülüb. Force soft-dan üstündür. iOS və Android ayrıdır.')
                 ->columns(2)
                 ->schema([
                     Callout::make('Diqqət')
                         ->warning()
-                        ->description('Bu bölmə bütün istifadəçilərin app-ə girişini təsir edir. Soft/force versiyanı və Store linklərini yalnız həqiqətən lazım olanda dəyişin. Səhv force min köhnə app-ləri tam bağlaya bilər.')
+                        ->description(fn (Get $get): string => 'Hazırkı versiyalar — iOS: '
+                            .(($get('ios_current_version') ?: '—'))
+                            .' · Android: '
+                            .(($get('android_current_version') ?: '—'))
+                            .'. Bu bölmə bütün istifadəçilərin app-ə girişini təsir edir. Soft/force və Store linklərini yalnız həqiqətən lazım olanda dəyişin. Səhv force min köhnə app-ləri tam bağlaya bilər.')
                         ->columnSpanFull(),
+                    TextInput::make('ios_current_version')
+                        ->label('Hazırkı iOS versiya')
+                        ->placeholder('məs. 1.0.0')
+                        ->helperText('Store / TestFlight-da live olan versiya. Yeni release-də yeniləyin.')
+                        ->required()
+                        ->live(onBlur: true),
+                    TextInput::make('android_current_version')
+                        ->label('Hazırkı Android versiya')
+                        ->placeholder('məs. 1.0.0')
+                        ->helperText('Play Store-da live olan versiya. Yeni release-də yeniləyin.')
+                        ->required()
+                        ->live(onBlur: true),
                     TextInput::make('ios_soft_min_version')
                         ->label('iOS soft min')
                         ->placeholder('məs. 1.0.1')

@@ -49,6 +49,8 @@ class RuntimeSettings
             'ios_force_min_version' => 'homeservice.ios_force_min_version',
             'android_soft_min_version' => 'homeservice.android_soft_min_version',
             'android_force_min_version' => 'homeservice.android_force_min_version',
+            'ios_current_version' => 'homeservice.ios_current_version',
+            'android_current_version' => 'homeservice.android_current_version',
             'app_store_url' => 'homeservice.app_store_url',
             'play_store_url' => 'homeservice.play_store_url',
             'otp_ttl_minutes' => 'homeservice.otp_ttl_minutes',
@@ -129,9 +131,17 @@ class RuntimeSettings
             'ios_force_min_version',
             'android_soft_min_version',
             'android_force_min_version',
+            'ios_current_version',
+            'android_current_version',
         ] as $verKey) {
             $raw = trim((string) ($state[$verKey] ?? ''));
             $state[$verKey] = preg_match('/^\d+(\.\d+){0,3}$/', $raw) ? $raw : '';
+        }
+        if ($state['ios_current_version'] === '') {
+            $state['ios_current_version'] = '1.0.0';
+        }
+        if ($state['android_current_version'] === '') {
+            $state['android_current_version'] = '1.0.0';
         }
         $state['app_store_url'] = trim((string) ($state['app_store_url'] ?? ''));
         $state['play_store_url'] = trim((string) ($state['play_store_url'] ?? ''));
