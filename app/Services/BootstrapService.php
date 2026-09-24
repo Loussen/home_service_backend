@@ -57,6 +57,18 @@ class BootstrapService
                     ['id' => 'schedule', 'title' => $stringMap['onboarding.step.schedule'] ?? ''],
                     ['id' => 'about', 'title' => $stringMap['onboarding.step.about'] ?? ''],
                 ],
+                'app_update' => [
+                    'ios' => [
+                        'soft_min_version' => (string) ($hs['ios_soft_min_version'] ?? ''),
+                        'force_min_version' => (string) ($hs['ios_force_min_version'] ?? ''),
+                        'store_url' => (string) ($hs['app_store_url'] ?? ''),
+                    ],
+                    'android' => [
+                        'soft_min_version' => (string) ($hs['android_soft_min_version'] ?? ''),
+                        'force_min_version' => (string) ($hs['android_force_min_version'] ?? ''),
+                        'store_url' => (string) ($hs['play_store_url'] ?? ''),
+                    ],
+                ],
             ],
             'flags' => [
                 'voice_search' => (bool) ($hs['feature_voice_search'] ?? true),

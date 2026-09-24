@@ -13,6 +13,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
@@ -235,6 +236,37 @@ class ManageSettings extends Page
                         ->label('Xəritə'),
                     Toggle::make('feature_push')
                         ->label('Push bildiriş (FCM açarı varsa)'),
+                ]),
+            Section::make('App versiya (soft / force update)')
+                ->description('Semver: 1.0.0. Boş = söndürülüb. Force soft-dan üstündür. iOS və Android ayrıdır.')
+                ->columns(2)
+                ->schema([
+                    Callout::make('Diqqət')
+                        ->warning()
+                        ->description('Bu bölmə bütün istifadəçilərin app-ə girişini təsir edir. Soft/force versiyanı və Store linklərini yalnız həqiqətən lazım olanda dəyişin. Səhv force min köhnə app-ləri tam bağlaya bilər.')
+                        ->columnSpanFull(),
+                    TextInput::make('ios_soft_min_version')
+                        ->label('iOS soft min')
+                        ->placeholder('məs. 1.0.1')
+                        ->helperText('Bu versiyadan aşağı → yeniləmə təklifi (keçmək olar).'),
+                    TextInput::make('ios_force_min_version')
+                        ->label('iOS force min')
+                        ->placeholder('məs. 1.0.0')
+                        ->helperText('Bu versiyadan aşağı → app bloklanır, yalnız Store.'),
+                    TextInput::make('android_soft_min_version')
+                        ->label('Android soft min')
+                        ->placeholder('məs. 1.0.1'),
+                    TextInput::make('android_force_min_version')
+                        ->label('Android force min')
+                        ->placeholder('məs. 1.0.0'),
+                    TextInput::make('app_store_url')
+                        ->label('App Store URL')
+                        ->placeholder('https://apps.apple.com/...')
+                        ->columnSpanFull(),
+                    TextInput::make('play_store_url')
+                        ->label('Play Store URL')
+                        ->placeholder('https://play.google.com/store/apps/...')
+                        ->columnSpanFull(),
                 ]),
             Section::make('OTP / SMS')
                 ->description('Kodun özü yerli SMS gateway-dən gələcək (.env). Burada limitlər.')

@@ -45,6 +45,12 @@ class RuntimeSettings
             'feature_voice_search' => 'homeservice.feature_voice_search',
             'feature_maps' => 'homeservice.feature_maps',
             'feature_push' => 'homeservice.feature_push',
+            'ios_soft_min_version' => 'homeservice.ios_soft_min_version',
+            'ios_force_min_version' => 'homeservice.ios_force_min_version',
+            'android_soft_min_version' => 'homeservice.android_soft_min_version',
+            'android_force_min_version' => 'homeservice.android_force_min_version',
+            'app_store_url' => 'homeservice.app_store_url',
+            'play_store_url' => 'homeservice.play_store_url',
             'otp_ttl_minutes' => 'homeservice.otp_ttl_minutes',
             'otp_max_attempts' => 'homeservice.otp_max_attempts',
             'otp_send_max' => 'homeservice.otp_send_max',
@@ -117,6 +123,18 @@ class RuntimeSettings
             $default = $supported[0];
         }
         $state['locales_default'] = $default;
+
+        foreach ([
+            'ios_soft_min_version',
+            'ios_force_min_version',
+            'android_soft_min_version',
+            'android_force_min_version',
+        ] as $verKey) {
+            $raw = trim((string) ($state[$verKey] ?? ''));
+            $state[$verKey] = preg_match('/^\d+(\.\d+){0,3}$/', $raw) ? $raw : '';
+        }
+        $state['app_store_url'] = trim((string) ($state['app_store_url'] ?? ''));
+        $state['play_store_url'] = trim((string) ($state['play_store_url'] ?? ''));
 
         $packages = $state['wallet_packages'] ?? [10, 30, 50];
         if (! is_array($packages)) {

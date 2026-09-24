@@ -49,6 +49,14 @@ return [
     'feature_voice_search' => filter_var(env('FEATURE_VOICE_SEARCH', true), FILTER_VALIDATE_BOOL),
     'feature_maps' => filter_var(env('FEATURE_MAPS', true), FILTER_VALIDATE_BOOL),
     'feature_push' => filter_var(env('FEATURE_PUSH', true), FILTER_VALIDATE_BOOL),
+    /**
+     * App update gates (semver, e.g. 1.0.0). Empty = disabled.
+     * Force wins when current < force_min. Soft prompts when current < soft_min.
+     */
+    'ios_soft_min_version' => env('IOS_SOFT_MIN_VERSION', ''),
+    'ios_force_min_version' => env('IOS_FORCE_MIN_VERSION', ''),
+    'android_soft_min_version' => env('ANDROID_SOFT_MIN_VERSION', ''),
+    'android_force_min_version' => env('ANDROID_FORCE_MIN_VERSION', ''),
     // Local/dev: log OTP instead of SMS
     'otp_driver' => env('OTP_DRIVER', 'log'),
     // Process voice requests inline (no queue worker needed)
