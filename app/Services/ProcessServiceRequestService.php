@@ -231,14 +231,18 @@ class ProcessServiceRequestService
     private function looksLikeFailedTranscript(string $text): bool
     {
         $t = mb_strtolower(trim($text));
-        if ($t === '' || mb_strlen($t) < 12) {
+        $t = preg_replace('/\s+/u', ' ', $t) ?? $t;
+        // Strip trailing punctuation for exact-phrase checks.
+        $bare = trim(preg_replace('/[.!?…,;:]+$/u', '', $t) ?? $t);
+
+        if ($bare === '' || mb_strlen($bare) < 12) {
             return true;
         }
-        if (! preg_match('/\p{L}/u', $t)) {
+        if (! preg_match('/\p{L}/u', $bare)) {
             return true;
         }
         // Silence often yields Hindi/CJK hallucinations — require AZ/RU/EN letters.
-        if (! preg_match('/[a-zа-яёəğıöüşç]/iu', $t)) {
+        if (! preg_match('/[a-zа-яёəğıöüşç]/iu', $bare)) {
             return true;
         }
 
@@ -251,11 +255,31 @@ class ProcessServiceRequestService
             'продолжение следует',
             'amara.org',
             'www.youtube.com',
+            // Former STT prompt echo on silence (service words used to be in prompt).
+            'uşaq dayəsi lazımdır',
+            'uşaq dayəsi axtarılır',
+            'usaq dayesi lazimdir',
+            'körpə dayəsi lazımdır',
+            'məktəbli dayəsi lazımdır',
+            'dayə lazımdır',
+            'daye lazimdir',
+            'təmizlik lazımdır',
+            'it gəzdirmə lazımdır',
+            'nanny needed',
+            'child nanny needed',
         ];
         foreach ($hallucinations as $bad) {
-            if ($t === $bad || str_contains($t, $bad)) {
+            if ($bare === $bad || $t === $bad) {
                 return true;
             }
+        }
+
+        // Ultra-short generic service-only lines with no place/time/number —
+        // typical silence/prompt echo, not a real spoken request.
+        if (mb_strlen($bare) <= 28
+            && preg_match('/^(uşaq\s+)?day[eə]si?\s+(lazımdır|axtarılır)$/u', $bare)
+        ) {
+            return true;
         }
 
         return false;

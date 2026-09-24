@@ -30,6 +30,13 @@ class ConversationController extends Controller
         );
     }
 
+    public function unreadCount(Request $request): JsonResponse
+    {
+        return $this->success([
+            'unread_count' => $this->conversations->unreadCountFor($request->user()),
+        ]);
+    }
+
     public function store(OpenConversationRequest $request): JsonResponse
     {
         $conversation = $this->conversations->open(

@@ -42,7 +42,7 @@ class ConversationService
                 'provider:id,name,phone,avatar_url',
                 'providerProfile.category',
                 'providerProfile.categories',
-                'serviceRequest',
+                'serviceRequest.category',
                 'lastMessage.offer',
             ])
             ->withCount([
@@ -63,6 +63,20 @@ class ConversationService
         return $page;
     }
 
+    public function unreadCountFor(User $user): int
+    {
+        return (int) Message::query()
+            ->whereNull('read_at')
+            ->where('sender_id', '!=', $user->id)
+            ->whereHas('conversation', function ($q) use ($user) {
+                $q->where(function ($inner) use ($user) {
+                    $inner->where('client_id', $user->id)
+                        ->orWhere('provider_id', $user->id);
+                });
+            })
+            ->count();
+    }
+
     public function getFor(User $user, int $id): Conversation
     {
         $conversation = Conversation::query()
@@ -75,7 +89,7 @@ class ConversationService
                 'provider:id,name,phone,avatar_url',
                 'providerProfile.category',
                 'providerProfile.categories',
-                'serviceRequest',
+                'serviceRequest.category',
                 'messages' => fn ($q) => $q->with(['offer.reviews.reviewer:id,name'])->orderBy('created_at')->orderBy('id'),
             ])
             ->find($id);

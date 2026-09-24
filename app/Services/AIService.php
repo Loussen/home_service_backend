@@ -66,7 +66,9 @@ class AIService
             $payload['language'] = $language;
         }
 
-        // whisper-1 often echoed long prompts; gpt-4o-transcribe handles short vocab better.
+        // Place names only — NEVER put service phrases in the STT prompt.
+        // Silence / empty clips make Whisper-family models echo prompt tokens
+        // (e.g. "uşaq dayəsi lazımdır"), which then become fake search requests.
         if (! str_starts_with($model, 'whisper')) {
             $vocab = $this->transcribeVocabPrompt($locationHints);
             if ($vocab !== '') {
@@ -140,7 +142,8 @@ class AIService
     }
 
     /**
-     * Short STT vocabulary — place + service words only (no full sample sentences).
+     * Short STT place vocabulary only (no service phrases / sample sentences).
+     * Service words in the prompt prime silence hallucinations.
      *
      * @param  list<string>  $locationHints
      */
@@ -151,14 +154,12 @@ class AIService
             'Qara Qarayev', 'Gənclik', '28 May', 'İçərişəhər', 'Elmlər', 'Həzi Aslanov',
             'Nərimanov', 'Nəsimi', 'Nizami', 'Yasamal', 'Xətai', 'Bakı',
         ];
-        $services = [
-            'uşaq dayəsi', 'dayə', 'körpə dayəsi', 'məktəbli dayəsi',
-            'təmizlik', 'it gəzdirmə', 'baxıcı', 'aşpaz', 'repetitor',
-            'axtarılır', 'lazımdır', 'saat', 'saatıq',
-        ];
-        $bits = array_values(array_unique(array_merge($extraPlaces, $places, $services)));
+        $bits = array_values(array_unique(array_merge($extraPlaces, $places)));
+        if ($bits === []) {
+            return '';
+        }
 
-        return 'Azərbaycan / Русский / English home-service request vocabulary: '
+        return 'Azerbaijan place names (transcribe speech only; if silent/empty return nothing): '
             .implode(', ', $bits).'.';
     }
 
@@ -187,7 +188,7 @@ Goal: recover what a local human meant, rewrite as clear normalized_text, then f
 1) FIRST rewrite as normalized_text (this is what the app shows the user):
    - Keep the user's language when possible (AZ/RU/EN), but FIX ASR errors aggressively.
    - Infer intent from phonetics when words are wrong: "saxdarlıq/şaxta/axtarlıg" → "axtarılır";
-     "uşag/uşax/usağ/uşaq" → "uşaq"; "dayasi/dayəsi/daya" → "dayəsi"; "Шахта/Şaxta" near a place often = speech garbage around "axtarılır".
+     "uşag/uşax/usağ/uşaq" → "uşaq"; "dayasi/dayəsi/daya" → "dayəsi".
    - Place names MUST map to this official list (phonetic / transliteration OK): {$locationsJson}
      Examples:
      "darimanov/Dərmolov/Dermolov/Нариманов/Narimanov" → district "Nərimanov"
@@ -196,22 +197,23 @@ Goal: recover what a local human meant, rewrite as clear normalized_text, then f
      "Qaraqarayev/Qara Qarayev/Кара Караев/Гара Гараев" → nearest district "Nizami" (metro area)
    - Duration: "küsadlıq/iki saatlıq/два часа/for two hours/2 hours/2 saatlıq" → duration_hours=2.
    - Service words: dayə/няня/nanny/uşaq dayəsi; it gəzdirmə/выгул собаки/dog walking; təmizlik/уборка/cleaning.
-   - Do not invent time/duration that were not implied. Do invent the clearest service sentence if ASR is garbled but intent is clear.
-   - Example repair: ASR "Qaraqarayevdə Şaxta üçün saxdarlıq" → normalized_text "Qara Qarayevdə uşaq dayəsi axtarılır", district "Nizami", category_slug nanny/infant-nanny/school-nanny as fits.
+   - CRITICAL: Never invent a service. If the transcript is empty, silence filler, or has no clear home-service intent, return empty normalized_text and null category_slug.
+   - Do not invent time/duration that were not implied.
+   - Example repair (only when service words are already present): ASR "Qaraqarayevdə dayə lazımdır iki saatlıq" → normalized_text "Qara Qarayevdə dayə lazımdır, 2 saatlıq", district "Nizami", category_slug nanny (or infant/school if specified).
 
 2) THEN fill structured fields for DB matching (canonical AZ place names from the list):
 Leaf category slugs only: {$catalogJson}
 
 Rules:
 - detected_language: "az" | "ru" | "en" | "mixed" | null
-- category_slug: slug from list or null
+- category_slug: slug from list or null — null when service is unclear
 - city, district: short official names from the list (e.g. Bakı, Nizami) or null.
   Neighbourhoods/metro → nearest official district.
 - time_hhmm: 24h "HH:MM" (3pm = 15:00) or null
 - duration_hours: number or null
 - time_slot: morning|afternoon|evening|night or null
   (05–11 morning, 12–16 afternoon, 17–21 evening, 22–04 night)
-- normalized_text: corrected full sentence for the UI (never leave ASR gibberish if intent is recoverable)
+- normalized_text: corrected full sentence for the UI, or "" when no real request
 
 JSON only:
 {"detected_language":"","normalized_text":"","category_slug":"","city":"","district":"","time_hhmm":"","duration_hours":null,"time_slot":""}
@@ -235,15 +237,15 @@ PROMPT;
 
         $prompt = <<<PROMPT
 You repair bad ASR for My Sancho (Azerbaijan home services).
-The previous parser could not find a category. Reconstruct the most likely home-service request.
+The previous parser could not find a category. Fix spelling/place names only when a real service was already said.
 
 Official places: {$locationsJson}
 Leaf categories: {$catalogJson}
 
 Neighbourhood hints: Gənclik→Nərimanov; Qara Qarayev→Nizami; 28 May→Nəsimi; İçərişəhər→Səbail.
 
-Return JSON only with corrected normalized_text and best category_slug if any intent is plausible.
-If truly impossible to guess a service, keep category_slug null but still clean the sentence.
+Do NOT invent a service (never default to nanny/dayə). If no clear service word exists, category_slug must be null and normalized_text may stay empty.
+Return JSON only:
 {"detected_language":"","normalized_text":"","category_slug":"","city":"","district":"","time_hhmm":"","duration_hours":null,"time_slot":""}
 PROMPT;
 

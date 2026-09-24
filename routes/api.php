@@ -100,6 +100,7 @@ Route::prefix('v1')->group(function () {
         Route::post('wallet/top-up', [WalletController::class, 'topUp']);
 
         Route::get('conversations', [ConversationController::class, 'index']);
+        Route::get('conversations/unread-count', [ConversationController::class, 'unreadCount']);
         Route::get('conversations/{id}', [ConversationController::class, 'show']);
         Route::post('conversations/{id}/messages', [ConversationController::class, 'storeMessage']);
         Route::post('conversations/{id}/offers', [ConversationController::class, 'storeOffer']);

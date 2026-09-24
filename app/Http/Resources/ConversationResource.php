@@ -45,14 +45,27 @@ class ConversationResource extends JsonResource
             'service_request_id' => $this->service_request_id,
             'service_request' => $this->when(
                 $this->relationLoaded('serviceRequest') && $this->serviceRequest,
-                function () {
+                function () use ($request) {
                     $sr = $this->serviceRequest;
+                    $locale = \App\Support\RequestLocale::from($request);
 
                     return [
                         'id' => $sr->id,
+                        'status' => $sr->status,
                         'transcribed_text' => $sr->transcribed_text,
                         'address' => $sr->address,
+                        'audio_url' => $sr->audio_public_url,
+                        'is_urgent' => (bool) $sr->is_urgent,
                         'parsed_criteria' => $sr->parsed_criteria,
+                        'expires_at' => $sr->expires_at?->toIso8601String(),
+                        'created_at' => $sr->created_at?->toIso8601String(),
+                        'category' => $sr->relationLoaded('category') && $sr->category
+                            ? [
+                                'id' => $sr->category->id,
+                                'name' => $sr->category->nameFor($locale),
+                                'name_az' => $sr->category->name_az,
+                            ]
+                            : null,
                     ];
                 },
             ),
