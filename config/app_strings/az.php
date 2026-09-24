@@ -269,6 +269,7 @@ return array (
   'jobs.expires_at' => 'Bitir: {when}',
   'jobs.badge.active' => 'Aktiv',
   'jobs.badge.inactive' => 'Deaktiv',
+  'jobs.reply_expired' => 'MÜDDƏTİ BITIB',
   'chat.title' => 'Chat',
   'chat.tab.current' => 'Cari',
   'chat.tab.archive' => 'Arxiv',

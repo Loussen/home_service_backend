@@ -24,11 +24,8 @@ class IncomingJobService
         return RequestMatch::query()
             ->whereHas('providerProfile', fn ($q) => $q->where('user_id', $user->id))
             ->whereHas('serviceRequest', function ($q) use ($hiddenIds) {
-                $q->whereNotIn('status', ['expired', 'cancelled', 'completed'])
-                    ->where(function ($inner) {
-                        $inner->whereNull('expires_at')
-                            ->orWhere('expires_at', '>', now());
-                    })
+                // Show live + expired (history). Hide cancelled/completed only.
+                $q->whereNotIn('status', ['cancelled', 'completed'])
                     ->when($hiddenIds !== [], fn ($q) => $q->whereNotIn('user_id', $hiddenIds));
             })
             ->with([
@@ -39,6 +36,29 @@ class IncomingJobService
             ])
             ->latest()
             ->limit(80)
-            ->get();
+            ->get()
+            ->sort(function (RequestMatch $a, RequestMatch $b) {
+                $liveA = $this->isLiveMatch($a);
+                $liveB = $this->isLiveMatch($b);
+                if ($liveA !== $liveB) {
+                    return $liveA ? -1 : 1;
+                }
+
+                return $b->id <=> $a->id;
+            })
+            ->values();
+    }
+
+    private function isLiveMatch(RequestMatch $match): bool
+    {
+        $sr = $match->serviceRequest;
+        if (! $sr) {
+            return false;
+        }
+        if (in_array($sr->status, ['expired', 'cancelled', 'completed'], true)) {
+            return false;
+        }
+
+        return $sr->expires_at === null || $sr->expires_at->isFuture();
     }
 }

@@ -274,6 +274,7 @@ return [
     'jobs.expires_at' => 'Истекает: {when}',
     'jobs.badge.active' => 'Активна',
     'jobs.badge.inactive' => 'Неактивна',
+    'jobs.reply_expired' => 'СРОК ИСТЁК',
     'requests.empty' => "Заявок пока нет.\nОтправьте голос или текст во вкладке Поиск.",
     'requests.item_fallback' => 'Заявка #{id}',
     'requests.matches_count' => '{count} совпадений',
