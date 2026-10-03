@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\ProcessAudioRequestJob;
 use App\Models\ServiceRequest;
 use App\Models\User;
+use App\Repositories\CategoryRepository;
 use App\Repositories\ServiceRequestRepository;
 use App\Support\RequestFilters;
 use App\Support\RequestTtl;
@@ -18,6 +19,9 @@ class ServiceRequestService
         private readonly ServiceRequestRepository $requests,
         private readonly WalletService $walletService,
         private readonly ProcessServiceRequestService $processor,
+        private readonly CategoryRepository $categories,
+        private readonly SearchService $search,
+        private readonly PushNotificationService $push,
     ) {}
 
     public function list(
@@ -184,5 +188,49 @@ class ServiceRequestService
 
         return $request->fresh(['category', 'matches.providerProfile.category', 'matches.providerProfile.categories', 'matches.providerProfile.user'])
             ?? $request;
+    }
+
+    /**
+     * Family picks a leaf category when AI left missing_category — then rematch.
+     */
+    public function setCategory(User $user, int $id, int $categoryId): ServiceRequest
+    {
+        abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
+
+        $request = $this->requests->findForUser($user->id, $id);
+        abort_if(! $request, 404, 'Request not found');
+        RequestTtl::expireIfNeeded($request);
+        $request->refresh();
+
+        abort_if(
+            in_array($request->status, ['cancelled', 'completed', 'expired'], true),
+            422,
+            'Bu sorğuya kateqoriya təyin etmək olmur',
+        );
+
+        $category = $this->categories->findById($categoryId);
+        abort_if(! $category || ! $category->is_active, 422, 'Kateqoriya tapılmadı');
+        abort_if($category->children()->exists(), 422, 'Yalnız konkret (yarpaq) kateqoriya seçin');
+
+        $criteria = $request->parsed_criteria ?? [];
+        unset($criteria['missing_category'], $criteria['transcription_failed']);
+        $criteria['category_slug'] = $category->slug;
+        $criteria['category_manual'] = true;
+
+        $request = $this->requests->update($request, [
+            'category_id' => $category->id,
+            'parsed_criteria' => $criteria,
+            'status' => 'active',
+        ]);
+
+        $results = $this->search->matchRequest($request);
+        if ($results->isNotEmpty()) {
+            $request = $this->requests->update($request, ['status' => 'matched']);
+            $this->push->notifyNewMatches($request);
+        } else {
+            $request = $this->walletService->refundUrgentIfNoResults($request);
+        }
+
+        return $this->requests->findForUser($user->id, $request->id) ?? $request;
     }
 }

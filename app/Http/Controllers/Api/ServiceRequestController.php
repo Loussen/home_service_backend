@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ServiceRequest\SetCategoryRequest;
 use App\Http\Requests\ServiceRequest\StoreAudioRequest;
 use App\Http\Requests\ServiceRequest\StoreTextRequest;
 use App\Http\Resources\ServiceRequestResource;
@@ -137,6 +138,20 @@ class ServiceRequestController extends Controller
         return $this->success(
             new ServiceRequestResource($serviceRequest),
             'Request cancelled',
+        );
+    }
+
+    public function setCategory(SetCategoryRequest $request, int $id): JsonResponse
+    {
+        $serviceRequest = $this->serviceRequests->setCategory(
+            $request->user(),
+            $id,
+            (int) $request->validated('category_id'),
+        );
+
+        return $this->success(
+            new ServiceRequestResource($serviceRequest),
+            'Category set',
         );
     }
 }
