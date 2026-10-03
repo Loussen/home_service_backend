@@ -323,6 +323,44 @@ class ManageSettings extends Page
                         ->downloadable()
                         ->openable(),
                 ]),
+            Section::make('Qəbul audiosu (sorğu göndərildikdən sonra)')
+                ->description('«My Sancho sizin sorğunuzu qəbul etdi…» — səs yazısı bitəndə. Dil üzrə (m4a/mp3). Boş = lokal ehtiyat.')
+                ->columns(3)
+                ->schema([
+                    FileUpload::make('voice_accepted_az')
+                        ->label('AZ')
+                        ->disk('public')
+                        ->directory('audio/accepted')
+                        ->visibility('public')
+                        ->acceptedFileTypes([
+                            'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mp4a-latm',
+                        ])
+                        ->maxSize(8192)
+                        ->downloadable()
+                        ->openable(),
+                    FileUpload::make('voice_accepted_en')
+                        ->label('EN')
+                        ->disk('public')
+                        ->directory('audio/accepted')
+                        ->visibility('public')
+                        ->acceptedFileTypes([
+                            'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mp4a-latm',
+                        ])
+                        ->maxSize(8192)
+                        ->downloadable()
+                        ->openable(),
+                    FileUpload::make('voice_accepted_ru')
+                        ->label('RU')
+                        ->disk('public')
+                        ->directory('audio/accepted')
+                        ->visibility('public')
+                        ->acceptedFileTypes([
+                            'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mp4a-latm',
+                        ])
+                        ->maxSize(8192)
+                        ->downloadable()
+                        ->openable(),
+                ]),
             Section::make('OTP / SMS')
                 ->description('Kodun özü yerli SMS gateway-dən gələcək (.env). Burada limitlər.')
                 ->columns(2)

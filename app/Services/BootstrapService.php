@@ -78,6 +78,11 @@ class BootstrapService
                         'en' => PublicMediaUrl::make($hs['voice_greeting_en'] ?? null),
                         'ru' => PublicMediaUrl::make($hs['voice_greeting_ru'] ?? null),
                     ],
+                    'accepted' => [
+                        'az' => PublicMediaUrl::make($hs['voice_accepted_az'] ?? null),
+                        'en' => PublicMediaUrl::make($hs['voice_accepted_en'] ?? null),
+                        'ru' => PublicMediaUrl::make($hs['voice_accepted_ru'] ?? null),
+                    ],
                 ],
             ],
             'flags' => [

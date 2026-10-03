@@ -64,6 +64,9 @@ return [
     'voice_greeting_az' => env('VOICE_GREETING_AZ', ''),
     'voice_greeting_en' => env('VOICE_GREETING_EN', ''),
     'voice_greeting_ru' => env('VOICE_GREETING_RU', ''),
+    'voice_accepted_az' => env('VOICE_ACCEPTED_AZ', ''),
+    'voice_accepted_en' => env('VOICE_ACCEPTED_EN', ''),
+    'voice_accepted_ru' => env('VOICE_ACCEPTED_RU', ''),
     // Local/dev: log OTP instead of SMS
     'otp_driver' => env('OTP_DRIVER', 'log'),
     // Process voice requests inline (no queue worker needed)

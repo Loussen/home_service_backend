@@ -56,6 +56,9 @@ class RuntimeSettings
             'voice_greeting_az' => 'homeservice.voice_greeting_az',
             'voice_greeting_en' => 'homeservice.voice_greeting_en',
             'voice_greeting_ru' => 'homeservice.voice_greeting_ru',
+            'voice_accepted_az' => 'homeservice.voice_accepted_az',
+            'voice_accepted_en' => 'homeservice.voice_accepted_en',
+            'voice_accepted_ru' => 'homeservice.voice_accepted_ru',
             'otp_ttl_minutes' => 'homeservice.otp_ttl_minutes',
             'otp_max_attempts' => 'homeservice.otp_max_attempts',
             'otp_send_max' => 'homeservice.otp_send_max',
@@ -149,7 +152,10 @@ class RuntimeSettings
         $state['app_store_url'] = trim((string) ($state['app_store_url'] ?? ''));
         $state['play_store_url'] = trim((string) ($state['play_store_url'] ?? ''));
 
-        foreach (['voice_greeting_az', 'voice_greeting_en', 'voice_greeting_ru'] as $audioKey) {
+        foreach ([
+            'voice_greeting_az', 'voice_greeting_en', 'voice_greeting_ru',
+            'voice_accepted_az', 'voice_accepted_en', 'voice_accepted_ru',
+        ] as $audioKey) {
             $raw = $state[$audioKey] ?? '';
             if (is_array($raw)) {
                 $raw = $raw[0] ?? '';
