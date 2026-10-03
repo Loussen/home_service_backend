@@ -279,10 +279,7 @@ class PushNotificationService
             ->whereNull('read_at')
             ->where('sender_id', '!=', $user->id)
             ->whereHas('conversation', function ($q) use ($user) {
-                $q->where(function ($inner) use ($user) {
-                    $inner->where('client_id', $user->id)
-                        ->orWhere('provider_id', $user->id);
-                });
+                $q->forActiveRole($user);
             })
             ->count();
     }

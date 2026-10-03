@@ -33,10 +33,7 @@ class ConversationService
             ->all();
 
         $page = Conversation::query()
-            ->where(function ($q) use ($user) {
-                $q->where('client_id', $user->id)
-                    ->orWhere('provider_id', $user->id);
-            })
+            ->forActiveRole($user)
             ->with([
                 'client:id,name,phone,avatar_url',
                 'provider:id,name,phone,avatar_url',
@@ -69,10 +66,7 @@ class ConversationService
             ->whereNull('read_at')
             ->where('sender_id', '!=', $user->id)
             ->whereHas('conversation', function ($q) use ($user) {
-                $q->where(function ($inner) use ($user) {
-                    $inner->where('client_id', $user->id)
-                        ->orWhere('provider_id', $user->id);
-                });
+                $q->forActiveRole($user);
             })
             ->count();
     }

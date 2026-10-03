@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,6 +24,16 @@ class Conversation extends Model
         return [
             'last_message_at' => 'datetime',
         ];
+    }
+
+    /** Dual-role inbox: only threads for the user's active session side. */
+    public function scopeForActiveRole(Builder $query, User $user): Builder
+    {
+        if ($user->isProvider()) {
+            return $query->where('provider_id', $user->id);
+        }
+
+        return $query->where('client_id', $user->id);
     }
 
     public function client(): BelongsTo
