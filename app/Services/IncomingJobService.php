@@ -24,8 +24,8 @@ class IncomingJobService
         return RequestMatch::query()
             ->whereHas('providerProfile', fn ($q) => $q->where('user_id', $user->id))
             ->whereHas('serviceRequest', function ($q) use ($hiddenIds) {
-                // Show live + expired (history). Hide cancelled/completed only.
-                $q->whereNotIn('status', ['cancelled', 'completed'])
+                // Show live + expired + cancelled (history). Hide completed only.
+                $q->whereNotIn('status', ['completed'])
                     ->when($hiddenIds !== [], fn ($q) => $q->whereNotIn('user_id', $hiddenIds));
             })
             ->with([

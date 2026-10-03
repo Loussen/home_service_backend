@@ -56,7 +56,7 @@ class ServiceRequestsTable
                         'active' => 'Aktiv',
                         'matched' => 'Uyğunlaşıb',
                         'completed' => 'Tamamlanıb',
-                        'cancelled' => 'Ləğv edilib',
+                        'cancelled' => 'Dayandırılıb',
                         'expired' => 'Müddəti bitib',
                         default => $state,
                     }),
@@ -74,7 +74,7 @@ class ServiceRequestsTable
                         'active' => 'Aktiv',
                         'matched' => 'Uyğunlaşıb',
                         'completed' => 'Tamamlanıb',
-                        'cancelled' => 'Ləğv edilib',
+                        'cancelled' => 'Dayandırılıb',
                         'expired' => 'Müddəti bitib',
                     ]),
                 SelectFilter::make('category_id')

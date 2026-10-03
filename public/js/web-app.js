@@ -5231,8 +5231,31 @@
                     return;
                 }
                 box.innerHTML = '';
+                function jobIsLive(req) {
+                    var status = (req && req.status) || '';
+                    if (status === 'expired' || status === 'cancelled' || status === 'completed') {
+                        return false;
+                    }
+                    if (req && req.expires_at) {
+                        var ends = Date.parse(req.expires_at);
+                        if (!isNaN(ends) && ends < Date.now()) return false;
+                    }
+                    return true;
+                }
+
+                function jobReplyLabel(req) {
+                    if ((req && req.status) === 'cancelled') {
+                        return t('jobs.reply_stopped', 'SORĞU DAYANDIRILIB');
+                    }
+                    if (!jobIsLive(req)) {
+                        return t('jobs.reply_expired', 'MÜDDƏTİ BITIB');
+                    }
+                    return t('web.jobs.reply_cta', 'Cavab ver');
+                }
+
                 function replyToJob(job) {
                     var req = job.request || {};
+                    if (!jobIsLive(req)) return Promise.resolve();
                     return api('/conversations/reply', {
                         method: 'POST',
                         body: JSON.stringify({
@@ -5251,6 +5274,7 @@
 
                 function openJobDetail(job) {
                     var req = job.request || {};
+                    var live = jobIsLive(req);
                     var serviceWhen = requestServiceWhen(req);
                     var audioUrl = req.audio_url || req.raw_audio_url || '';
                     var existing = document.getElementById('job-detail-modal');
@@ -5270,6 +5294,13 @@
                                 score: Math.round(job.match_score || 0),
                             })
                         ) +
+                        (req.status
+                            ? ' · <span class="request-status ' +
+                              requestStatusClass(req.status) +
+                              '">' +
+                              esc(requestStatusLabel(req.status)) +
+                              '</span>'
+                            : '') +
                         '</p>' +
                         (req.transcribed_text
                             ? '<p class="job-detail-text">' + esc(req.transcribed_text) + '</p>'
@@ -5300,8 +5331,10 @@
                         '<button type="button" class="btn btn-outline" id="job-detail-close">' +
                         esc(t('web.common.close', 'Bağla')) +
                         '</button>' +
-                        '<button type="button" class="btn btn-primary" id="job-detail-reply">' +
-                        esc(t('web.jobs.reply_cta', 'Cavab ver')) +
+                        '<button type="button" class="btn btn-primary" id="job-detail-reply"' +
+                        (live ? '' : ' disabled') +
+                        '>' +
+                        esc(jobReplyLabel(req)) +
                         '</button>' +
                         '</div></div>';
 
@@ -5313,14 +5346,18 @@
                     modal.addEventListener('click', function (e) {
                         if (e.target === modal) close();
                     });
-                    modal.querySelector('#job-detail-reply').addEventListener('click', function () {
-                        close();
-                        replyToJob(job);
-                    });
+                    var replyBtn = modal.querySelector('#job-detail-reply');
+                    if (live) {
+                        replyBtn.addEventListener('click', function () {
+                            close();
+                            replyToJob(job);
+                        });
+                    }
                 }
 
                 rows.forEach(function (job) {
                     var req = job.request || {};
+                    var live = jobIsLive(req);
                     var serviceWhen = requestServiceWhen(req);
                     var audioUrl = req.audio_url || req.raw_audio_url || '';
                     var card = document.createElement('article');
@@ -5329,6 +5366,13 @@
                     card.setAttribute('role', 'button');
                     card.innerHTML =
                         (job.is_urgent ? '<span class="pill">URGENT</span>' : '') +
+                        (req.status
+                            ? '<span class="request-status ' +
+                              requestStatusClass(req.status) +
+                              '">' +
+                              esc(requestStatusLabel(req.status)) +
+                              '</span>'
+                            : '') +
                         '<h3>' +
                         esc((job.client && job.client.name) || 'Müştəri') +
                         (audioUrl
@@ -5352,8 +5396,10 @@
                         '<p class="job-open-hint">' +
                         esc(t('jobs.open_detail', 'Ətraflı bax →')) +
                         '</p>' +
-                        '<button type="button" class="btn btn-primary reply">' +
-                        esc(t('web.jobs.reply_cta', 'Cavab ver')) +
+                        '<button type="button" class="btn btn-primary reply"' +
+                        (live ? '' : ' disabled') +
+                        '>' +
+                        esc(jobReplyLabel(req)) +
                         '</button>';
                     card.addEventListener('click', function (e) {
                         if (e.target.closest('.reply')) return;
@@ -5365,10 +5411,12 @@
                             openJobDetail(job);
                         }
                     });
-                    card.querySelector('.reply').addEventListener('click', function (e) {
-                        e.stopPropagation();
-                        replyToJob(job);
-                    });
+                    if (live) {
+                        card.querySelector('.reply').addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            replyToJob(job);
+                        });
+                    }
                     box.appendChild(card);
                 });
                 log('İşlər yükləndi', { count: rows.length });
@@ -5395,7 +5443,7 @@
             active: t('web.request.status.active', 'Aktiv'),
             matched: t('web.request.status.matched', 'Uyğunlaşıb'),
             completed: t('web.request.status.completed', 'Tamamlanıb'),
-            cancelled: t('web.request.status.cancelled', 'Ləğv edilib'),
+            cancelled: t('web.request.status.cancelled', 'Dayandırılıb'),
         };
         return map[status] || status || '—';
     }

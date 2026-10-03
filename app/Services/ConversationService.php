@@ -325,7 +325,7 @@ class ConversationService
             abort_if(
                 $sr && $sr->status === 'cancelled',
                 422,
-                'Bu sorğu dayandırılıb — mesaj göndərmək olmur',
+                'Ailə axtarışı dayandırıb — mesaj göndərmək olmur',
             );
         }
 
