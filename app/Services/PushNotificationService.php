@@ -214,9 +214,8 @@ class PushNotificationService
     }
 
     /**
-     * Scheduler: find expired requests that still need a missed-opportunity nudge.
-     * Works even if API traffic already marked the request expired earlier
-     * (expireOverdue without notify would otherwise skip them forever).
+     * Scheduler: nudge only recently expired matches.
+     * Older backlog is silenced without push (avoids first-cron flood).
      */
     public function notifyPendingMissedOpportunities(): int
     {
@@ -224,10 +223,17 @@ class PushNotificationService
             return 0;
         }
 
+        $this->silenceStaleMissedOpportunities();
+
+        $since = now()->subDay();
         $ids = RequestMatch::query()
             ->whereNull('missed_opportunity_notified_at')
             ->where('notified', true)
-            ->whereHas('serviceRequest', fn ($q) => $q->where('status', 'expired'))
+            ->whereHas('serviceRequest', function ($q) use ($since) {
+                $q->where('status', 'expired')
+                    ->whereNotNull('expires_at')
+                    ->where('expires_at', '>=', $since);
+            })
             ->orderBy('id')
             ->limit(200)
             ->pluck('service_request_id')
@@ -237,6 +243,22 @@ class PushNotificationService
             ->all();
 
         return $this->notifyMissedOpportunities($ids);
+    }
+
+    /** Mark pre-window expired matches as done — no marketing spam. */
+    private function silenceStaleMissedOpportunities(): void
+    {
+        $cutoff = now()->subDay();
+        RequestMatch::query()
+            ->whereNull('missed_opportunity_notified_at')
+            ->whereHas('serviceRequest', function ($q) use ($cutoff) {
+                $q->where('status', 'expired')
+                    ->where(function ($q) use ($cutoff) {
+                        $q->whereNull('expires_at')
+                            ->orWhere('expires_at', '<', $cutoff);
+                    });
+            })
+            ->update(['missed_opportunity_notified_at' => now()]);
     }
 
     /**
