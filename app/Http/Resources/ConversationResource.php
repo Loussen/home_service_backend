@@ -47,12 +47,12 @@ class ConversationResource extends JsonResource
                 ->exists();
         }
 
-        // Family sees provider phone if provider opted in, or after accepted offer.
+        // Family (client) may dial the provider after CONNECT — native tel:.
+        // Provider never receives the family's number via this channel.
         $showPhone = false;
         if (! $isBlocked && $me && $other) {
             $isClientViewer = (int) $this->client_id === (int) $me->id;
-            $providerAllows = $isClientViewer && (bool) ($other->share_phone ?? false);
-            $showPhone = $providerAllows || $this->hasSharedContact();
+            $showPhone = $isClientViewer && filled($other->phone);
         }
 
         return [
