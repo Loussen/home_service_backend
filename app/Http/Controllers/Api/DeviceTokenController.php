@@ -15,11 +15,15 @@ class DeviceTokenController extends Controller
 
     public function store(StoreDeviceTokenRequest $request): JsonResponse
     {
+        $locale = $request->validated('locale');
         $token = DeviceToken::updateOrCreate(
             ['token' => $request->validated('token')],
             [
                 'user_id' => $request->user()->id,
                 'platform' => $request->validated('platform'),
+                'locale' => is_string($locale) && $locale !== ''
+                    ? strtolower(substr($locale, 0, 8))
+                    : null,
             ]
         );
 

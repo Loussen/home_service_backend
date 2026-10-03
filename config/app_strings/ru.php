@@ -331,6 +331,8 @@ return [
     'chat.request_stopped_composer' => 'Семья остановила поиск — новые сообщения недоступны',
     'chat.request_expired_composer' => 'Срок заявки истёк — новые сообщения недоступны',
     'chat.job_done_composer' => 'Работа завершена — новые сообщения недоступны',
+    'push.missed_opportunity.title' => 'Вы упустили возможность',
+    'push.missed_opportunity.body' => 'Подходящая заявка истекла. Будьте активны — принимайте больше заказов.',
     'chat.call' => 'Позвонить',
     'account.share_phone' => 'Показывать мой номер в чате',
     'account.share_phone_hint' => 'Семья увидит иконку телефона и сможет позвонить',

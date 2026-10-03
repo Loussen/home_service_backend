@@ -10,5 +10,9 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::call(static function () {
-    RequestTtl::expireOverdue(notifyMissed: true);
+    // Expire first (API traffic may have expired some already without notify).
+    RequestTtl::expireOverdue();
+    // Then nudge any expired match that still needs the marketing push.
+    app(\App\Services\PushNotificationService::class)
+        ->notifyPendingMissedOpportunities();
 })->everyFiveMinutes()->name('expire-service-requests');

@@ -318,6 +318,8 @@ return array (
   'chat.request_stopped_composer' => 'Ailə axtarışı dayandırıb — bu söhbətdə yeni mesaj göndərmək olmur',
   'chat.request_expired_composer' => 'Sorğunun müddəti bitib — bu söhbətdə yeni mesaj göndərmək olmur',
   'chat.job_done_composer' => 'İş tamamlanıb — bu söhbətdə yeni mesaj göndərmək olmur',
+  'push.missed_opportunity.title' => 'Fürsəti qaçırdınız',
+  'push.missed_opportunity.body' => 'Uyğun sorğu müddəti bitdi. Bundan sonra aktiv olun — daha çox sorğu qəbul edin.',
   'chat.call' => 'Zəng et',
   'chat.menu.view_request' => 'Sorğuya bax',
   'chat.request_sheet_title' => 'Bu söhbətin sorğusu',

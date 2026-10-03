@@ -9,6 +9,13 @@ class AppStringRepository
     /** @var array<string, array<string, string>> */
     private array $dbCache = [];
 
+    public function get(string $key, ?string $locale = null): string
+    {
+        $map = $this->forLocale($this->normalize($locale));
+
+        return $map[$key] ?? $key;
+    }
+
     public function forLocale(string $locale): array
     {
         $default = (string) config('app_locales.default', 'az');

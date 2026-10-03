@@ -11,6 +11,7 @@ class DeviceToken extends Model
         'user_id',
         'token',
         'platform',
+        'locale',
     ];
 
     public function user(): BelongsTo

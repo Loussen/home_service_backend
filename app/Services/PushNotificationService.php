@@ -214,6 +214,32 @@ class PushNotificationService
     }
 
     /**
+     * Scheduler: find expired requests that still need a missed-opportunity nudge.
+     * Works even if API traffic already marked the request expired earlier
+     * (expireOverdue without notify would otherwise skip them forever).
+     */
+    public function notifyPendingMissedOpportunities(): int
+    {
+        if (! config('homeservice.feature_push', true)) {
+            return 0;
+        }
+
+        $ids = RequestMatch::query()
+            ->whereNull('missed_opportunity_notified_at')
+            ->where('notified', true)
+            ->whereHas('serviceRequest', fn ($q) => $q->where('status', 'expired'))
+            ->orderBy('id')
+            ->limit(200)
+            ->pluck('service_request_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return $this->notifyMissedOpportunities($ids);
+    }
+
+    /**
      * After a request expires: nudge matched providers who never opened chat / replied.
      *
      * @param  list<int>  $serviceRequestIds
@@ -239,6 +265,9 @@ class PushNotificationService
             if (! $profile || ! $user || ! $request) {
                 continue;
             }
+            if ($request->status !== 'expired') {
+                continue;
+            }
             if ($profile->isFull() || $profile->isInQuietHours()) {
                 continue;
             }
@@ -253,10 +282,12 @@ class PushNotificationService
                 continue;
             }
 
+            $locale = $this->localeForUser($user);
+            $strings = app(\App\Repositories\AppStringRepository::class);
             $ok = $this->sendToUser(
                 $user,
-                'Fürsəti qaçırdınız',
-                'Uyğun sorğu müddəti bitdi. Bundan sonra aktiv olun — daha çox sorğu qəbul edin.',
+                $strings->get('push.missed_opportunity.title', $locale),
+                $strings->get('push.missed_opportunity.body', $locale),
                 [
                     'type' => 'missed_opportunity',
                     'request_id' => (string) $request->id,
@@ -495,6 +526,17 @@ class PushNotificationService
             'test' => 'test',
             default => 'system',
         };
+    }
+
+    private function localeForUser(User $user): string
+    {
+        $strings = app(\App\Repositories\AppStringRepository::class);
+        $raw = $user->deviceTokens()
+            ->whereNotNull('locale')
+            ->orderByDesc('updated_at')
+            ->value('locale');
+
+        return $strings->normalize(is_string($raw) ? $raw : null);
     }
 
     /**
