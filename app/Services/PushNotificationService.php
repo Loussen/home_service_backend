@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Jobs\NotifyMatchedProvidersJob;
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\PushDispatch;
 use App\Models\PushDispatchRecipient;
 use App\Models\RequestMatch;
@@ -175,7 +176,7 @@ class PushNotificationService
         $this->sendToUser($recipient, $title, $body, [
             'type' => 'chat_connect',
             'conversation_id' => (string) $conversation->id,
-        ]);
+        ], badgeOverride: $this->chatUnreadCountFor($recipient));
     }
 
     public function notifyNewMessage(Conversation $conversation, User $sender, string $body): void
@@ -209,7 +210,81 @@ class PushNotificationService
         $this->sendToUser($recipient, $name, $preview, [
             'type' => 'chat_message',
             'conversation_id' => (string) $conversation->id,
-        ]);
+        ], badgeOverride: $this->chatUnreadCountFor($recipient));
+    }
+
+    /**
+     * After a request expires: nudge matched providers who never opened chat / replied.
+     *
+     * @param  list<int>  $serviceRequestIds
+     */
+    public function notifyMissedOpportunities(array $serviceRequestIds): int
+    {
+        if (! config('homeservice.feature_push', true) || $serviceRequestIds === []) {
+            return 0;
+        }
+
+        $matches = RequestMatch::query()
+            ->with(['providerProfile.user', 'serviceRequest'])
+            ->whereIn('service_request_id', $serviceRequestIds)
+            ->whereNull('missed_opportunity_notified_at')
+            ->where('notified', true)
+            ->get();
+
+        $sent = 0;
+        foreach ($matches as $match) {
+            $profile = $match->providerProfile;
+            $user = $profile?->user;
+            $request = $match->serviceRequest;
+            if (! $profile || ! $user || ! $request) {
+                continue;
+            }
+            if ($profile->isFull() || $profile->isInQuietHours()) {
+                continue;
+            }
+
+            $replied = Conversation::query()
+                ->where('service_request_id', $request->id)
+                ->where('provider_profile_id', $profile->id)
+                ->exists();
+            if ($replied) {
+                $match->forceFill(['missed_opportunity_notified_at' => now()])->save();
+
+                continue;
+            }
+
+            $ok = $this->sendToUser(
+                $user,
+                'Fürsəti qaçırdınız',
+                'Uyğun sorğu müddəti bitdi. Bundan sonra aktiv olun — daha çox sorğu qəbul edin.',
+                [
+                    'type' => 'missed_opportunity',
+                    'request_id' => (string) $request->id,
+                    'match_id' => (string) $match->id,
+                ],
+            );
+
+            $match->forceFill(['missed_opportunity_notified_at' => now()])->save();
+            if ($ok) {
+                $sent++;
+            }
+        }
+
+        return $sent;
+    }
+
+    private function chatUnreadCountFor(User $user): int
+    {
+        return (int) Message::query()
+            ->whereNull('read_at')
+            ->where('sender_id', '!=', $user->id)
+            ->whereHas('conversation', function ($q) use ($user) {
+                $q->where(function ($inner) use ($user) {
+                    $inner->where('client_id', $user->id)
+                        ->orWhere('provider_id', $user->id);
+                });
+            })
+            ->count();
     }
 
     /**
@@ -221,6 +296,7 @@ class PushNotificationService
         string $body,
         array $data = [],
         ?PushDispatch $dispatch = null,
+        ?int $badgeOverride = null,
     ): bool {
         $ownsDispatch = $dispatch === null;
         if ($ownsDispatch) {
@@ -270,7 +346,10 @@ class PushNotificationService
             return false;
         }
 
-        $badge = max(1, (int) $user->unreadNotifications()->count());
+        // Chat pushes: launcher badge = unread chat count. Others: inbox unread.
+        $badge = $badgeOverride !== null
+            ? max(0, $badgeOverride)
+            : max(1, (int) $user->unreadNotifications()->count());
 
         $anyOk = false;
         $lastError = null;
@@ -414,7 +493,7 @@ class PushNotificationService
     {
         return match ($type) {
             'admin' => 'admin',
-            'new_job', 'urgent_job' => 'request',
+            'new_job', 'urgent_job', 'missed_opportunity' => 'request',
             'chat_connect', 'chat_message' => 'chat',
             'test' => 'test',
             default => 'system',

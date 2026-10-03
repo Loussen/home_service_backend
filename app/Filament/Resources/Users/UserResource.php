@@ -31,7 +31,7 @@ class UserResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         $count = User::query()
-            ->where('active_role', 'provider')
+            ->where('has_provider_role', true)
             ->where('provider_approval_status', 'pending')
             ->count();
 

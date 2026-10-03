@@ -14,6 +14,7 @@ class RequestMatch extends Model
         'distance_km',
         'score_breakdown',
         'notified',
+        'missed_opportunity_notified_at',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class RequestMatch extends Model
             'distance_km' => 'float',
             'score_breakdown' => 'array',
             'notified' => 'boolean',
+            'missed_opportunity_notified_at' => 'datetime',
         ];
     }
 

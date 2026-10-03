@@ -128,11 +128,11 @@ class UsersTable
                     ->falseLabel('İlk dəfə gözləyənlər')
                     ->queries(
                         true: fn (Builder $query) => $query
-                            ->where('active_role', 'provider')
+                            ->where('has_provider_role', true)
                             ->where('provider_approval_status', 'pending')
                             ->whereNotNull('provider_resubmitted_at'),
                         false: fn (Builder $query) => $query
-                            ->where('active_role', 'provider')
+                            ->where('has_provider_role', true)
                             ->where('provider_approval_status', 'pending')
                             ->whereNull('provider_resubmitted_at'),
                         blank: fn (Builder $query) => $query,
@@ -149,8 +149,8 @@ class UsersTable
                     ->label('Təsdiqlə')
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
-                    ->visible(fn (User $record): bool => $record->isProviderPending()
-                        || $record->provider_approval_status === 'rejected')
+                    ->visible(fn (User $record): bool => $record->hasProviderRole()
+                        && in_array($record->provider_approval_status, ['pending', 'rejected'], true))
                     ->requiresConfirmation()
                     ->action(function (User $record): void {
                         app(AuthService::class)->approveProvider($record, auth('admin')->user());
@@ -160,7 +160,7 @@ class UsersTable
                     ->label('Rədd et')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn (User $record): bool => $record->isProvider()
+                    ->visible(fn (User $record): bool => $record->hasProviderRole()
                         && $record->provider_approval_status !== 'rejected')
                     ->form([
                         Textarea::make('note')

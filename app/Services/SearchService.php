@@ -137,6 +137,11 @@ class SearchService
             ? $request->user
             : User::query()->find($request->user_id);
         if ($client) {
+            // Dual-role: never match the requester to their own provider profiles.
+            $providers = $providers
+                ->reject(fn (ProviderProfile $p) => (int) $p->user_id === (int) $client->id)
+                ->values();
+
             $hiddenIds = $this->moderation->hiddenUserIdsFor($client)
                 ->map(fn ($id) => (int) $id)
                 ->all();

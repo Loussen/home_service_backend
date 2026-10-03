@@ -13,12 +13,12 @@ class PendingProviderApprovalsWidget extends StatsOverviewWidget
     protected function getStats(): array
     {
         $pending = User::query()
-            ->where('active_role', 'provider')
+            ->where('has_provider_role', true)
             ->where('provider_approval_status', 'pending')
             ->count();
 
         $resubmit = User::query()
-            ->where('active_role', 'provider')
+            ->where('has_provider_role', true)
             ->where('provider_approval_status', 'pending')
             ->whereNotNull('provider_resubmitted_at')
             ->count();

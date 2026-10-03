@@ -60,6 +60,10 @@ return [
     /** Latest published marketing version (semver). Admin updates on each store release. */
     'ios_current_version' => env('IOS_CURRENT_VERSION', '1.0.0'),
     'android_current_version' => env('ANDROID_CURRENT_VERSION', '1.0.0'),
+    /** Relative public disk paths or absolute URLs for voice greeting (az/en/ru). */
+    'voice_greeting_az' => env('VOICE_GREETING_AZ', ''),
+    'voice_greeting_en' => env('VOICE_GREETING_EN', ''),
+    'voice_greeting_ru' => env('VOICE_GREETING_RU', ''),
     // Local/dev: log OTP instead of SMS
     'otp_driver' => env('OTP_DRIVER', 'log'),
     // Process voice requests inline (no queue worker needed)

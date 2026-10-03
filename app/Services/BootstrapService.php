@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\StaticPage;
 use App\Repositories\AppStringRepository;
+use App\Support\PublicMediaUrl;
 
 class BootstrapService
 {
@@ -69,6 +70,13 @@ class BootstrapService
                         'soft_min_version' => (string) ($hs['android_soft_min_version'] ?? ''),
                         'force_min_version' => (string) ($hs['android_force_min_version'] ?? ''),
                         'store_url' => (string) ($hs['play_store_url'] ?? ''),
+                    ],
+                ],
+                'voice_prompts' => [
+                    'greeting' => [
+                        'az' => PublicMediaUrl::make($hs['voice_greeting_az'] ?? null),
+                        'en' => PublicMediaUrl::make($hs['voice_greeting_en'] ?? null),
+                        'ru' => PublicMediaUrl::make($hs['voice_greeting_ru'] ?? null),
                     ],
                 ],
             ],

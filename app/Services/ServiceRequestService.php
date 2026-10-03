@@ -156,4 +156,33 @@ class ServiceRequestService
 
         return $this->requests->findForUser($user->id, $request->id) ?? $request;
     }
+
+    /**
+     * Family stops a live request — no new CONNECT/replies; existing threads freeze.
+     */
+    public function cancel(User $user, int $id): ServiceRequest
+    {
+        abort_unless($user->isClient(), 403, 'Bu əməliyyat yalnız müştəri üçündür');
+
+        $request = $this->requests->findForUser($user->id, $id);
+        abort_if(! $request, 404, 'Request not found');
+        RequestTtl::expireIfNeeded($request);
+        $request->refresh();
+
+        abort_if(
+            in_array($request->status, ['cancelled', 'completed'], true),
+            422,
+            'Sorğu artıq bağlanıb',
+        );
+        abort_if(
+            $request->status === 'expired',
+            422,
+            'Müddəti bitmiş sorğunu dayandırmaq olmur',
+        );
+
+        $request->forceFill(['status' => 'cancelled'])->save();
+
+        return $request->fresh(['category', 'matches.providerProfile.category', 'matches.providerProfile.categories', 'matches.providerProfile.user'])
+            ?? $request;
+    }
 }

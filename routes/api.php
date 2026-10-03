@@ -48,6 +48,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('auth')->group(function () {
             Route::get('/me', [AuthController::class, 'me']);
             Route::post('/role', [AuthController::class, 'setRole']);
+            Route::post('/active-role', [AuthController::class, 'switchActiveRole']);
             Route::patch('/profile', [AuthController::class, 'updateProfile']);
             Route::post('/avatar', [AuthController::class, 'uploadAvatar']);
             Route::post('/provider/resubmit-review', [AuthController::class, 'resubmitProviderReview']);
@@ -87,6 +88,7 @@ Route::prefix('v1')->group(function () {
             Route::get('service-requests/{id}', [ServiceRequestController::class, 'show']);
             Route::post('service-requests/{id}/bump', [ServiceRequestController::class, 'bump']);
             Route::post('service-requests/{id}/urgent', [ServiceRequestController::class, 'urgent']);
+            Route::post('service-requests/{id}/cancel', [ServiceRequestController::class, 'cancel']);
             Route::post('conversations', [ConversationController::class, 'store']);
             Route::get('favorites', [FavoriteController::class, 'index']);
             Route::post('provider-profiles/{id}/favorite', [FavoriteController::class, 'store'])

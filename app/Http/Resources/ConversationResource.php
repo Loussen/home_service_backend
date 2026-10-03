@@ -30,11 +30,29 @@ class ConversationResource extends JsonResource
             ? (bool) $this->can_message
             : ! $isBlocked;
 
+        // Family stopped the request — freeze messaging on this thread.
+        if ($canMessage && $this->service_request_id) {
+            $sr = $this->relationLoaded('serviceRequest')
+                ? $this->serviceRequest
+                : $this->serviceRequest()->first();
+            if ($sr && $sr->status === 'cancelled') {
+                $canMessage = false;
+            }
+        }
+
         $canSendOffer = false;
         if ($canMessage && $me && (int) $this->provider_id === (int) $me->id && $me->isProvider()) {
             $canSendOffer = ! $this->offers()
                 ->whereIn('status', [Offer::PENDING, Offer::ACCEPTED, Offer::COMPLETED])
                 ->exists();
+        }
+
+        // Family sees provider phone if provider opted in, or after accepted offer.
+        $showPhone = false;
+        if (! $isBlocked && $me && $other) {
+            $isClientViewer = (int) $this->client_id === (int) $me->id;
+            $providerAllows = $isClientViewer && (bool) ($other->share_phone ?? false);
+            $showPhone = $providerAllows || $this->hasSharedContact();
         }
 
         return [
@@ -78,7 +96,7 @@ class ConversationResource extends JsonResource
             'other_user' => $other ? [
                 'id' => $other->id,
                 'name' => $other->name,
-                'phone' => (! $isBlocked && $this->hasSharedContact()) ? $other->phone : null,
+                'phone' => $showPhone ? $other->phone : null,
                 'avatar_url' => PublicMediaUrl::make($other->avatar_url),
             ] : null,
             'provider_profile' => new ProviderProfileResource($this->whenLoaded('providerProfile')),

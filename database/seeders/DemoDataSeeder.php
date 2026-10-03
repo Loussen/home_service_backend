@@ -82,6 +82,8 @@ class DemoDataSeeder extends Seeder
                 [
                     'name' => $data['name'],
                     'active_role' => 'client',
+                    'has_client_role' => true,
+                    'has_provider_role' => false,
                     'role_chosen_at' => now(),
                     'balance' => $data['balance'],
                     'status' => 'active',
@@ -104,6 +106,8 @@ class DemoDataSeeder extends Seeder
                 [
                     'name' => $name,
                     'active_role' => 'client',
+                    'has_client_role' => true,
+                    'has_provider_role' => false,
                     'role_chosen_at' => now(),
                     'balance' => [10, 15, 20, 30, 50][$i % 5],
                     'status' => 'active',
@@ -154,6 +158,9 @@ class DemoDataSeeder extends Seeder
                 [
                     'name' => $name,
                     'active_role' => 'provider',
+                    'has_client_role' => false,
+                    'has_provider_role' => true,
+                    'provider_approval_status' => 'approved',
                     'role_chosen_at' => now(),
                     'balance' => 8 + ($i % 6) * 5,
                     'status' => 'active',
@@ -425,6 +432,9 @@ class DemoDataSeeder extends Seeder
                 [
                     'name' => $p['name'],
                     'active_role' => 'provider',
+                    'has_client_role' => false,
+                    'has_provider_role' => true,
+                    'provider_approval_status' => 'approved',
                     'role_chosen_at' => now(),
                     'balance' => $p['balance'],
                     'status' => 'active',

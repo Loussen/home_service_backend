@@ -114,6 +114,8 @@ class AuthService
                 'phone' => $phone,
                 'phone_verified_at' => now(),
                 'active_role' => 'client',
+                'has_client_role' => false,
+                'has_provider_role' => false,
                 'role_chosen_at' => null,
             ]);
         } else {
@@ -138,53 +140,103 @@ class AuthService
         ];
     }
 
+    /**
+     * Enable a role (first time) and/or activate it.
+     * Dual-role: same phone may unlock both client and provider.
+     */
     public function setRole(User $user, string $role): User
     {
-        if ($user->role_chosen_at !== null) {
-            abort_if($user->active_role !== $role, 422, 'Rol artıq seçilib və dəyişdirilə bilməz');
+        abort_unless(in_array($role, ['client', 'provider'], true), 422, 'Yanlış rol');
 
-            return $user;
+        if ($user->hasRole($role)) {
+            return $this->switchActiveRole($user, $role);
         }
 
         $payload = [
             'active_role' => $role,
-            'role_chosen_at' => now(),
+            'role_chosen_at' => $user->role_chosen_at ?? now(),
         ];
 
-        if ($role === 'provider') {
-            $payload['provider_approval_status'] = 'pending';
-            $payload['provider_approved_at'] = null;
-            $payload['provider_approved_by'] = null;
-            $payload['provider_rejection_note'] = null;
-            $payload['provider_resubmitted_at'] = null;
+        if ($role === 'client') {
+            $payload['has_client_role'] = true;
         } else {
-            $payload['provider_approval_status'] = null;
-            $payload['provider_approved_at'] = null;
-            $payload['provider_approved_by'] = null;
-            $payload['provider_rejection_note'] = null;
-            $payload['provider_resubmitted_at'] = null;
+            $payload['has_provider_role'] = true;
+            // First unlock of provider — start approval unless already decided.
+            if ($user->provider_approval_status === null) {
+                $payload['provider_approval_status'] = 'pending';
+                $payload['provider_approved_at'] = null;
+                $payload['provider_approved_by'] = null;
+                $payload['provider_rejection_note'] = null;
+                $payload['provider_resubmitted_at'] = null;
+            }
         }
 
+        $wasNewProvider = $role === 'provider' && ! $user->hasProviderRole();
         $user = $this->userRepository->update($user, $payload);
 
-        if ($role === 'provider' && ! $user->welcome_bonus_granted) {
+        if ($wasNewProvider && ! $user->welcome_bonus_granted) {
             $this->walletService->grantWelcomeBonus($user);
             $user = $user->fresh();
         }
 
-        if ($role === 'provider') {
+        if ($wasNewProvider && $user->provider_approval_status === 'pending') {
             $this->notifyAdminsOfPendingProvider($user);
         }
+
+        app(ActivityLogger::class)->record(
+            $user,
+            'auth.role_enable',
+            $role === 'provider' ? 'Xidmətçi rolunu aktivləşdirdi' : 'Ailə rolunu aktivləşdirdi',
+            ['role' => $role],
+        );
+
+        return $user;
+    }
+
+    /**
+     * Switch active session role among already-enabled roles.
+     */
+    public function switchActiveRole(User $user, string $role): User
+    {
+        abort_unless(in_array($role, ['client', 'provider'], true), 422, 'Yanlış rol');
+        abort_unless(
+            $user->hasRole($role),
+            422,
+            $role === 'provider'
+                ? 'Əvvəlcə xidmətçi rolunu aktivləşdirin'
+                : 'Əvvəlcə ailə rolunu aktivləşdirin',
+        );
+
+        if ($user->active_role === $role) {
+            return $user;
+        }
+
+        $user = $this->userRepository->update($user, [
+            'active_role' => $role,
+        ]);
+
+        app(ActivityLogger::class)->record(
+            $user,
+            'auth.role_switch',
+            $role === 'provider' ? 'Xidmətçi rejiminə keçdi' : 'Ailə rejiminə keçdi',
+            ['role' => $role],
+        );
 
         return $user;
     }
 
     public function updateProfile(User $user, array $data): User
     {
-        return $this->userRepository->update($user, array_filter([
+        $payload = array_filter([
             'name' => $data['name'] ?? null,
             'avatar_url' => $data['avatar_url'] ?? null,
-        ], fn ($v) => $v !== null));
+        ], fn ($v) => $v !== null);
+
+        if (array_key_exists('share_phone', $data)) {
+            $payload['share_phone'] = (bool) $data['share_phone'];
+        }
+
+        return $this->userRepository->update($user, $payload);
     }
 
     public function uploadAvatar(User $user, UploadedFile $avatar): User
@@ -204,7 +256,7 @@ class AuthService
 
     public function approveProvider(User $user, ?Admin $admin = null): User
     {
-        abort_unless($user->isProvider(), 422, 'Yalnız icraçı təsdiqlənə bilər');
+        abort_unless($user->hasProviderRole(), 422, 'Yalnız icraçı təsdiqlənə bilər');
 
         $user = $this->userRepository->update($user, [
             'provider_approval_status' => 'approved',
@@ -227,7 +279,7 @@ class AuthService
 
     public function rejectProvider(User $user, ?string $note = null, ?Admin $admin = null): User
     {
-        abort_unless($user->isProvider(), 422, 'Yalnız icraçı rədd edilə bilər');
+        abort_unless($user->hasProviderRole(), 422, 'Yalnız icraçı rədd edilə bilər');
 
         $user = $this->userRepository->update($user, [
             'provider_approval_status' => 'rejected',
@@ -250,7 +302,7 @@ class AuthService
 
     public function resubmitProviderForReview(User $user): User
     {
-        abort_unless($user->isProvider(), 422, 'Yalnız icraçı yenidən baxışa göndərə bilər');
+        abort_unless($user->hasProviderRole(), 422, 'Yalnız icraçı yenidən baxışa göndərə bilər');
         abort_unless(
             $user->provider_approval_status === 'rejected',
             422,

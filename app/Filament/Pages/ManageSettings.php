@@ -6,6 +6,7 @@ use App\Support\RuntimeSettings;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -283,6 +284,44 @@ class ManageSettings extends Page
                         ->label('Play Store URL')
                         ->placeholder('https://play.google.com/store/apps/...')
                         ->columnSpanFull(),
+                ]),
+            Section::make('Salamlama audiosu (Axtar)')
+                ->description('Ailə Axtar tab-ında ilk salamlama. Dil üzrə yükləyin (m4a/mp3). Boş = app-dəki lokal ehtiyat.')
+                ->columns(3)
+                ->schema([
+                    FileUpload::make('voice_greeting_az')
+                        ->label('AZ')
+                        ->disk('public')
+                        ->directory('audio/greetings')
+                        ->visibility('public')
+                        ->acceptedFileTypes([
+                            'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mp4a-latm',
+                        ])
+                        ->maxSize(8192)
+                        ->downloadable()
+                        ->openable(),
+                    FileUpload::make('voice_greeting_en')
+                        ->label('EN')
+                        ->disk('public')
+                        ->directory('audio/greetings')
+                        ->visibility('public')
+                        ->acceptedFileTypes([
+                            'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mp4a-latm',
+                        ])
+                        ->maxSize(8192)
+                        ->downloadable()
+                        ->openable(),
+                    FileUpload::make('voice_greeting_ru')
+                        ->label('RU')
+                        ->disk('public')
+                        ->directory('audio/greetings')
+                        ->visibility('public')
+                        ->acceptedFileTypes([
+                            'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mp4a-latm',
+                        ])
+                        ->maxSize(8192)
+                        ->downloadable()
+                        ->openable(),
                 ]),
             Section::make('OTP / SMS')
                 ->description('Kodun özü yerli SMS gateway-dən gələcək (.env). Burada limitlər.')

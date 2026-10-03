@@ -53,6 +53,9 @@ class RuntimeSettings
             'android_current_version' => 'homeservice.android_current_version',
             'app_store_url' => 'homeservice.app_store_url',
             'play_store_url' => 'homeservice.play_store_url',
+            'voice_greeting_az' => 'homeservice.voice_greeting_az',
+            'voice_greeting_en' => 'homeservice.voice_greeting_en',
+            'voice_greeting_ru' => 'homeservice.voice_greeting_ru',
             'otp_ttl_minutes' => 'homeservice.otp_ttl_minutes',
             'otp_max_attempts' => 'homeservice.otp_max_attempts',
             'otp_send_max' => 'homeservice.otp_send_max',
@@ -145,6 +148,14 @@ class RuntimeSettings
         }
         $state['app_store_url'] = trim((string) ($state['app_store_url'] ?? ''));
         $state['play_store_url'] = trim((string) ($state['play_store_url'] ?? ''));
+
+        foreach (['voice_greeting_az', 'voice_greeting_en', 'voice_greeting_ru'] as $audioKey) {
+            $raw = $state[$audioKey] ?? '';
+            if (is_array($raw)) {
+                $raw = $raw[0] ?? '';
+            }
+            $state[$audioKey] = is_string($raw) ? trim($raw) : '';
+        }
 
         $packages = $state['wallet_packages'] ?? [10, 30, 50];
         if (! is_array($packages)) {

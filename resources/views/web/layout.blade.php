@@ -146,6 +146,7 @@
                             <a href="{{ route('web.favorites') }}" class="user-menu-item {{ $path === 'favorites' ? 'active' : '' }}" data-role="client" role="menuitem" data-i18n="web.nav.favorites">{{ wt('web.nav.favorites', 'Seçilmişlər') }}</a>
                             <a href="{{ route('web.profile') }}" class="user-menu-item {{ $path === 'profile' ? 'active' : '' }}" data-role="any" role="menuitem" data-i18n="web.nav.profile">{{ wt('web.nav.profile', 'Profil') }}</a>
                             <a href="{{ route('web.categories') }}" class="user-menu-item {{ $path === 'categories' ? 'active' : '' }}" data-role="provider" role="menuitem" data-i18n="web.nav.categories">{{ wt('web.nav.categories', 'Kateqoriyalar') }}</a>
+                            <button type="button" id="header-switch-role" class="user-menu-item" data-role="any" role="menuitem" data-i18n="account.menu.switch_role">{{ wt('account.menu.switch_role', 'Rol dəyiş') }}</button>
                             <button type="button" id="header-logout" class="user-menu-item user-menu-danger" data-role="any" role="menuitem" data-i18n="web.nav.logout">{{ wt('web.nav.logout', 'Çıxış') }}</button>
                         </div>
                     </div>

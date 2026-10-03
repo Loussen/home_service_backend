@@ -10,5 +10,5 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::call(static function () {
-    RequestTtl::expireOverdue();
+    RequestTtl::expireOverdue(notifyMissed: true);
 })->everyFiveMinutes()->name('expire-service-requests');

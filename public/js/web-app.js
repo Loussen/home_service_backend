@@ -1181,24 +1181,77 @@
     }
 
     function setRoleOnce(role) {
-        if (meCache && meCache.needs_role === false) {
-            if (meCache.active_role === role) return Promise.resolve();
-            var msg = t('web.auth.role_locked', 'Rol artıq seçilib və dəyişdirilə bilməz');
-            toast('warning', msg);
-            return Promise.reject(new Error(msg));
+        if (meCache && meCache.active_role === role && meCache.needs_role === false) {
+            return Promise.resolve();
         }
-        return api('/auth/role', {
+        var already =
+            role === 'provider'
+                ? !!(meCache && meCache.has_provider_role)
+                : !!(meCache && meCache.has_client_role);
+        var path = already ? '/auth/active-role' : '/auth/role';
+        return api(path, {
             method: 'POST',
             body: JSON.stringify({ role: role }),
-        }).then(function () {
+        }).then(function (user) {
+            meCache = user || meCache;
             if (meCache) {
                 meCache.active_role = role;
                 meCache.needs_role = false;
+                if (role === 'provider') meCache.has_provider_role = true;
+                if (role === 'client') meCache.has_client_role = true;
             }
             toast('success', t('web.auth.role_set', 'Rol: {role}', { role: roleLabel(role) }));
-            log('Rol seçildi', { role: role });
+            log(already ? 'Rol dəyişdi' : 'Rol açıldı', { role: role });
             return setAuthStatus().then(function () {
                 applyRoleUi();
+            });
+        });
+    }
+
+    function wireRoleSwitch() {
+        var btn = el('header-switch-role');
+        if (!btn || btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function () {
+            if (!meCache || !meCache.active_role) {
+                toast('warning', t('web.auth.login_required', 'Əvvəlcə daxil olun'));
+                return;
+            }
+            var target = meCache.active_role === 'provider' ? 'client' : 'provider';
+            var enabling =
+                target === 'provider'
+                    ? !meCache.has_provider_role
+                    : !meCache.has_client_role;
+            var label = roleLabel(target);
+            var ok = window.confirm(
+                enabling
+                    ? t(
+                          'account.switch.enable_title',
+                          '{role} rolunu aç',
+                          { role: label }
+                      ) +
+                      '\n\n' +
+                      (target === 'provider'
+                          ? t(
+                                'account.switch.enable_provider_body',
+                                'Xidmətçi rolunu açandan sonra profil doldurun.'
+                            )
+                          : t(
+                                'account.switch.enable_client_body',
+                                'Ailə rolunu açandan sonra axtarış edə bilərsiniz.'
+                            ))
+                    : t('account.switch.body', 'Aktiv rol {role} olacaq.', {
+                          role: label,
+                      })
+            );
+            if (!ok) return;
+            setRoleOnce(target).then(function () {
+                var dest =
+                    target === 'provider'
+                        ? (document.querySelector('a[href*="/jobs"]') || {}).href
+                        : (document.querySelector('a[href*="/request"]') || {}).href;
+                if (dest) window.location.href = dest;
+                else window.location.reload();
             });
         });
     }
@@ -5721,10 +5774,7 @@
             });
         }
 
-        var toClient = el('menu-switch-client');
-        if (toClient) toClient.remove();
-        var toProvider = el('menu-switch-provider');
-        if (toProvider) toProvider.remove();
+        wireRoleSwitch();
     }
 
     function bindDashboardPage() {

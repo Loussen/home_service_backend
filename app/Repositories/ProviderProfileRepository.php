@@ -38,7 +38,8 @@ class ProviderProfileRepository
             ->where('id', $profileId)
             ->where('is_active', true)
             ->whereHas('user', function ($q) {
-                $q->where('provider_approval_status', 'approved')
+                $q->where('has_provider_role', true)
+                    ->where('provider_approval_status', 'approved')
                     ->where('status', 'active');
             })
             ->first();
@@ -72,7 +73,8 @@ class ProviderProfileRepository
             ->with(['user', 'category', 'categories', 'schedules'])
             ->where('is_active', true)
             ->whereHas('user', function ($q) {
-                $q->where('provider_approval_status', 'approved')
+                $q->where('has_provider_role', true)
+                    ->where('provider_approval_status', 'approved')
                     ->where('status', 'active');
             })
             ->where(function ($q) {

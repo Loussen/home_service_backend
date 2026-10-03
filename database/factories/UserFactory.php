@@ -18,6 +18,8 @@ class UserFactory extends Factory
             'phone' => '+994'.fake()->unique()->numerify('50#######'),
             'name' => fake()->name(),
             'active_role' => 'client',
+            'has_client_role' => true,
+            'has_provider_role' => false,
             'role_chosen_at' => now(),
             'balance' => 0,
             'status' => 'active',

@@ -60,14 +60,19 @@ class UserResource extends JsonResource
         return [
             'id' => $this->id,
             'phone' => $this->phone,
+            'share_phone' => (bool) $this->share_phone,
             'name' => $this->name,
             'avatar_url' => $avatar,
             'active_role' => $this->active_role,
             'needs_role' => $this->needsRole(),
+            'has_client_role' => $this->hasClientRole(),
+            'has_provider_role' => $this->hasProviderRole(),
+            'roles' => $this->enabledRoles(),
+            'can_switch_role' => $this->canSwitchRole(),
             'provider_approval_status' => $this->provider_approval_status,
             'needs_provider_approval' => $this->needsProviderApproval(),
             'provider_rejection_note' => $this->when(
-                $this->provider_approval_status === 'rejected',
+                $this->hasProviderRole() && $this->provider_approval_status === 'rejected',
                 $this->provider_rejection_note
             ),
             'provider_approval_message' => $approvalMessage,

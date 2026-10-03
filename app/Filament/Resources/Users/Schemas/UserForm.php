@@ -43,13 +43,19 @@ class UserForm
                     ->disabled()
                     ->dehydrated(false),
                 Select::make('active_role')
-                    ->label('Rol')
+                    ->label('Aktiv rol (sessiya)')
                     ->options(['client' => 'Ailə', 'provider' => 'İcraçı'])
                     ->default('client')
                     ->required()
-                    ->helperText('İstifadəçi özü rolunu dəyişə bilməz. Yalnız admin dəyişə bilər.'),
+                    ->helperText('App-də istifadəçi özü də keçə bilər (hər iki rol açıqdırsa).'),
+                Toggle::make('has_client_role')
+                    ->label('Ailə rolu açıq')
+                    ->default(false),
+                Toggle::make('has_provider_role')
+                    ->label('Xidmətçi rolu açıq')
+                    ->default(false),
                 DateTimePicker::make('role_chosen_at')
-                    ->label('Rol seçilib')
+                    ->label('İlk rol seçilib')
                     ->default(now()),
                 Select::make('provider_approval_status')
                     ->label('İcraçı təsdiqi')
@@ -58,18 +64,18 @@ class UserForm
                         'approved' => 'Təsdiqli',
                         'rejected' => 'Rədd',
                     ])
-                    ->visible(fn ($get) => $get('active_role') === 'provider'),
+                    ->visible(fn ($get) => (bool) $get('has_provider_role')),
                 DateTimePicker::make('provider_approved_at')
                     ->label('Təsdiq vaxtı')
-                    ->visible(fn ($get) => $get('active_role') === 'provider'),
+                    ->visible(fn ($get) => (bool) $get('has_provider_role')),
                 Textarea::make('provider_rejection_note')
                     ->label('Rədd səbəbi')
                     ->rows(2)
-                    ->visible(fn ($get) => $get('active_role') === 'provider'),
+                    ->visible(fn ($get) => (bool) $get('has_provider_role')),
                 Placeholder::make('provider_audio')
                     ->label('Audio intro')
                     ->content(function ($record): HtmlString|string {
-                        if (! $record || $record->active_role !== 'provider') {
+                        if (! $record || ! $record->hasProviderRole()) {
                             return '—';
                         }
                         $path = $record->providerProfiles()->latest()->value('audio_intro_url');
@@ -205,7 +211,7 @@ class UserForm
             return null;
         }
 
-        if ($record->active_role === 'provider') {
+        if ($record->hasProviderRole()) {
             $profile = self::latestProviderProfile($record);
 
             if (! $profile) {

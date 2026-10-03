@@ -129,4 +129,14 @@ class ServiceRequestController extends Controller
             'balance' => $user->balance,
         ], 'Urgent push activated');
     }
+
+    public function cancel(Request $request, int $id): JsonResponse
+    {
+        $serviceRequest = $this->serviceRequests->cancel($request->user(), $id);
+
+        return $this->success(
+            new ServiceRequestResource($serviceRequest),
+            'Request cancelled',
+        );
+    }
 }

@@ -58,6 +58,16 @@ class AuthController extends Controller
         return $this->success(new UserResource($user), 'Role updated');
     }
 
+    public function switchActiveRole(SetRoleRequest $request): JsonResponse
+    {
+        $user = $this->authService->switchActiveRole(
+            $request->user(),
+            $request->validated('role')
+        );
+
+        return $this->success(new UserResource($user), 'Active role switched');
+    }
+
     public function updateProfile(UpdateUserRequest $request): JsonResponse
     {
         $user = $this->authService->updateProfile(

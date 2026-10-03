@@ -68,7 +68,10 @@ class RequestTtl
         return false;
     }
 
-    public static function expireOverdue(?int $userId = null): int
+    /**
+     * @param  bool  $notifyMissed  Only the scheduler should pass true (avoid API traffic spam).
+     */
+    public static function expireOverdue(?int $userId = null, bool $notifyMissed = false): int
     {
         $query = ServiceRequest::query()
             ->whereNotIn('status', ['expired', 'completed', 'cancelled'])
@@ -79,7 +82,26 @@ class RequestTtl
             $query->where('user_id', $userId);
         }
 
-        return $query->update(['status' => 'expired']);
+        $ids = (clone $query)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($ids === []) {
+            return 0;
+        }
+
+        $count = $query->update(['status' => 'expired']);
+
+        if ($count > 0 && $notifyMissed) {
+            try {
+                app(\App\Services\PushNotificationService::class)
+                    ->notifyMissedOpportunities($ids);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Missed opportunity notify failed', [
+                    'error' => $e->getMessage(),
+                    'request_ids' => $ids,
+                ]);
+            }
+        }
+
+        return $count;
     }
 
     public static function isOpenForContact(ServiceRequest $request): bool

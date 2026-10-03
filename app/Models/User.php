@@ -14,9 +14,12 @@ class User extends Authenticatable
 
     protected $fillable = [
         'phone',
+        'share_phone',
         'name',
         'avatar_url',
         'active_role',
+        'has_client_role',
+        'has_provider_role',
         'role_chosen_at',
         'provider_approval_status',
         'provider_approved_at',
@@ -37,6 +40,9 @@ class User extends Authenticatable
     {
         return [
             'balance' => 'decimal:2',
+            'share_phone' => 'boolean',
+            'has_client_role' => 'boolean',
+            'has_provider_role' => 'boolean',
             'welcome_bonus_granted' => 'boolean',
             'phone_verified_at' => 'datetime',
             'role_chosen_at' => 'datetime',
@@ -47,24 +53,68 @@ class User extends Authenticatable
 
     public function needsRole(): bool
     {
-        return $this->role_chosen_at === null;
+        return $this->role_chosen_at === null
+            || (! $this->hasClientRole() && ! $this->hasProviderRole());
+    }
+
+    /** @return list<string> */
+    public function enabledRoles(): array
+    {
+        $roles = [];
+        if ($this->hasClientRole()) {
+            $roles[] = 'client';
+        }
+        if ($this->hasProviderRole()) {
+            $roles[] = 'provider';
+        }
+
+        return $roles;
+    }
+
+    public function hasClientRole(): bool
+    {
+        return (bool) $this->has_client_role;
+    }
+
+    public function hasProviderRole(): bool
+    {
+        return (bool) $this->has_provider_role;
+    }
+
+    public function canSwitchRole(): bool
+    {
+        return $this->hasClientRole() && $this->hasProviderRole();
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return match ($role) {
+            'client' => $this->hasClientRole(),
+            'provider' => $this->hasProviderRole(),
+            default => false,
+        };
     }
 
     public function needsProviderApproval(): bool
     {
         return $this->isProvider()
+            && $this->hasProviderRole()
             && $this->provider_approval_status !== 'approved';
     }
 
+    /**
+     * Discoverable / CONNECT-able as a provider — independent of active session role.
+     */
     public function isProviderApproved(): bool
     {
-        return $this->isProvider()
+        return $this->hasProviderRole()
             && $this->provider_approval_status === 'approved';
     }
 
     public function isProviderPending(): bool
     {
         return $this->isProvider()
+            && $this->hasProviderRole()
             && $this->provider_approval_status === 'pending';
     }
 
@@ -79,11 +129,13 @@ class User extends Authenticatable
         return $this->status === 'blocked';
     }
 
+    /** Active session is provider mode. */
     public function isProvider(): bool
     {
         return $this->active_role === 'provider';
     }
 
+    /** Active session is client (family) mode. */
     public function isClient(): bool
     {
         return $this->active_role === 'client';

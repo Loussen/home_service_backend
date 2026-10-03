@@ -131,9 +131,19 @@ class ConversationService
         $isBlocked = in_array($otherId, $hiddenIds, true);
         $blockedByMeFlag = in_array($otherId, $blockedByMe, true);
 
+        $canMessage = ! $isBlocked;
+        if ($canMessage && $conversation->service_request_id) {
+            $sr = $conversation->relationLoaded('serviceRequest')
+                ? $conversation->serviceRequest
+                : $conversation->serviceRequest()->first();
+            if ($sr && $sr->status === 'cancelled') {
+                $canMessage = false;
+            }
+        }
+
         $conversation->setAttribute('is_blocked', $isBlocked);
         $conversation->setAttribute('blocked_by_me', $blockedByMeFlag);
-        $conversation->setAttribute('can_message', ! $isBlocked);
+        $conversation->setAttribute('can_message', $canMessage);
     }
 
     public function open(
@@ -315,6 +325,15 @@ class ConversationService
             ->find($conversationId);
 
         abort_if(! $conversation, 404, 'Conversation not found');
+
+        if ($conversation->service_request_id) {
+            $sr = $conversation->serviceRequest()->first();
+            abort_if(
+                $sr && $sr->status === 'cancelled',
+                422,
+                'Bu sorğu dayandırılıb — mesaj göndərmək olmur',
+            );
+        }
 
         $otherId = $conversation->client_id === $user->id
             ? $conversation->provider_id

@@ -227,8 +227,8 @@ class SendPushNotification extends Page
             });
 
         return match ($audience) {
-            'clients' => $query->where('active_role', 'client')->orderBy('id')->get(),
-            'providers' => $query->where('active_role', 'provider')->orderBy('id')->get(),
+            'clients' => $query->where('has_client_role', true)->orderBy('id')->get(),
+            'providers' => $query->where('has_provider_role', true)->orderBy('id')->get(),
             'selected' => $query
                 ->whereIn('id', collect($userIds)->map(fn ($id) => (int) $id)->filter()->all())
                 ->orderBy('id')
