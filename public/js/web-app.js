@@ -4732,16 +4732,22 @@
             if (lockNote) {
                 if (!canMessage && !isBlocked) {
                     lockNote.hidden = false;
+                    var lockKey = conversation.messaging_lock;
                     lockNote.textContent =
-                        conversation.messaging_lock === 'job_completed'
+                        lockKey === 'job_completed'
                             ? t(
                                   'chat.job_done_composer',
                                   'İş tamamlanıb — bu söhbətdə yeni mesaj göndərmək olmur'
                               )
-                            : t(
-                                  'chat.request_stopped_composer',
-                                  'Ailə axtarışı dayandırıb — bu söhbətdə yeni mesaj göndərmək olmur'
-                              );
+                            : lockKey === 'request_expired'
+                              ? t(
+                                    'chat.request_expired_composer',
+                                    'Sorğunun müddəti bitib — bu söhbətdə yeni mesaj göndərmək olmur'
+                                )
+                              : t(
+                                    'chat.request_stopped_composer',
+                                    'Ailə axtarışı dayandırıb — bu söhbətdə yeni mesaj göndərmək olmur'
+                                );
                 } else {
                     lockNote.hidden = true;
                     lockNote.textContent = '';
@@ -4808,17 +4814,23 @@
                 return;
             }
             if (threadConversation && threadConversation.can_message === false) {
+                var lock = threadConversation.messaging_lock;
                 toast(
                     'warning',
-                    threadConversation.messaging_lock === 'job_completed'
+                    lock === 'job_completed'
                         ? t(
                               'chat.job_done_composer',
                               'İş tamamlanıb — bu söhbətdə yeni mesaj göndərmək olmur'
                           )
-                        : t(
-                              'chat.request_stopped_composer',
-                              'Ailə axtarışı dayandırıb — bu söhbətdə yeni mesaj göndərmək olmur'
-                          )
+                        : lock === 'request_expired'
+                          ? t(
+                                'chat.request_expired_composer',
+                                'Sorğunun müddəti bitib — bu söhbətdə yeni mesaj göndərmək olmur'
+                            )
+                          : t(
+                                'chat.request_stopped_composer',
+                                'Ailə axtarışı dayandırıb — bu söhbətdə yeni mesaj göndərmək olmur'
+                            )
                 );
                 return;
             }

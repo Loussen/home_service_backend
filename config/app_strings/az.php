@@ -316,6 +316,7 @@ return array (
   'chat.blocked_by_me_hint' => 'Bu istifadəçini bloklamısınız. Tarixçə açıqdır; mesaj üçün bloku götürün.',
   'chat.blocked_composer' => 'Bloklanmış söhbətdə mesaj göndərmək olmur',
   'chat.request_stopped_composer' => 'Ailə axtarışı dayandırıb — bu söhbətdə yeni mesaj göndərmək olmur',
+  'chat.request_expired_composer' => 'Sorğunun müddəti bitib — bu söhbətdə yeni mesaj göndərmək olmur',
   'chat.job_done_composer' => 'İş tamamlanıb — bu söhbətdə yeni mesaj göndərmək olmur',
   'chat.call' => 'Zəng et',
   'chat.menu.view_request' => 'Sorğuya bax',

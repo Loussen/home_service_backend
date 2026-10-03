@@ -151,6 +151,9 @@ class ConversationService
                 if ($sr->status === 'completed') {
                     return 'job_completed';
                 }
+                if ($sr->status === 'expired' || RequestTtl::expireIfNeeded($sr)) {
+                    return 'request_expired';
+                }
             }
         }
 
@@ -346,6 +349,11 @@ class ConversationService
             $lock === 'request_cancelled',
             422,
             'Ailə axtarışı dayandırıb — mesaj göndərmək olmur',
+        );
+        abort_if(
+            $lock === 'request_expired',
+            422,
+            'Sorğunun müddəti bitib — mesaj göndərmək olmur',
         );
         abort_if(
             $lock === 'job_completed',

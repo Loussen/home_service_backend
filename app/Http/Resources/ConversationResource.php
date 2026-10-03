@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Offer;
 use App\Support\PublicMediaUrl;
+use App\Support\RequestTtl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -40,6 +41,8 @@ class ConversationResource extends JsonResource
                     $messagingLock = 'request_cancelled';
                 } elseif ($sr->status === 'completed') {
                     $messagingLock = 'job_completed';
+                } elseif ($sr->status === 'expired' || RequestTtl::expireIfNeeded($sr)) {
+                    $messagingLock = 'request_expired';
                 }
             }
         }
