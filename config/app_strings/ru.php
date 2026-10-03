@@ -427,6 +427,7 @@ return [
     'match.score' => '{score}% совпадение',
     'match.connecting' => 'ПОДКЛЮЧЕНИЕ…',
     'match.connect' => 'CONNECT',
+    'match.connect_closed' => 'Заявка уже закрыта — CONNECT недоступен',
     'match.connect_remaining' => 'Сегодня осталось {count} CONNECT',
     'match.connect_free' => 'Бесплатный CONNECT: {left}/{quota} · сегодня {count}',
     'match.connect_free_open' => 'CONNECT бесплатен · сегодня {count}',

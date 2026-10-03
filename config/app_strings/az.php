@@ -414,6 +414,7 @@ return array (
   'match.score' => '{score}% uyğunluq',
   'match.connecting' => 'QOŞULUR…',
   'match.connect' => 'CONNECT',
+  'match.connect_closed' => 'Bu sorğu artıq açıq deyil — CONNECT olmur',
   'match.connect_remaining' => 'Bu gün {count} CONNECT qalıb',
   'match.connect_free' => 'Pulsuz CONNECT: {left}/{quota} qalıb · bu gün {count}',
   'match.connect_free_open' => 'CONNECT pulsuzdur · bu gün {count} qalıb',
