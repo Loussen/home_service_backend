@@ -4715,9 +4715,37 @@
                 banner.innerHTML = '';
             }
 
+            var canMessage = conversation.can_message !== false && !isBlocked;
             var composer = document.querySelector('.composer');
+            var lockNote = el('thread-messaging-lock');
+            if (!lockNote) {
+                lockNote = document.createElement('p');
+                lockNote.id = 'thread-messaging-lock';
+                lockNote.className = 'muted text-center';
+                if (composer && composer.parentNode) {
+                    composer.parentNode.insertBefore(lockNote, composer);
+                }
+            }
             if (composer) {
-                composer.hidden = isBlocked;
+                composer.hidden = !canMessage;
+            }
+            if (lockNote) {
+                if (!canMessage && !isBlocked) {
+                    lockNote.hidden = false;
+                    lockNote.textContent =
+                        conversation.messaging_lock === 'job_completed'
+                            ? t(
+                                  'chat.job_done_composer',
+                                  'İş tamamlanıb — bu söhbətdə yeni mesaj göndərmək olmur'
+                              )
+                            : t(
+                                  'chat.request_stopped_composer',
+                                  'Ailə axtarışı dayandırıb — bu söhbətdə yeni mesaj göndərmək olmur'
+                              );
+                } else {
+                    lockNote.hidden = true;
+                    lockNote.textContent = '';
+                }
             }
 
             var blockBtn = el('thread-block');
@@ -4776,6 +4804,21 @@
                 toast(
                     'warning',
                     t('chat.blocked_composer', 'Bloklanmış söhbətdə mesaj göndərmək olmur')
+                );
+                return;
+            }
+            if (threadConversation && threadConversation.can_message === false) {
+                toast(
+                    'warning',
+                    threadConversation.messaging_lock === 'job_completed'
+                        ? t(
+                              'chat.job_done_composer',
+                              'İş tamamlanıb — bu söhbətdə yeni mesaj göndərmək olmur'
+                          )
+                        : t(
+                              'chat.request_stopped_composer',
+                              'Ailə axtarışı dayandırıb — bu söhbətdə yeni mesaj göndərmək olmur'
+                          )
                 );
                 return;
             }

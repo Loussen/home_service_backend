@@ -26,18 +26,37 @@ class ConversationResource extends JsonResource
                 ->blockedIdsFor($me)
                 ->contains((int) $other->id);
         }
-        $canMessage = array_key_exists('can_message', $this->getAttributes())
-            ? (bool) $this->can_message
-            : ! $isBlocked;
+        $messagingLock = array_key_exists('messaging_lock', $this->getAttributes())
+            ? $this->messaging_lock
+            : null;
 
-        // Family stopped the request — freeze messaging on this thread.
-        if ($canMessage && $this->service_request_id) {
+        // Family stopped search, or job finished after accepted offer — freeze both sides.
+        if ($messagingLock === null && $this->service_request_id) {
             $sr = $this->relationLoaded('serviceRequest')
                 ? $this->serviceRequest
                 : $this->serviceRequest()->first();
-            if ($sr && $sr->status === 'cancelled') {
-                $canMessage = false;
+            if ($sr) {
+                if ($sr->status === 'cancelled') {
+                    $messagingLock = 'request_cancelled';
+                } elseif ($sr->status === 'completed') {
+                    $messagingLock = 'job_completed';
+                }
             }
+        }
+        if ($messagingLock === null) {
+            $hasCompletedOffer = $this->relationLoaded('offers')
+                ? $this->offers->contains(fn (Offer $o) => $o->status === Offer::COMPLETED)
+                : $this->offers()->where('status', Offer::COMPLETED)->exists();
+            if ($hasCompletedOffer) {
+                $messagingLock = 'job_completed';
+            }
+        }
+
+        $canMessage = array_key_exists('can_message', $this->getAttributes())
+            ? (bool) $this->can_message
+            : (! $isBlocked && $messagingLock === null);
+        if ($messagingLock !== null) {
+            $canMessage = false;
         }
 
         $canSendOffer = false;
@@ -90,6 +109,7 @@ class ConversationResource extends JsonResource
             'is_blocked' => $isBlocked,
             'blocked_by_me' => $blockedByMe,
             'can_message' => $canMessage,
+            'messaging_lock' => $messagingLock,
             'can_send_offer' => $canSendOffer,
             'last_message_at' => $this->last_message_at?->toIso8601String(),
             'unread_count' => (int) ($this->unread_count ?? 0),

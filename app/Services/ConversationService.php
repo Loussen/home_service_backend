@@ -125,19 +125,40 @@ class ConversationService
         $isBlocked = in_array($otherId, $hiddenIds, true);
         $blockedByMeFlag = in_array($otherId, $blockedByMe, true);
 
-        $canMessage = ! $isBlocked;
-        if ($canMessage && $conversation->service_request_id) {
-            $sr = $conversation->relationLoaded('serviceRequest')
-                ? $conversation->serviceRequest
-                : $conversation->serviceRequest()->first();
-            if ($sr && $sr->status === 'cancelled') {
-                $canMessage = false;
-            }
-        }
+        $lock = $this->messagingLock($conversation);
+        $canMessage = ! $isBlocked && $lock === null;
 
         $conversation->setAttribute('is_blocked', $isBlocked);
         $conversation->setAttribute('blocked_by_me', $blockedByMeFlag);
         $conversation->setAttribute('can_message', $canMessage);
+        $conversation->setAttribute('messaging_lock', $lock);
+    }
+
+    /**
+     * Why free-text messaging is closed (both sides). null = open.
+     * History stays readable.
+     */
+    private function messagingLock(Conversation $conversation): ?string
+    {
+        if ($conversation->service_request_id) {
+            $sr = $conversation->relationLoaded('serviceRequest')
+                ? $conversation->serviceRequest
+                : $conversation->serviceRequest()->first();
+            if ($sr) {
+                if ($sr->status === 'cancelled') {
+                    return 'request_cancelled';
+                }
+                if ($sr->status === 'completed') {
+                    return 'job_completed';
+                }
+            }
+        }
+
+        $hasCompletedOffer = $conversation->offers()
+            ->where('status', Offer::COMPLETED)
+            ->exists();
+
+        return $hasCompletedOffer ? 'job_completed' : null;
     }
 
     public function open(
@@ -320,14 +341,17 @@ class ConversationService
 
         abort_if(! $conversation, 404, 'Conversation not found');
 
-        if ($conversation->service_request_id) {
-            $sr = $conversation->serviceRequest()->first();
-            abort_if(
-                $sr && $sr->status === 'cancelled',
-                422,
-                'Ailə axtarışı dayandırıb — mesaj göndərmək olmur',
-            );
-        }
+        $lock = $this->messagingLock($conversation);
+        abort_if(
+            $lock === 'request_cancelled',
+            422,
+            'Ailə axtarışı dayandırıb — mesaj göndərmək olmur',
+        );
+        abort_if(
+            $lock === 'job_completed',
+            422,
+            'İş tamamlanıb — mesaj göndərmək olmur',
+        );
 
         $otherId = $conversation->client_id === $user->id
             ? $conversation->provider_id
@@ -346,6 +370,11 @@ class ConversationService
 
         $conversation = $this->ownedConversation($user, $conversationId);
         abort_if($conversation->provider_id !== $user->id, 403, 'Təklifi yalnız icraçı göndərir');
+        abort_if(
+            $this->messagingLock($conversation) !== null,
+            422,
+            'Bu söhbətdə artıq mesajlaşma bağlıdır',
+        );
 
         $blocking = $conversation->offers()
             ->whereIn('status', [Offer::PENDING, Offer::ACCEPTED, Offer::COMPLETED])
@@ -413,7 +442,15 @@ class ConversationService
 
         $this->bookings->markCompleted($offer);
 
-        $this->postMessage($offer->conversation, $user, 'İş tamamlandı.');
+        $conversation = $offer->conversation;
+        if ($conversation?->service_request_id) {
+            ServiceRequest::query()
+                ->where('id', $conversation->service_request_id)
+                ->whereNotIn('status', ['cancelled', 'completed'])
+                ->update(['status' => 'completed']);
+        }
+
+        $this->postMessage($conversation, $user, 'İş tamamlandı.');
 
         return $this->getFor($user, $offer->conversation_id);
     }
