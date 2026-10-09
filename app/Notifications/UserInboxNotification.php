@@ -29,12 +29,20 @@ class UserInboxNotification extends Notification
     public function toDatabase(object $notifiable): array
     {
         $type = (string) ($this->data['type'] ?? 'admin');
+        $payload = $this->data;
+        if (! isset($payload['audience_role']) || $payload['audience_role'] === '') {
+            $payload['audience_role'] = \App\Support\NotificationAudience::resolve(
+                $type,
+                $notifiable instanceof \App\Models\User ? $notifiable : null,
+                $payload,
+            );
+        }
 
         return [
             'title' => $this->title,
             'body' => $this->body,
             'type' => $type,
-            'payload' => $this->data,
+            'payload' => $payload,
         ];
     }
 }

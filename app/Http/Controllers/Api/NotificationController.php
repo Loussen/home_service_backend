@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AppNotificationResource;
+use App\Support\NotificationAudience;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,8 +15,12 @@ class NotificationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
         $status = $request->query('status', 'all');
-        $query = $request->user()->notifications()->latest();
+        $query = NotificationAudience::constrainQuery(
+            $user->notifications()->getQuery(),
+            $user,
+        )->latest();
 
         if ($status === 'unread') {
             $query->whereNull('read_at');
@@ -27,7 +32,7 @@ class NotificationController extends Controller
 
         return $this->success([
             'items' => AppNotificationResource::collection($page->getCollection())->resolve(),
-            'unread_count' => $request->user()->unreadNotifications()->count(),
+            'unread_count' => NotificationAudience::unreadCount($user),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
@@ -39,7 +44,11 @@ class NotificationController extends Controller
 
     public function markRead(Request $request, string $id): JsonResponse
     {
-        $notification = $request->user()->notifications()->where('id', $id)->first();
+        $user = $request->user();
+        $notification = NotificationAudience::constrainQuery(
+            $user->notifications()->getQuery(),
+            $user,
+        )->where('id', $id)->first();
         abort_if(! $notification, 404, 'Notification not found');
 
         if ($notification->read_at === null) {
@@ -54,7 +63,17 @@ class NotificationController extends Controller
 
     public function markAllRead(Request $request): JsonResponse
     {
-        $request->user()->unreadNotifications->markAsRead();
+        $user = $request->user();
+        $ids = NotificationAudience::constrainQuery(
+            $user->unreadNotifications()->getQuery(),
+            $user,
+        )->pluck('id');
+
+        if ($ids->isNotEmpty()) {
+            $user->notifications()
+                ->whereIn('id', $ids)
+                ->update(['read_at' => now()]);
+        }
 
         return $this->success([
             'unread_count' => 0,
@@ -64,7 +83,7 @@ class NotificationController extends Controller
     public function unreadCount(Request $request): JsonResponse
     {
         return $this->success([
-            'unread_count' => $request->user()->unreadNotifications()->count(),
+            'unread_count' => NotificationAudience::unreadCount($request->user()),
         ]);
     }
 }

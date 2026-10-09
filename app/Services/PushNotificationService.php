@@ -130,6 +130,7 @@ class PushNotificationService
                 'type' => $urgent ? 'urgent_job' : 'new_job',
                 'request_id' => (string) $request->id,
                 'match_id' => (string) $first->id,
+                'audience_role' => 'provider',
             ], $dispatch);
 
             if ($ok) {
@@ -173,10 +174,14 @@ class PushNotificationService
             ? "{$name} sizinlə əlaqə qurdu"
             : "{$name} sorğunuza cavab verdi";
 
+        $asRole = (int) $recipient->id === (int) $conversation->provider_id
+            ? 'provider'
+            : 'client';
         $this->sendToUser($recipient, $title, $body, [
             'type' => 'chat_connect',
             'conversation_id' => (string) $conversation->id,
-        ], badgeOverride: $this->chatUnreadCountFor($recipient));
+            'audience_role' => $asRole,
+        ], badgeOverride: $this->chatUnreadCountFor($recipient, $asRole));
     }
 
     public function notifyNewMessage(Conversation $conversation, User $sender, string $body): void
@@ -207,10 +212,14 @@ class PushNotificationService
             $preview = 'Yeni mesaj';
         }
 
+        $asRole = (int) $recipient->id === (int) $conversation->provider_id
+            ? 'provider'
+            : 'client';
         $this->sendToUser($recipient, $name, $preview, [
             'type' => 'chat_message',
             'conversation_id' => (string) $conversation->id,
-        ], badgeOverride: $this->chatUnreadCountFor($recipient));
+            'audience_role' => $asRole,
+        ], badgeOverride: $this->chatUnreadCountFor($recipient, $asRole));
     }
 
     /**
@@ -314,6 +323,7 @@ class PushNotificationService
                     'type' => 'missed_opportunity',
                     'request_id' => (string) $request->id,
                     'match_id' => (string) $match->id,
+                    'audience_role' => 'provider',
                 ],
             );
 
@@ -326,13 +336,19 @@ class PushNotificationService
         return $sent;
     }
 
-    private function chatUnreadCountFor(User $user): int
+    private function chatUnreadCountFor(User $user, ?string $asRole = null): int
     {
+        $role = $asRole ?? ($user->isProvider() ? 'provider' : 'client');
+
         return (int) Message::query()
             ->whereNull('read_at')
             ->where('sender_id', '!=', $user->id)
-            ->whereHas('conversation', function ($q) use ($user) {
-                $q->forActiveRole($user);
+            ->whereHas('conversation', function ($q) use ($user, $role) {
+                if ($role === 'provider') {
+                    $q->where('provider_id', $user->id);
+                } else {
+                    $q->where('client_id', $user->id);
+                }
             })
             ->count();
     }
@@ -360,6 +376,11 @@ class PushNotificationService
                 'service_request_id' => isset($data['request_id']) ? (int) $data['request_id'] : null,
                 'conversation_id' => isset($data['conversation_id']) ? (int) $data['conversation_id'] : null,
             ]);
+        }
+
+        $type = (string) ($data['type'] ?? 'system');
+        if (! isset($data['audience_role']) || $data['audience_role'] === '') {
+            $data['audience_role'] = \App\Support\NotificationAudience::resolve($type, $user, $data);
         }
 
         try {
@@ -396,10 +417,10 @@ class PushNotificationService
             return false;
         }
 
-        // Chat pushes: launcher badge = unread chat count. Others: inbox unread.
+        // Chat pushes: launcher badge = unread chat count. Others: role inbox unread.
         $badge = $badgeOverride !== null
             ? max(0, $badgeOverride)
-            : max(1, (int) $user->unreadNotifications()->count());
+            : max(1, \App\Support\NotificationAudience::unreadCount($user));
 
         $anyOk = false;
         $lastError = null;
@@ -473,6 +494,11 @@ class PushNotificationService
         }
 
         $payload = array_merge(['type' => 'admin'], $data);
+        $payload['audience_role'] = match ($audience) {
+            'clients', 'client' => 'client',
+            'providers', 'provider' => 'provider',
+            default => 'both',
+        };
 
         $dispatch = $this->createDispatch([
             'source' => 'admin',

@@ -88,7 +88,7 @@ class UserResource extends JsonResource
             'connect_quota' => ConnectQuota::snapshot($this->resource),
             'urgent_quota' => UrgentQuota::snapshot($this->resource),
             'bump_quota' => BumpQuota::snapshot($this->resource),
-            'unread_notifications_count' => $this->unreadNotifications()->count(),
+            'unread_notifications_count' => \App\Support\NotificationAudience::unreadCount($this->resource),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

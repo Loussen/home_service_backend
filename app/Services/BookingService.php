@@ -17,10 +17,12 @@ class BookingService
                 'provider:id,name',
                 'providerProfile.category',
             ])
-            ->where(function ($q) use ($user) {
-                $q->where('client_id', $user->id)
-                    ->orWhere('provider_id', $user->id);
-            })
+            // Dual-role: show only bookings for the active session side.
+            ->when(
+                $user->isProvider(),
+                fn ($q) => $q->where('provider_id', $user->id),
+                fn ($q) => $q->where('client_id', $user->id),
+            )
             ->orderByRaw("CASE WHEN status = 'scheduled' THEN 0 ELSE 1 END")
             ->orderBy('scheduled_at')
             ->limit(80)
