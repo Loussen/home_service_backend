@@ -23,15 +23,40 @@ class ManageAppStrings extends ManageRecords
                 ->requiresConfirmation()
                 ->modalHeading('Fayllardan sinxronla?')
                 ->modalDescription(
-                    'Fayllardakı yeni açarlar (az/en/ru) DB-yə əlavə olunur. '
-                    . 'Artıq redaktə etdiyiniz mətnlər dəyişmir.'
+                    'Yeni açarlar əlavə olunur. EN/RU-da hələ AZ qalan köhnə sətirlər '
+                    .'avtomatik fayldan düzəldilir. Əl ilə dəyişdiyiniz unikal mətnlər saxlanır.'
                 )
                 ->modalSubmitActionLabel('Sinxronla')
                 ->action(function (AppStringSyncService $sync): void {
-                    $result = $sync->syncFromFiles();
+                    $result = $sync->syncFromFiles(overwriteExisting: false);
 
                     Notification::make()
                         ->title('Sinxron tamamlandı')
+                        ->body(sprintf(
+                            'Yeni: %d · AZ-copy düzəliş: %d · Cəmi DB: %d',
+                            $result['created'],
+                            $result['fixed_copies'],
+                            $result['total'],
+                        ))
+                        ->success()
+                        ->send();
+                }),
+            Action::make('syncOverwrite')
+                ->label('Fayllarla tam yenilə')
+                ->icon('heroicon-o-arrow-path-rounded-square')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Bütün mətnləri fayldan yaz?')
+                ->modalDescription(
+                    'az/en/ru PHP faylları DB-dəki bütün eyni açarları overwrite edir. '
+                    .'Admin panelində əl ilə yazdığınız fərqli mətnlər silinə bilər.'
+                )
+                ->modalSubmitActionLabel('Overwrite et')
+                ->action(function (AppStringSyncService $sync): void {
+                    $result = $sync->syncFromFiles(overwriteExisting: true);
+
+                    Notification::make()
+                        ->title('Tam sinxron tamamlandı')
                         ->body(sprintf(
                             'Yeni: %d · Yenilənən: %d · Cəmi DB: %d',
                             $result['created'],

@@ -36,10 +36,32 @@ class AppStringRepository
 
         $result = [];
         foreach ($keys as $key) {
-            $raw = $dbLocale[$key]
-                ?? ($fileLocale[$key] ?? null)
-                ?? ($dbDefault[$key] ?? null)
-                ?? ($fileDefault[$key] ?? $key);
+            $fileLoc = $fileLocale[$key] ?? null;
+            $fileDef = $fileDefault[$key] ?? null;
+            $dbLoc = $dbLocale[$key] ?? null;
+            $dbDef = $dbDefault[$key] ?? null;
+
+            // Stale EN/RU DB rows often still hold AZ text from early sync.
+            // Prefer locale file when DB equals AZ but the locale file differs.
+            if (
+                $locale !== $default
+                && is_string($dbLoc)
+                && is_string($fileLoc)
+                && $fileLoc !== $dbLoc
+                && (
+                    ($fileDef !== null && $dbLoc === $fileDef)
+                    || ($dbDef !== null && $dbLoc === $dbDef)
+                )
+            ) {
+                $raw = $fileLoc;
+            } else {
+                $raw = $dbLoc
+                    ?? $fileLoc
+                    ?? $dbDef
+                    ?? $fileDef
+                    ?? $key;
+            }
+
             $result[$key] = $this->normalizeNewlines((string) $raw);
         }
 
