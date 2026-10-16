@@ -100,6 +100,8 @@ Route::prefix('v1')->group(function () {
 
         Route::get('wallet', [WalletController::class, 'show']);
         Route::get('wallet/transactions', [WalletController::class, 'transactions']);
+        Route::get('wallet/iap/products', [WalletController::class, 'products']);
+        Route::post('wallet/iap/confirm', [WalletController::class, 'confirmIap']);
         Route::post('wallet/top-up', [WalletController::class, 'topUp']);
 
         Route::get('conversations', [ConversationController::class, 'index']);

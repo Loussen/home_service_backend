@@ -46,6 +46,39 @@ return [
         'floatval',
         explode(',', env('WALLET_PACKAGES', '10,30,50'))
     ))),
+    /**
+     * StoreKit / Play Billing product map.
+     * Create matching Consumable (iOS) / one-time (Android) products with these IDs.
+     * credit may exceed pay later (volume bonus).
+     */
+    'wallet_iap_products' => [
+        [
+            'product_id' => env('IAP_PRODUCT_10', 'mysancho_wallet_10'),
+            'pay' => 10,
+            'credit' => (float) env('IAP_CREDIT_10', 10),
+        ],
+        [
+            'product_id' => env('IAP_PRODUCT_30', 'mysancho_wallet_30'),
+            'pay' => 30,
+            'credit' => (float) env('IAP_CREDIT_30', 36),
+        ],
+        [
+            'product_id' => env('IAP_PRODUCT_50', 'mysancho_wallet_50'),
+            'pay' => 50,
+            'credit' => (float) env('IAP_CREDIT_50', 65),
+        ],
+    ],
+    'android_package_name' => env('ANDROID_PACKAGE_NAME', 'az.homeservice.home_service_app'),
+    'apple_iap_shared_secret' => env('APPLE_IAP_SHARED_SECRET', ''),
+    'apple_iap_bundle_id' => env('APPLE_IAP_BUNDLE_ID', 'az.homeservice.homeServiceApp'),
+    /** App Store Server API (StoreKit 2 / JWS). Create key in App Store Connect → Users and Access → Keys. */
+    'apple_iap_issuer_id' => env('APPLE_IAP_ISSUER_ID', ''),
+    'apple_iap_key_id' => env('APPLE_IAP_KEY_ID', ''),
+    'apple_iap_private_key' => env('APPLE_IAP_PRIVATE_KEY', ''), // path to .p8 or PEM contents with \n
+    /** Play Developer API JSON key path (can reuse FCM SA if Play API enabled on same project). */
+    'google_play_credentials' => env('GOOGLE_PLAY_CREDENTIALS', env('FCM_CREDENTIALS', '')),
+    /** Local/dev only: credit without store verify when secrets missing. Never enable in production. */
+    'iap_allow_unverified' => filter_var(env('IAP_ALLOW_UNVERIFIED', false), FILTER_VALIDATE_BOOL),
     'feature_voice_search' => filter_var(env('FEATURE_VOICE_SEARCH', true), FILTER_VALIDATE_BOOL),
     'feature_maps' => filter_var(env('FEATURE_MAPS', true), FILTER_VALIDATE_BOOL),
     'feature_push' => filter_var(env('FEATURE_PUSH', true), FILTER_VALIDATE_BOOL),

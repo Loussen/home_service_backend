@@ -38,6 +38,14 @@ class BootstrapService
                     'connect' => $hs['connect_fee'],
                 ],
                 'wallet_packages' => array_values($hs['wallet_packages'] ?? [10, 30, 50]),
+                'wallet_iap_products' => array_values(array_map(
+                    static fn (array $p) => [
+                        'product_id' => (string) $p['product_id'],
+                        'pay' => (float) ($p['pay'] ?? 0),
+                        'credit' => (float) ($p['credit'] ?? $p['pay'] ?? 0),
+                    ],
+                    $hs['wallet_iap_products'] ?? []
+                )),
                 'connect_free_quota' => $hs['connect_free_quota'],
                 'connect_free_days' => $hs['connect_free_days'],
                 'connect_daily_limit' => $hs['connect_daily_limit'],
