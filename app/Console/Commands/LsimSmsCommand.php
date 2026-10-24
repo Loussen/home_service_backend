@@ -8,11 +8,13 @@ use Illuminate\Console\Command;
 class LsimSmsCommand extends Command
 {
     protected $signature = 'sms:lsim
-                            {action=balance : balance|send}
+                            {action=balance : balance|send|report}
                             {--phone= : E.164 or 994… for send}
-                            {--text= : Message body for send}';
+                            {--text= : Message body for send}
+                            {--transid= : Transaction id for report}
+                            {--unicode : Force unicode=true on send}';
 
-    protected $description = 'LSIM QuickSMS: check balance or send a test SMS';
+    protected $description = 'LSIM QuickSMS: balance, send test SMS, or delivery report';
 
     public function handle(LsimSmsClient $lsim): int
     {
@@ -45,13 +47,34 @@ class LsimSmsCommand extends Command
 
                 return self::FAILURE;
             }
-            $result = $lsim->send($phone, $text, true);
-            $this->info('Sent. transaction_id='.$result['transaction_id']);
+            $unicode = (bool) $this->option('unicode')
+                || (bool) preg_match('/[^\x00-\x7F]/', $text);
+            $msisdn = $lsim->normalizeMsisdn($phone);
+            $this->line("msisdn={$msisdn} unicode=".($unicode ? 'true' : 'false'));
+            $result = $lsim->send($phone, $text, $unicode);
+            $this->info('Accepted by LSIM. transaction_id='.$result['transaction_id']);
+            $this->comment('Check delivery: php artisan sms:lsim report --transid='.$result['transaction_id']);
 
             return self::SUCCESS;
         }
 
-        $this->error('Unknown action. Use: balance | send');
+        if ($action === 'report') {
+            $transId = $this->option('transid');
+            if ($transId === null || $transId === '') {
+                $this->error('--transid= required (from send / laravel.log)');
+
+                return self::FAILURE;
+            }
+            $result = $lsim->report($transId);
+            $this->info('status='.($result['status'] ?? '?').' → '.$result['label']);
+            $this->line(json_encode($result['raw'], JSON_UNESCAPED_UNICODE));
+
+            return $result['ok'] || in_array($result['status'], [100, 101, 108], true)
+                ? self::SUCCESS
+                : self::FAILURE;
+        }
+
+        $this->error('Unknown action. Use: balance | send | report');
 
         return self::FAILURE;
     }

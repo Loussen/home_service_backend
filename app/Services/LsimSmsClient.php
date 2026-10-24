@@ -114,8 +114,73 @@ class LsimSmsClient
             $template
         );
 
-        // Azerbaijani letters → unicode=true
-        $this->send($phone, $text, true);
+        // Prefer GSM-7 (unicode=false) for delivery reliability; enable unicode only if needed.
+        $needsUnicode = (bool) preg_match('/[^\x00-\x7F]/', $text);
+        $this->send($phone, $text, $needsUnicode);
+    }
+
+    /**
+     * Delivery report for a transaction id from a successful send.
+     * Status: 100 queue, 101 delivered, 102 undelivered, 103 expired, 104 rejected,
+     * 105 cancelled, 106 error, 107 unknown, 108 sent, 109 blacklist.
+     *
+     * @return array{ok: bool, status: int|null, label: string, raw: array|int|string|null}
+     */
+    public function report(int|string $transactionId): array
+    {
+        if (! $this->isConfigured()) {
+            throw new RuntimeException('LSIM SMS is not configured.');
+        }
+
+        $login = (string) config('homeservice.lsim.login');
+        $base = rtrim((string) config('homeservice.lsim.base_url', 'https://apps.lsim.az/quicksms'), '/');
+
+        $response = Http::acceptJson()
+            ->timeout((int) config('homeservice.lsim.timeout', 20))
+            ->asJson()
+            ->post("{$base}/v1/smsreporter", [
+                'login' => $login,
+                'transid' => (int) $transactionId,
+            ]);
+
+        $json = $response->json();
+        // API may return a bare integer status, or a wrapper object.
+        $status = null;
+        if (is_int($json) || (is_string($json) && is_numeric($json))) {
+            $status = (int) $json;
+        } elseif (is_array($json)) {
+            if (isset($json['obj']) && is_numeric($json['obj'])) {
+                $status = (int) $json['obj'];
+            } elseif (isset($json['errorCode']) && is_numeric($json['errorCode'])) {
+                $status = (int) $json['errorCode'];
+            }
+        }
+
+        $labels = [
+            100 => 'In queue',
+            101 => 'Delivered',
+            102 => 'Undelivered',
+            103 => 'Expired',
+            104 => 'Rejected',
+            105 => 'Cancelled',
+            106 => 'Error',
+            107 => 'Unknown (contact LSIM)',
+            108 => 'Sent',
+            109 => 'Black list',
+            -105 => 'Number in black list',
+            -106 => 'Invalid transaction id',
+            -107 => 'IP not allowed',
+            -110 => 'Reporting limit exceed',
+        ];
+
+        return [
+            'ok' => $status !== null && $status >= 100 && $status <= 109,
+            'status' => $status,
+            'label' => $status !== null
+                ? ($labels[$status] ?? 'code '.$status)
+                : 'unknown response',
+            'raw' => $json,
+        ];
     }
 
     /**
