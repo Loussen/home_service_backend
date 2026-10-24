@@ -64,7 +64,7 @@ class LsimSmsCommand extends Command
                         $this->error($m);
                     }
                 }
-                $this->comment('Tipik səbəb: LSIM_SENDER LSIM panelində təsdiqlənmiş addan fərqlidir (errorCode -103).');
+                $this->comment('LSIM_SENDER dəqiq panel adı olmalıdır. raw= JSON-u LSIM support-a göndər.');
 
                 return self::FAILURE;
             } catch (Throwable $e) {

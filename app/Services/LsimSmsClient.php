@@ -68,27 +68,36 @@ class LsimSmsClient
         }
 
         // Doc: HTTP always 200; negative errorCode = failure. Success ≈ 0 / null + obj.
+        // Newer LSIM bodies may use "message" instead of errorMessage.
         $rawCode = $json['errorCode'] ?? 0;
         $errorCode = $rawCode === null || $rawCode === '' ? 0 : (int) $rawCode;
         $transId = isset($json['obj']) && $json['obj'] !== null && $json['obj'] !== ''
             ? (int) $json['obj']
             : null;
-        $ok = $errorCode === 0 && empty($json['errorMessage']) && $transId !== null;
+        $errText = trim((string) ($json['errorMessage'] ?? ''));
+        $altMsg = trim((string) ($json['message'] ?? ''));
+        $hasErrorText = $errText !== ''
+            || ($altMsg !== '' && ! preg_match('/success/i', $altMsg));
+        $ok = $errorCode === 0 && ! $hasErrorText && $transId !== null;
 
         if (! $ok) {
             Log::warning('LSIM SMS failed', [
                 'msisdn' => $msisdn,
                 'sender' => $sender,
                 'error_code' => $errorCode,
-                'error_message' => $json['errorMessage'] ?? null,
+                'error_message' => $json['errorMessage'] ?? $json['message'] ?? null,
                 'raw' => $json,
             ]);
 
-            $msg = $this->userMessage($errorCode, $json['errorMessage'] ?? null);
-            // Artisan / logs: include LSIM errorCode (e.g. -103 invalid sender).
-            if ($errorCode !== 0) {
-                $msg .= " [LSIM errorCode={$errorCode}]";
+            $providerMsg = $json['errorMessage'] ?? $json['message'] ?? null;
+            if (is_string($providerMsg)) {
+                $providerMsg = trim($providerMsg);
+            } else {
+                $providerMsg = null;
             }
+
+            $msg = $this->userMessage($errorCode, $providerMsg);
+            $msg .= ' | raw='.json_encode($json, JSON_UNESCAPED_UNICODE);
 
             throw ValidationException::withMessages([
                 'phone' => [$msg],
