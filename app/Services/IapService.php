@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\TransactionRepository;
 use App\Repositories\UserRepository;
+use App\Support\SafePath;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -407,7 +408,7 @@ class IapService
     private function applePrivateKeyPem(): string
     {
         $raw = (string) config('homeservice.apple_iap_private_key');
-        if ($raw !== '' && is_file($raw)) {
+        if ($raw !== '' && SafePath::isReadableFile($raw)) {
             $raw = (string) file_get_contents($raw);
         }
         $raw = str_replace('\\n', "\n", $raw);
@@ -584,7 +585,7 @@ class IapService
     private function googleCredentials(): ?array
     {
         $path = (string) config('homeservice.google_play_credentials', '');
-        if ($path === '' || ! is_file($path)) {
+        if ($path === '' || ! SafePath::isReadableFile($path)) {
             return null;
         }
         $json = json_decode((string) file_get_contents($path), true);

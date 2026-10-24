@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\SafePath;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -174,7 +175,7 @@ class FcmClient
     private function credentials(): array
     {
         $path = (string) config('homeservice.fcm.credentials', '');
-        if ($path !== '' && is_file($path)) {
+        if ($path !== '' && SafePath::isReadableFile($path)) {
             $json = json_decode((string) file_get_contents($path), true);
 
             return is_array($json) ? $json : [];
