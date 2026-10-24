@@ -11,7 +11,8 @@ class GooglePlacesService
 
     private const DEFAULT_LNG = 49.8671;
 
-    private const DEFAULT_RADIUS_M = 250000.0;
+    /** Places API (New) locationBias circle max is 50_000 m. */
+    private const DEFAULT_RADIUS_M = 50000.0;
 
     public function isConfigured(): bool
     {
@@ -49,7 +50,7 @@ class GooglePlacesService
         if (! $response->successful()) {
             Log::warning('Places autocomplete (New) failed', [
                 'status' => $response->status(),
-                'body' => mb_substr($response->body(), 0, 400),
+                'body' => mb_substr($response->body(), 0, 800),
             ]);
 
             return [];
