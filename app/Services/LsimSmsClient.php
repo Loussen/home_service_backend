@@ -144,12 +144,28 @@ class LsimSmsClient
             ]);
 
         $json = $response->json();
-        // API may return a bare integer status, or a wrapper object.
+        // Legacy: bare int / obj / errorCode. Newer LSIM: { message, delivery_status }.
         $status = null;
+        $deliveryStatus = null;
         if (is_int($json) || (is_string($json) && is_numeric($json))) {
             $status = (int) $json;
         } elseif (is_array($json)) {
-            if (isset($json['obj']) && is_numeric($json['obj'])) {
+            if (isset($json['delivery_status']) && is_string($json['delivery_status'])) {
+                $deliveryStatus = strtoupper(trim($json['delivery_status']));
+                $status = match ($deliveryStatus) {
+                    'IN_QUEUE', 'QUEUE', 'PENDING' => 100,
+                    'DELIVERED', 'DELIVRD' => 101,
+                    'UNDELIVERED', 'UNDELIV', 'FAILED' => 102,
+                    'EXPIRED' => 103,
+                    'REJECTED', 'REJECTD' => 104,
+                    'CANCELLED', 'DELETED' => 105,
+                    'ERROR' => 106,
+                    'UNKNOWN' => 107,
+                    'SENT' => 108,
+                    'BLACKLIST', 'BLACK_LIST' => 109,
+                    default => null,
+                };
+            } elseif (isset($json['obj']) && is_numeric($json['obj'])) {
                 $status = (int) $json['obj'];
             } elseif (isset($json['errorCode']) && is_numeric($json['errorCode'])) {
                 $status = (int) $json['errorCode'];
@@ -165,7 +181,7 @@ class LsimSmsClient
             105 => 'Cancelled',
             106 => 'Error',
             107 => 'Unknown (contact LSIM)',
-            108 => 'Sent',
+            108 => 'Sent (to operator, not confirmed on handset)',
             109 => 'Black list',
             -105 => 'Number in black list',
             -106 => 'Invalid transaction id',
@@ -173,12 +189,16 @@ class LsimSmsClient
             -110 => 'Reporting limit exceed',
         ];
 
+        $label = $deliveryStatus !== null
+            ? ($labels[$status] ?? $deliveryStatus)
+            : ($status !== null ? ($labels[$status] ?? 'code '.$status) : 'unknown response');
+
         return [
-            'ok' => $status !== null && $status >= 100 && $status <= 109,
+            'ok' => ($status !== null && $status >= 100 && $status <= 109)
+                || in_array($deliveryStatus, ['SENT', 'DELIVERED', 'IN_QUEUE'], true),
             'status' => $status,
-            'label' => $status !== null
-                ? ($labels[$status] ?? 'code '.$status)
-                : 'unknown response',
+            'delivery_status' => $deliveryStatus,
+            'label' => $label,
             'raw' => $json,
         ];
     }

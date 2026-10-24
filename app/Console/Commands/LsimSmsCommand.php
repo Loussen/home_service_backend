@@ -66,12 +66,19 @@ class LsimSmsCommand extends Command
                 return self::FAILURE;
             }
             $result = $lsim->report($transId);
-            $this->info('status='.($result['status'] ?? '?').' → '.$result['label']);
+            $ds = $result['delivery_status'] ?? null;
+            $this->info(
+                'status='.($result['status'] ?? '?')
+                .($ds ? " delivery_status={$ds}" : '')
+                .' → '.$result['label']
+            );
             $this->line(json_encode($result['raw'], JSON_UNESCAPED_UNICODE));
 
-            return $result['ok'] || in_array($result['status'], [100, 101, 108], true)
-                ? self::SUCCESS
-                : self::FAILURE;
+            $ok = $result['ok']
+                || in_array($result['status'], [100, 101, 108], true)
+                || in_array($ds, ['SENT', 'DELIVERED', 'IN_QUEUE'], true);
+
+            return $ok ? self::SUCCESS : self::FAILURE;
         }
 
         $this->error('Unknown action. Use: balance | send | report');
