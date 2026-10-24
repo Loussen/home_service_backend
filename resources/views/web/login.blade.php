@@ -23,17 +23,18 @@
             <h2 data-i18n="web.auth.login">Daxil ol</h2>
             <p class="muted" data-i18n="web.login.otp_hint">Telefonla OTP — yeni nömrə avtomatik qeydiyyat olunur, mövcud hesab isə daxil olur.</p>
             <div class="stack mt">
-                <input id="phone" type="tel" placeholder="+994501111111" autocomplete="tel">
+                <input id="phone" type="tel" placeholder="+994 XX XXX XX XX" autocomplete="tel">
                 <button type="button" id="send-otp" class="btn btn-primary" data-i18n="web.login.send_otp">Kod göndər</button>
                 <input id="otp" type="text" placeholder="OTP" inputmode="numeric" autocomplete="one-time-code" data-i18n-placeholder="web.login.otp_placeholder">
                 <button type="button" id="verify-otp" class="btn btn-secondary" data-i18n="web.login.continue">Davam et</button>
             </div>
-            <p class="muted mt" data-i18n="web.login.demo_code">Demo kod: 123456</p>
         </section>
     </div>
 
+    @unless(app()->environment('production'))
     <section class="card card-log mt">
         <h2 data-i18n="web.debug.log">{{ wt('web.debug.log', 'Log') }}</h2>
         <pre id="log"></pre>
     </section>
+    @endunless
 @endsection

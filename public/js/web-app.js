@@ -2835,7 +2835,7 @@
             if (!btn || btn.dataset.loading === '1') return;
             var phone = el('phone').value.trim();
             if (!phone) {
-                toast('warning', t('login.phone_invalid', 'Tam nömrə daxil edin (məs. +994501111111)'));
+                toast('warning', t('login.phone_invalid', 'Tam nömrə daxil edin (məs. +99450XXXXXXX)'));
                 el('phone').focus();
                 return;
             }
