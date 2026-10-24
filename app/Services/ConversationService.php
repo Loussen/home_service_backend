@@ -23,7 +23,7 @@ class ConversationService
         private readonly PushNotificationService $push,
     ) {}
 
-    public function listFor(User $user): LengthAwarePaginator
+    public function listFor(User $user, bool $archived = false): LengthAwarePaginator
     {
         $blockedByMe = $this->moderation->blockedIdsFor($user)
             ->map(fn ($id) => (int) $id)
@@ -32,8 +32,17 @@ class ConversationService
             ->map(fn ($id) => (int) $id)
             ->all();
 
+        $archiveColumn = $user->isProvider()
+            ? 'provider_archived_at'
+            : 'client_archived_at';
+
         $page = Conversation::query()
             ->forActiveRole($user)
+            ->when(
+                $archived,
+                fn ($q) => $q->whereNotNull($archiveColumn),
+                fn ($q) => $q->whereNull($archiveColumn),
+            )
             ->with([
                 'client:id,name,phone,avatar_url',
                 'provider:id,name,phone,avatar_url',
@@ -58,6 +67,48 @@ class ConversationService
         });
 
         return $page;
+    }
+
+    public function setArchived(User $user, int $id, bool $archived): Conversation
+    {
+        $conversation = Conversation::query()
+            ->where(function ($q) use ($user) {
+                $q->where('client_id', $user->id)
+                    ->orWhere('provider_id', $user->id);
+            })
+            ->find($id);
+        abort_if(! $conversation, 404, 'Conversation not found');
+
+        $column = $conversation->archiveColumnFor($user);
+        $conversation->update([
+            $column => $archived ? now() : null,
+        ]);
+
+        $conversation = Conversation::query()
+            ->with([
+                'client:id,name,phone,avatar_url',
+                'provider:id,name,phone,avatar_url',
+                'providerProfile.category',
+                'providerProfile.categories',
+                'serviceRequest.category',
+                'lastMessage.offer',
+            ])
+            ->withCount([
+                'messages as unread_count' => function ($q) use ($user) {
+                    $q->whereNull('read_at')->where('sender_id', '!=', $user->id);
+                },
+            ])
+            ->findOrFail($conversation->id);
+
+        $blockedByMe = $this->moderation->blockedIdsFor($user)
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $hiddenIds = $this->moderation->hiddenUserIdsFor($user)
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $this->attachBlockFlags($conversation, $user, $blockedByMe, $hiddenIds);
+
+        return $conversation;
     }
 
     public function unreadCountFor(User $user): int
@@ -132,6 +183,7 @@ class ConversationService
         $conversation->setAttribute('blocked_by_me', $blockedByMeFlag);
         $conversation->setAttribute('can_message', $canMessage);
         $conversation->setAttribute('messaging_lock', $lock);
+        $conversation->setAttribute('is_archived', $conversation->isArchivedFor($user));
     }
 
     /**
@@ -528,7 +580,12 @@ class ConversationService
             'offer_id' => $offerId,
         ]);
 
-        $conversation->update(['last_message_at' => now()]);
+        // New activity brings the thread back to "Current" for both sides.
+        $conversation->update([
+            'last_message_at' => now(),
+            'client_archived_at' => null,
+            'provider_archived_at' => null,
+        ]);
 
         if ($notify) {
             $this->push->notifyNewMessage($conversation, $sender, $body);

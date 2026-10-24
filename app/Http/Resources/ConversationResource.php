@@ -111,6 +111,7 @@ class ConversationResource extends JsonResource
             ),
             'is_blocked' => $isBlocked,
             'blocked_by_me' => $blockedByMe,
+            'is_archived' => (bool) ($this->is_archived ?? ($me ? $this->isArchivedFor($me) : false)),
             'can_message' => $canMessage,
             'messaging_lock' => $messagingLock,
             'can_send_offer' => $canSendOffer,

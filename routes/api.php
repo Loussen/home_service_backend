@@ -107,6 +107,7 @@ Route::prefix('v1')->group(function () {
         Route::get('conversations', [ConversationController::class, 'index']);
         Route::get('conversations/unread-count', [ConversationController::class, 'unreadCount']);
         Route::get('conversations/{id}', [ConversationController::class, 'show']);
+        Route::post('conversations/{id}/archive', [ConversationController::class, 'setArchived']);
         Route::post('conversations/{id}/messages', [ConversationController::class, 'storeMessage']);
         Route::post('conversations/{id}/offers', [ConversationController::class, 'storeOffer']);
         Route::post('offers/{id}/accept', [ConversationController::class, 'acceptOffer']);

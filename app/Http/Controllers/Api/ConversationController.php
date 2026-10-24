@@ -22,11 +22,27 @@ class ConversationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $page = $this->conversations->listFor($request->user());
+        $archived = $request->boolean('archived');
+        $page = $this->conversations->listFor($request->user(), $archived);
 
         return $this->success(
             ConversationResource::collection($page->items())->resolve(),
             'Conversations'
+        );
+    }
+
+    public function setArchived(Request $request, int $id): JsonResponse
+    {
+        $archived = $request->boolean('archived', true);
+        $conversation = $this->conversations->setArchived(
+            $request->user(),
+            $id,
+            $archived,
+        );
+
+        return $this->success(
+            (new ConversationResource($conversation))->resolve(),
+            $archived ? 'Archived' : 'Unarchived'
         );
     }
 

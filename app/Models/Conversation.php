@@ -17,13 +17,35 @@ class Conversation extends Model
         'provider_profile_id',
         'service_request_id',
         'last_message_at',
+        'client_archived_at',
+        'provider_archived_at',
     ];
 
     protected function casts(): array
     {
         return [
             'last_message_at' => 'datetime',
+            'client_archived_at' => 'datetime',
+            'provider_archived_at' => 'datetime',
         ];
+    }
+
+    public function archiveColumnFor(User $user): string
+    {
+        if ((int) $this->client_id === (int) $user->id) {
+            return 'client_archived_at';
+        }
+
+        abort_unless((int) $this->provider_id === (int) $user->id, 403, 'Not a participant');
+
+        return 'provider_archived_at';
+    }
+
+    public function isArchivedFor(User $user): bool
+    {
+        $column = $this->archiveColumnFor($user);
+
+        return $this->{$column} !== null;
     }
 
     /** Dual-role inbox: only threads for the user's active session side. */
