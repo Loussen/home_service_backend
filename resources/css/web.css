@@ -1761,6 +1761,18 @@
         @apply mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand;
     }
 
+    .phone-field {
+        @apply flex items-center gap-2 rounded-2xl border border-line bg-white px-3 py-2;
+    }
+
+    .phone-prefix {
+        @apply shrink-0 select-none text-base font-bold text-ink;
+    }
+
+    .phone-field input {
+        @apply m-0 w-full min-w-0 border-0 bg-transparent p-0 text-base font-medium text-ink shadow-none outline-none ring-0;
+    }
+
     /* —— Dashboard —— */
     .dash-hero {
         @apply mb-8 grid items-center gap-8 lg:grid-cols-[1.15fr_0.85fr];

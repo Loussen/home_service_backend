@@ -2829,14 +2829,83 @@
         });
     }
 
+    function phoneRules() {
+        var p = (bootstrapCache && bootstrapCache.config && bootstrapCache.config.phone) || {};
+        var ops = Array.isArray(p.operator_codes) && p.operator_codes.length
+            ? p.operator_codes.map(function (c) { return String(c).replace(/\D+/g, ''); }).filter(Boolean)
+            : ['50', '55', '70', '77', '99', '10', '51'];
+        var prefix = String(p.prefix || '+994').replace(/\s+/g, '');
+        if (prefix.charAt(0) !== '+') prefix = '+' + prefix;
+        var sub = parseInt(p.subscriber_digits, 10) || 7;
+        var opMax = ops.reduce(function (m, c) { return Math.max(m, c.length); }, 2);
+        return { prefix: prefix, ops: ops, sub: sub, nationalMax: opMax + sub };
+    }
+
+    function formatNationalPhone(digits, rules) {
+        var d = String(digits || '').replace(/\D+/g, '');
+        if (d.length > rules.nationalMax) d = d.slice(0, rules.nationalMax);
+        var sorted = rules.ops.slice().sort(function (a, b) { return b.length - a.length; });
+        for (var i = 0; i < sorted.length; i++) {
+            var op = sorted[i];
+            if (d.indexOf(op) === 0) {
+                return d.length > op.length ? op + ' ' + d.slice(op.length) : op;
+            }
+        }
+        if (d.length > 2) return d.slice(0, 2) + ' ' + d.slice(2);
+        return d;
+    }
+
+    function phoneE164FromInput() {
+        var rules = phoneRules();
+        var national = (el('phone') && el('phone').value || '').replace(/\D+/g, '');
+        return rules.prefix + national;
+    }
+
+    function isValidPhoneE164(e164) {
+        var rules = phoneRules();
+        if (e164.indexOf(rules.prefix) !== 0) return false;
+        var rest = e164.slice(rules.prefix.length);
+        if (!/^\d+$/.test(rest)) return false;
+        var sorted = rules.ops.slice().sort(function (a, b) { return b.length - a.length; });
+        for (var i = 0; i < sorted.length; i++) {
+            var op = sorted[i];
+            if (rest.indexOf(op) === 0 && rest.length === op.length + rules.sub) return true;
+        }
+        return false;
+    }
+
     function bindLoginPage() {
+        var phoneInput = el('phone');
+        var prefixEl = el('phone-prefix');
+
+        function syncPhoneUi() {
+            var rules = phoneRules();
+            if (prefixEl) prefixEl.textContent = rules.prefix;
+            if (phoneInput) {
+                phoneInput.placeholder = (rules.ops[0] || '50') + ' ' + Array(rules.sub + 1).join('0').slice(0, rules.sub);
+            }
+        }
+        window.__syncLoginPhoneUi = syncPhoneUi;
+        syncPhoneUi();
+
+        if (phoneInput) {
+            phoneInput.addEventListener('input', function () {
+                var rules = phoneRules();
+                var formatted = formatNationalPhone(phoneInput.value, rules);
+                if (phoneInput.value !== formatted) {
+                    phoneInput.value = formatted;
+                }
+            });
+        }
+
         el('send-otp').addEventListener('click', function () {
             var btn = el('send-otp');
             if (!btn || btn.dataset.loading === '1') return;
-            var phone = el('phone').value.trim();
-            if (!phone) {
+            syncPhoneUi();
+            var phone = phoneE164FromInput();
+            if (!isValidPhoneE164(phone)) {
                 toast('warning', t('login.phone_invalid', 'Tam nömrə daxil edin (məs. +99450XXXXXXX)'));
-                el('phone').focus();
+                if (phoneInput) phoneInput.focus();
                 return;
             }
             var idleLabel = t('web.login.send_otp', 'Kod göndər');
@@ -2875,10 +2944,11 @@
         });
 
         el('verify-otp').addEventListener('click', function () {
+            var phone = phoneE164FromInput();
             api('/auth/otp/verify', {
                 method: 'POST',
                 body: JSON.stringify({
-                    phone: el('phone').value.trim(),
+                    phone: phone,
                     code: el('otp').value.trim(),
                 }),
             }).then(function (data) {
@@ -6127,6 +6197,9 @@
             }
             if (page === 'requests' && typeof window.__reloadRequests === 'function') {
                 window.__reloadRequests();
+            }
+            if (page === 'login' && typeof window.__syncLoginPhoneUi === 'function') {
+                window.__syncLoginPhoneUi();
             }
         }).catch(function () {
             revealI18n();

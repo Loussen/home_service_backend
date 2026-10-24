@@ -65,6 +65,9 @@ class RuntimeSettings
             'otp_send_window_minutes' => 'homeservice.otp_send_window_minutes',
             'otp_resend_seconds' => 'homeservice.otp_resend_seconds',
             'otp_allow_debug_code' => 'homeservice.otp_allow_debug_code',
+            'phone_prefix' => 'homeservice.phone_prefix',
+            'phone_operator_codes' => 'homeservice.phone_operator_codes',
+            'phone_subscriber_digits' => 'homeservice.phone_subscriber_digits',
         ];
     }
 
@@ -103,6 +106,18 @@ class RuntimeSettings
             $supported = array_filter(explode(',', (string) $supported));
         }
         $state['locales_supported'] = array_values($supported);
+
+        $ops = $state['phone_operator_codes'] ?? [];
+        if (is_string($ops)) {
+            $ops = preg_split('/[\s,;]+/', $ops) ?: [];
+        }
+        if (! is_array($ops)) {
+            $ops = [];
+        }
+        $state['phone_operator_codes'] = array_values(array_filter(array_map(
+            static fn ($c) => preg_replace('/\D+/', '', (string) $c) ?: null,
+            $ops,
+        )));
 
         return $state;
     }
@@ -198,6 +213,30 @@ class RuntimeSettings
             $ttlDefault = $state['request_ttl_options_hours'][0];
         }
         $state['request_ttl_default_hours'] = $ttlDefault;
+
+        $prefix = trim((string) ($state['phone_prefix'] ?? '+994'));
+        $prefix = preg_replace('/\s+/', '', $prefix) ?: '+994';
+        if (! str_starts_with($prefix, '+')) {
+            $prefix = '+'.$prefix;
+        }
+        $state['phone_prefix'] = $prefix;
+
+        $ops = $state['phone_operator_codes'] ?? [];
+        if (is_string($ops)) {
+            $ops = preg_split('/[\s,;]+/', $ops) ?: [];
+        }
+        if (! is_array($ops)) {
+            $ops = [];
+        }
+        $state['phone_operator_codes'] = array_values(array_unique(array_filter(array_map(
+            static fn ($c) => preg_replace('/\D+/', '', (string) $c) ?: null,
+            $ops,
+        ))));
+        if ($state['phone_operator_codes'] === []) {
+            $state['phone_operator_codes'] = ['50', '55', '70', '77', '99', '10', '51'];
+        }
+        $subDigits = (int) ($state['phone_subscriber_digits'] ?? 7);
+        $state['phone_subscriber_digits'] = $subDigits >= 1 ? $subDigits : 7;
 
         $previous = self::stored();
         $version = (int) ($previous['locales_version'] ?? config('app_locales.version', 1));

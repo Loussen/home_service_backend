@@ -26,6 +26,13 @@ return [
     'otp_send_max' => (int) env('OTP_SEND_MAX', 3),
     'otp_send_window_minutes' => (int) env('OTP_SEND_WINDOW_MINUTES', 5),
     'otp_resend_seconds' => (int) env('OTP_RESEND_SECONDS', 30),
+    /** Login phone mask: +994 | 50/55/… | 7 digits */
+    'phone_prefix' => env('PHONE_PREFIX', '+994'),
+    'phone_operator_codes' => array_values(array_filter(array_map(
+        static fn (string $c) => preg_replace('/\D+/', '', $c) ?: null,
+        explode(',', (string) env('PHONE_OPERATOR_CODES', '50,55,70,77,99,10,51'))
+    ))),
+    'phone_subscriber_digits' => (int) env('PHONE_SUBSCRIBER_DIGITS', 7),
     // Local: 123456. Production always random. Set false to test random codes locally.
     'otp_allow_debug_code' => filter_var(env('OTP_ALLOW_DEBUG_CODE', true), FILTER_VALIDATE_BOOL),
     /**

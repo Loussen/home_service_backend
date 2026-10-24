@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\StaticPage;
 use App\Repositories\AppStringRepository;
+use App\Support\PhoneNumber;
 use App\Support\PublicMediaUrl;
 
 class BootstrapService
@@ -92,6 +93,7 @@ class BootstrapService
                         'ru' => PublicMediaUrl::make($hs['voice_accepted_ru'] ?? null),
                     ],
                 ],
+                'phone' => PhoneNumber::bootstrapConfig(),
             ],
             'flags' => [
                 'voice_search' => (bool) ($hs['feature_voice_search'] ?? true),

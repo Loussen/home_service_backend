@@ -23,7 +23,10 @@
             <h2 data-i18n="web.auth.login">Daxil ol</h2>
             <p class="muted" data-i18n="web.login.otp_hint">Telefonla OTP — yeni nömrə avtomatik qeydiyyat olunur, mövcud hesab isə daxil olur.</p>
             <div class="stack mt">
-                <input id="phone" type="tel" placeholder="+994 XX XXX XX XX" autocomplete="tel">
+                <div class="phone-field">
+                    <span id="phone-prefix" class="phone-prefix" aria-hidden="true">+994</span>
+                    <input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="50 1234567" aria-label="Telefon">
+                </div>
                 <button type="button" id="send-otp" class="btn btn-primary" data-i18n="web.login.send_otp">Kod göndər</button>
                 <input id="otp" type="text" placeholder="OTP" inputmode="numeric" autocomplete="one-time-code" data-i18n-placeholder="web.login.otp_placeholder">
                 <button type="button" id="verify-otp" class="btn btn-secondary" data-i18n="web.login.continue">Davam et</button>

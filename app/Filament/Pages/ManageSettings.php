@@ -9,6 +9,7 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -393,6 +394,28 @@ class ManageSettings extends Page
                     Toggle::make('otp_allow_debug_code')
                         ->label('Lokal debug kodu (123456)')
                         ->helperText('Production-da sönük saxlayın.'),
+                ]),
+            Section::make('Telefon maskası')
+                ->description('App/web login: prefix sabitdir, operator kodları + abunəçi rəqəm sayı. Məs: +994 50 6877836')
+                ->columns(2)
+                ->schema([
+                    TextInput::make('phone_prefix')
+                        ->label('Ölkə prefix')
+                        ->required()
+                        ->helperText('İstifadəçi silə bilməz. Məs: +994')
+                        ->maxLength(8),
+                    TextInput::make('phone_subscriber_digits')
+                        ->label('Abunəçi rəqəm sayı')
+                        ->integer()
+                        ->minValue(4)
+                        ->maxValue(12)
+                        ->required()
+                        ->helperText('Operator kodundan sonra. AZ: 7'),
+                    TagsInput::make('phone_operator_codes')
+                        ->label('Operator kodları')
+                        ->helperText('Enter ilə əlavə et: 50, 55, 70, 77, 99, 10, 51…')
+                        ->columnSpanFull()
+                        ->reorderable(),
                 ]),
         ]);
     }
