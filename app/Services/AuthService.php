@@ -21,6 +21,7 @@ class AuthService
         private readonly OtpRepository $otpRepository,
         private readonly UserRepository $userRepository,
         private readonly WalletService $walletService,
+        private readonly LsimSmsClient $lsimSms,
     ) {}
 
     public function sendOtp(string $phone): array
@@ -70,16 +71,20 @@ class AuthService
             ? '123456'
             : (string) random_int(100000, 999999);
 
-        $this->otpRepository->create(
-            $phone,
-            $code,
-            (int) config('homeservice.otp_ttl_minutes', 5)
-        );
-
         $skipSms = $isReviewPhone || $isFakeUser;
         $driver = (string) config('homeservice.otp_driver', 'log');
+        $needSms = ! $skipSms && $driver === 'sms';
 
-        if ($skipSms || $driver === 'log') {
+        // Send SMS before persisting OTP so a failed gateway does not leave a usable code.
+        if ($needSms) {
+            if (! $this->lsimSms->isConfigured()) {
+                Log::error('OTP_DRIVER=sms but LSIM credentials missing');
+                throw ValidationException::withMessages([
+                    'phone' => ['SMS xidməti hazır deyil. Bir az sonra yenidən cəhd edin.'],
+                ]);
+            }
+            $this->lsimSms->sendOtp($phone, $code);
+        } else {
             Log::info('OTP sent', [
                 'phone' => $phone,
                 'code' => $code,
@@ -88,7 +93,12 @@ class AuthService
                 'is_review' => $isReviewPhone,
             ]);
         }
-        // SMS driver will be called here when OTP_DRIVER=sms and !$skipSms.
+
+        $this->otpRepository->create(
+            $phone,
+            $code,
+            (int) config('homeservice.otp_ttl_minutes', 5)
+        );
 
         return [
             'phone' => $phone,

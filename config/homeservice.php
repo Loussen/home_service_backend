@@ -100,8 +100,20 @@ return [
     'voice_accepted_az' => env('VOICE_ACCEPTED_AZ', ''),
     'voice_accepted_en' => env('VOICE_ACCEPTED_EN', ''),
     'voice_accepted_ru' => env('VOICE_ACCEPTED_RU', ''),
-    // Local/dev: log OTP instead of SMS
+    // Local/dev: log OTP instead of SMS. Production: sms (LSIM QuickSMS).
     'otp_driver' => env('OTP_DRIVER', 'log'),
+    'lsim' => [
+        'login' => env('LSIM_LOGIN', ''),
+        'password' => env('LSIM_PASSWORD', ''),
+        'sender' => env('LSIM_SENDER', ''),
+        'base_url' => env('LSIM_BASE_URL', 'https://apps.lsim.az/quicksms'),
+        'timeout' => (int) env('LSIM_TIMEOUT', 20),
+        // {code} {ttl} — unicode SMS (Azerbaijani letters OK)
+        'otp_template' => env(
+            'LSIM_OTP_TEMPLATE',
+            'My Sancho kodunuz: {code}. {ttl} deqiqe etibarlidir.'
+        ),
+    ],
     // Process voice requests inline (no queue worker needed)
     'audio_sync' => filter_var(env('HOMESERVICE_AUDIO_SYNC', true), FILTER_VALIDATE_BOOL),
     'google_maps_api_key' => env('GOOGLE_MAPS_API_KEY', ''),
