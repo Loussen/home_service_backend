@@ -310,6 +310,15 @@ class AuthService
             'admin',
         );
 
+        try {
+            app(PushNotificationService::class)->notifyProviderApproved($user);
+        } catch (\Throwable $e) {
+            Log::warning('Provider approved push failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return $user;
     }
 
@@ -332,6 +341,15 @@ class AuthService
             ['admin_id' => $admin?->id, 'note' => $note],
             'admin',
         );
+
+        try {
+            app(PushNotificationService::class)->notifyProviderRejected($user, $note);
+        } catch (\Throwable $e) {
+            Log::warning('Provider rejected push failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $user;
     }

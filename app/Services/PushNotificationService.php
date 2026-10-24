@@ -147,6 +147,54 @@ class PushNotificationService
         return $sent;
     }
 
+    public function notifyProviderApproved(User $user): void
+    {
+        if (! config('homeservice.feature_push', true)) {
+            return;
+        }
+
+        $locale = $this->localeForUser($user);
+        $strings = app(\App\Repositories\AppStringRepository::class);
+        $name = trim((string) ($user->name ?: ''));
+        $greeting = $name !== '' ? $name : null;
+
+        $title = $strings->get('push.provider_approved.title', $locale);
+        $body = $greeting
+            ? str_replace(
+                '{name}',
+                $greeting,
+                $strings->get('push.provider_approved.body_named', $locale)
+            )
+            : $strings->get('push.provider_approved.body', $locale);
+
+        $this->sendToUser($user, $title, $body, [
+            'type' => 'provider_approved',
+            'audience_role' => 'provider',
+        ]);
+    }
+
+    public function notifyProviderRejected(User $user, ?string $note = null): void
+    {
+        if (! config('homeservice.feature_push', true)) {
+            return;
+        }
+
+        $locale = $this->localeForUser($user);
+        $strings = app(\App\Repositories\AppStringRepository::class);
+        $title = $strings->get('push.provider_rejected.title', $locale);
+        $body = $strings->get('push.provider_rejected.body', $locale);
+        $note = trim((string) $note);
+        if ($note !== '') {
+            $preview = mb_strlen($note) > 80 ? mb_substr($note, 0, 77).'…' : $note;
+            $body .= ' '.$preview;
+        }
+
+        $this->sendToUser($user, $title, $body, [
+            'type' => 'provider_rejected',
+            'audience_role' => 'provider',
+        ]);
+    }
+
     public function notifyConnect(Conversation $conversation, User $actor): void
     {
         if (! config('homeservice.feature_push', true)) {
@@ -571,6 +619,7 @@ class PushNotificationService
             'admin' => 'admin',
             'new_job', 'urgent_job', 'missed_opportunity' => 'request',
             'chat_connect', 'chat_message' => 'chat',
+            'provider_approved', 'provider_rejected' => 'system',
             'test' => 'test',
             default => 'system',
         };

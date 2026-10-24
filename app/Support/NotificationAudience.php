@@ -26,7 +26,8 @@ class NotificationAudience
     public static function resolve(string $type, ?User $recipient = null, array $data = []): string
     {
         return match ($type) {
-            'new_job', 'urgent_job', 'missed_opportunity' => self::PROVIDER,
+            'new_job', 'urgent_job', 'missed_opportunity',
+            'provider_approved', 'provider_rejected' => self::PROVIDER,
             'chat_message', 'chat_connect' => self::chatRole($recipient, $data),
             default => self::BOTH,
         };
