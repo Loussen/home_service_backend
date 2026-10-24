@@ -4,7 +4,7 @@ namespace App\Support;
 
 /**
  * Configurable AZ-style phone: {prefix}{operator}{subscriber}.
- * Example: +994 + 50 + 6877836
+ * Example: +994 + 50 + XXXXXXX
  */
 final class PhoneNumber
 {
@@ -75,7 +75,7 @@ final class PhoneNumber
         $prefixDigits = preg_replace('/\D+/', '', $prefix) ?: '994';
 
         if (preg_match('/^0\d+$/', $phone) === 1) {
-            // 0506877836 → +994506877836
+            // 050XXXXXXX → +99450XXXXXXX
             $phone = $prefix.substr($phone, 1);
         } elseif (preg_match('/^\+?'.$prefixDigits.'\d+$/', $phone) === 1) {
             $digits = preg_replace('/\D+/', '', $phone) ?: '';

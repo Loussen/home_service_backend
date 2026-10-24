@@ -2882,7 +2882,7 @@
             var rules = phoneRules();
             if (prefixEl) prefixEl.textContent = rules.prefix;
             if (phoneInput) {
-                phoneInput.placeholder = (rules.ops[0] || '50') + ' ' + Array(rules.sub + 1).join('0').slice(0, rules.sub);
+                phoneInput.placeholder = (rules.ops[0] || '50') + ' ' + Array(rules.sub + 1).join('X').slice(0, rules.sub);
             }
         }
         window.__syncLoginPhoneUi = syncPhoneUi;
@@ -2904,7 +2904,7 @@
             syncPhoneUi();
             var phone = phoneE164FromInput();
             if (!isValidPhoneE164(phone)) {
-                toast('warning', t('login.phone_invalid', 'Tam nömrə daxil edin (məs. +99450XXXXXXX)'));
+                toast('warning', t('login.phone_invalid', 'Düzgün AZ nömrəsi daxil edin (məs. 50 XXXXXXX)'));
                 if (phoneInput) phoneInput.focus();
                 return;
             }

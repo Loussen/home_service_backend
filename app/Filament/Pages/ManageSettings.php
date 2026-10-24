@@ -396,7 +396,7 @@ class ManageSettings extends Page
                         ->helperText('Production-da sönük saxlayın.'),
                 ]),
             Section::make('Telefon maskası')
-                ->description('App/web login: prefix sabitdir, operator kodları + abunəçi rəqəm sayı. Məs: +994 50 6877836')
+                ->description('App/web login: prefix sabitdir, operator kodları + abunəçi rəqəm sayı. Məs: +994 50 XXXXXXX')
                 ->columns(2)
                 ->schema([
                     TextInput::make('phone_prefix')

@@ -25,7 +25,7 @@
             <div class="stack mt">
                 <div class="phone-field">
                     <span id="phone-prefix" class="phone-prefix" aria-hidden="true">+994</span>
-                    <input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="50 1234567" aria-label="Telefon">
+                    <input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="50 XXXXXXX" aria-label="Telefon">
                 </div>
                 <button type="button" id="send-otp" class="btn btn-primary" data-i18n="web.login.send_otp">Kod göndər</button>
                 <input id="otp" type="text" placeholder="OTP" inputmode="numeric" autocomplete="one-time-code" data-i18n-placeholder="web.login.otp_placeholder">
