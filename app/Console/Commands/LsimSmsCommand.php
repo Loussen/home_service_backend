@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Services\LsimSmsClient;
 use Illuminate\Console\Command;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class LsimSmsCommand extends Command
 {
@@ -50,8 +52,26 @@ class LsimSmsCommand extends Command
             $unicode = (bool) $this->option('unicode')
                 || (bool) preg_match('/[^\x00-\x7F]/', $text);
             $msisdn = $lsim->normalizeMsisdn($phone);
+            $this->line('login='.config('homeservice.lsim.login'));
+            $this->line('sender='.config('homeservice.lsim.sender'));
             $this->line("msisdn={$msisdn} unicode=".($unicode ? 'true' : 'false'));
-            $result = $lsim->send($phone, $text, $unicode);
+            try {
+                $result = $lsim->send($phone, $text, $unicode);
+            } catch (ValidationException $e) {
+                $this->error($e->getMessage());
+                foreach ($e->errors() as $msgs) {
+                    foreach ($msgs as $m) {
+                        $this->error($m);
+                    }
+                }
+                $this->comment('Tipik səbəb: LSIM_SENDER LSIM panelində təsdiqlənmiş addan fərqlidir (errorCode -103).');
+
+                return self::FAILURE;
+            } catch (Throwable $e) {
+                $this->error($e->getMessage());
+
+                return self::FAILURE;
+            }
             $this->info('Accepted by LSIM. transaction_id='.$result['transaction_id']);
             $this->comment('Check delivery: php artisan sms:lsim report --transid='.$result['transaction_id']);
 

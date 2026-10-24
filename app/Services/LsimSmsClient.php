@@ -78,12 +78,20 @@ class LsimSmsClient
         if (! $ok) {
             Log::warning('LSIM SMS failed', [
                 'msisdn' => $msisdn,
+                'sender' => $sender,
                 'error_code' => $errorCode,
                 'error_message' => $json['errorMessage'] ?? null,
+                'raw' => $json,
             ]);
 
+            $msg = $this->userMessage($errorCode, $json['errorMessage'] ?? null);
+            // Artisan / logs: include LSIM errorCode (e.g. -103 invalid sender).
+            if ($errorCode !== 0) {
+                $msg .= " [LSIM errorCode={$errorCode}]";
+            }
+
             throw ValidationException::withMessages([
-                'phone' => [$this->userMessage($errorCode, $json['errorMessage'] ?? null)],
+                'phone' => [$msg],
             ]);
         }
 
@@ -262,8 +270,9 @@ class LsimSmsClient
     {
         return match ($errorCode) {
             -102, -105 => 'Telefon nömrəsi SMS üçün uyğun deyil.',
-            -103 => 'SMS göndəricisi konfiqurasiya edilməyib.',
+            -103 => 'LSIM_SENDER yanlışdır və ya hələ aktiv deyil (invalid sender name). LSIM-in verdiyi dəqiq adı yaz.',
             -104 => 'SMS balansı bitib. Bir az sonra yenidən cəhd edin.',
+            -100, -108 => 'LSIM key/login/password uyğunsuzdur.',
             -107 => 'SMS serveri icazə vermir (IP).',
             default => $providerMessage
                 ? 'SMS göndərilmədi: '.$providerMessage
