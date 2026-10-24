@@ -22,6 +22,10 @@ class UserForm
                     ->label('Telefon')
                     ->tel()
                     ->required(),
+                Toggle::make('is_real')
+                    ->label('Real nömrə')
+                    ->helperText('Söndükdə (fake/demo): SMS getmir, OTP həmişə 123456. Yanılıqda real SMS (OTP_DRIVER=sms).')
+                    ->default(false),
                 TextInput::make('name')
                     ->label('Ad'),
                 Placeholder::make('avatar_preview')

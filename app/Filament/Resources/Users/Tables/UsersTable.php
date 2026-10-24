@@ -42,6 +42,11 @@ class UsersTable
                 TextColumn::make('phone')
                     ->label('Telefon')
                     ->searchable(),
+                TextColumn::make('is_real')
+                    ->label('Nömrə')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => (bool) $state ? 'Real' : 'Fake')
+                    ->color(fn ($state): string => (bool) $state ? 'success' : 'gray'),
                 TextColumn::make('name')
                     ->label('Ad')
                     ->searchable(),
@@ -143,6 +148,11 @@ class UsersTable
                         'active' => 'Aktiv',
                         'blocked' => 'Bloklanıb',
                     ]),
+                TernaryFilter::make('is_real')
+                    ->label('Nömrə tipi')
+                    ->placeholder('Hamısı')
+                    ->trueLabel('Real')
+                    ->falseLabel('Fake / demo'),
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->recordActions([
                 Action::make('approve')

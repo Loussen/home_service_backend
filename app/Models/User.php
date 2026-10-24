@@ -14,6 +14,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'phone',
+        'is_real',
         'share_phone',
         'name',
         'avatar_url',
@@ -40,6 +41,7 @@ class User extends Authenticatable
     {
         return [
             'balance' => 'decimal:2',
+            'is_real' => 'boolean',
             'share_phone' => 'boolean',
             'has_client_role' => 'boolean',
             'has_provider_role' => 'boolean',
@@ -49,6 +51,12 @@ class User extends Authenticatable
             'provider_approved_at' => 'datetime',
             'provider_resubmitted_at' => 'datetime',
         ];
+    }
+
+    /** Demo / fake phone — OTP without SMS (fixed debug/review code). */
+    public function isFakePhone(): bool
+    {
+        return ! (bool) $this->is_real;
     }
 
     public function needsRole(): bool

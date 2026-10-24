@@ -81,6 +81,7 @@ class DemoDataSeeder extends Seeder
                 ['phone' => $data['phone']],
                 [
                     'name' => $data['name'],
+                    'is_real' => false,
                     'active_role' => 'client',
                     'has_client_role' => true,
                     'has_provider_role' => false,
@@ -105,6 +106,7 @@ class DemoDataSeeder extends Seeder
                 ['phone' => sprintf('+994511%06d', $i)],
                 [
                     'name' => $name,
+                    'is_real' => false,
                     'active_role' => 'client',
                     'has_client_role' => true,
                     'has_provider_role' => false,
@@ -157,6 +159,7 @@ class DemoDataSeeder extends Seeder
                 ['phone' => sprintf('+994512%06d', $i)],
                 [
                     'name' => $name,
+                    'is_real' => false,
                     'active_role' => 'provider',
                     'has_client_role' => false,
                     'has_provider_role' => true,
@@ -431,6 +434,7 @@ class DemoDataSeeder extends Seeder
                 ['phone' => $p['phone']],
                 [
                     'name' => $p['name'],
+                    'is_real' => false,
                     'active_role' => 'provider',
                     'has_client_role' => false,
                     'has_provider_role' => true,

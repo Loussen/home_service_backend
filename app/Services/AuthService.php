@@ -50,9 +50,23 @@ class AuthService
             ]);
         }
 
-        $debugOk = ! app()->environment('production')
-            && (bool) config('homeservice.otp_allow_debug_code', true);
-        $code = $debugOk
+        $normalized = preg_replace('/\s+/', '', $phone) ?: $phone;
+        $reviewPhones = array_map(
+            static fn (string $p) => preg_replace('/\s+/', '', $p) ?: $p,
+            config('homeservice.otp_review_phones', [])
+        );
+        $isReviewPhone = in_array($normalized, $reviewPhones, true);
+        $isFakeUser = $existing !== null && $existing->isFakePhone();
+
+        // Fixed 123456: local debug, App Review phones, or seeded/fake users (no SMS).
+        $useFixedCode = $isReviewPhone
+            || $isFakeUser
+            || (
+                ! app()->environment('production')
+                && (bool) config('homeservice.otp_allow_debug_code', true)
+            );
+
+        $code = $useFixedCode
             ? '123456'
             : (string) random_int(100000, 999999);
 
@@ -62,14 +76,25 @@ class AuthService
             (int) config('homeservice.otp_ttl_minutes', 5)
         );
 
-        if (config('homeservice.otp_driver') === 'log') {
-            Log::info('OTP sent', ['phone' => $phone, 'code' => $code]);
+        $skipSms = $isReviewPhone || $isFakeUser;
+        $driver = (string) config('homeservice.otp_driver', 'log');
+
+        if ($skipSms || $driver === 'log') {
+            Log::info('OTP sent', [
+                'phone' => $phone,
+                'code' => $code,
+                'via' => $skipSms ? 'fixed_no_sms' : 'log',
+                'is_fake' => $isFakeUser,
+                'is_review' => $isReviewPhone,
+            ]);
         }
+        // SMS driver will be called here when OTP_DRIVER=sms and !$skipSms.
 
         return [
             'phone' => $phone,
             'expires_in' => (int) config('homeservice.otp_ttl_minutes', 5) * 60,
-            'debug_code' => $debugOk ? $code : null,
+            // Never expose OTP to clients in production for real numbers.
+            'debug_code' => ($useFixedCode && ! app()->environment('production')) ? $code : null,
         ];
     }
 
@@ -112,6 +137,7 @@ class AuthService
             $isNew = true;
             $user = $this->userRepository->create([
                 'phone' => $phone,
+                'is_real' => true,
                 'phone_verified_at' => now(),
                 'active_role' => 'client',
                 'has_client_role' => false,
